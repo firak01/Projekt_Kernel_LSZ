@@ -1,0 +1,9 @@
+Option Public
+Option Declare
+Defint i 
+Defbool b
+Defdbl d
+Deflng l
+Defstr s
+Defvar v
+

@@ -1,0 +1,207 @@
+'%INCLUDE "C:\1fgl\workspace\Eclipse3FGL\LSZKernel\libkernel\ZAPI.Basic.Asset.lss" 
+'Use "ZAPI.Basic.."
+
+'Private Const  sLibZZZ = "ZZZBasicDocumentCollection"
+'Private Const sVerZZZ = "2005-06-22"
+
+
+' ---- This extracts the formulas etc for columns
+Class SortedColInfo
+	Public colType As String
+	Public formula As String
+	Public fieldName As String
+	
+	Sub new(viewCol As notesviewColumn)
+		If viewCol.formula = "" Then
+			Me.colType = "Field"
+			Me.fieldName = viewCol.itemName
+		Else
+			Me.colType = "Formula"
+			Me.formula = viewCol.formula
+		End If
+	End Sub
+End Class
+
+' ---- This holds details of each member
+Class SDocColMember
+	Public SortKey As String
+	Public Doc As notesdocument
+	
+	Sub new(doc As notesdocument, sortedColInfo() As sortedColInfo)
+		Dim formulaResult As Variant
+		Dim tmpKey As String
+		
+		Set Me.Doc = doc
+		
+          ' ---- Calculate the sortkey
+		tmpKey = ""
+		Forall x In sortedColInfo()
+			If x.colType = "Field" Then
+				tmpKey = tmpKey & doc.getItemvalue(x.fieldName)(0)
+			Else
+				formulaResult = Evaluate(x.formula,doc)				
+				If Isarray(formulaResult) Then
+					'FGL Erweiterung 09.07.2002: Damit wird es möglich die Spalten auszuwerten, die Symbole beinhalten
+					If Isnumeric(formulaResult(0)) And Len(formulaResult(0)) <= 3 Then
+						'Von Links mit 0 auffüllen
+						formulaResult(0) = Right("000" & formulaResult(0),3)
+					End If
+					If formulaResult(0) = "" Then formulaResult(0) = "___"
+					tmpKey = tmpKey & formulaResult(0)
+				Else
+					'FGL Erweiterung 09.07.2002
+					If Isnumeric(formulaResult) And Len(formulaResult) <= 3 Then
+						'Von Links mit 0 auffüllen
+						formulaResult = Right("000" & formulaResult,3)
+					End If
+					If formulaResult = "" Then formulaResult = "___"
+					tmpKey = tmpKey & formulaResult
+				End If
+				
+			End If
+			
+		End Forall
+		
+		'FGL: Für Testzwecke - Hier kann man sich den sortierungs-Key anzeigen lassen, extra als Inputbox, damit man ihn markieren und in einen Editor pasten kann
+		'Dim stemp As String
+		'stemp = Inputbox("TESTKey","TEST",tmpkey)
+		Me.SortKey = tmpKey
+		
+	End Sub
+	
+End Class
+
+Class SDocCollection
+	Public count As Integer
+	Private docCol As notesdocumentcollection
+	Private parentView As notesview
+	Private members() As SDocColMember
+	Private currentPosition As Integer
+	
+     ' ---- Sorts the members using the calculated key (stolen from Viviens sort code)
+	Private Sub SortMembers
+		Dim k As Integer, i As Integer, j As Integer, h As Integer, r As Integer
+		Dim NumItem As Integer
+		Dim tempMember As SDocColMember
+		
+		k = Me.count
+		
+          ' ---- Set up for Shell sort algorithm
+		h = 1
+		Do While h < k
+			h = (h*3)+1
+		Loop
+		h = (h-1)/3
+		If h > 3 Then
+			h = (h-1)/3
+		End If
+		
+          ' ---- Shell sort algorithm
+		Do While h > 0
+			For i = 1+h To k
+				Set tempMember = Me.members(i-1)
+				j = i-h
+				Do While j >0
+					If Me.members(j-1).SortKey > tempMember.SortKey Then
+						Set Me.members(j+h-1) = Me.members(j-1)
+						Set Me.members(j-1) = tempMember
+					Else
+						Exit Do
+					End If
+					j = j-h
+				Loop
+			Next i
+			h = (h-1)/3
+		Loop
+	End Sub
+	
+	Sub new(docCol As notesdocumentcollection, view As notesview)
+		Dim sortedCols() As SortedColInfo
+		Dim viewCol As notesviewcolumn
+		Dim doc As notesdocument
+		Dim i As Integer, k As Integer
+		
+		Set Me.docCol = docCol
+		Me.count = docCol.count
+		Set Me.ParentView = view
+		Redim Me.members(docCol.count - 1)
+		
+          ' ---- Determine which columns in the view are sorted 
+		i = 0
+		Forall col In view.columns
+			Set viewCol = col
+			If viewCol.issorted Then
+				Redim Preserve sortedCols(i)
+				Set sortedCols(i) = New SortedColInfo(viewCol)
+				i = i + 1
+			End If
+		End Forall
+		
+          ' ---- Step through all of the docments and calculate the sort key etc
+		k = 0
+		
+		Set doc = docCol.getfirstdocument
+		While Not (doc Is Nothing)
+			Set Me.Members(k) = New SDocColMember(doc,sortedCols)
+			k = k + 1
+			Set doc = docCol.getnextdocument(doc)
+		Wend
+		
+          ' ---- Sort the members of this object
+		Call SortMembers
+		
+	End Sub
+	
+     ' ---- Returns the first document in the sorted collection
+	Function GetFirstDocument As notesdocument
+		Me.currentPosition = 0
+		Set GetFirstDocument = Me.Members(Me.CurrentPosition).doc
+	End Function
+	
+     ' ---- Returns the next document in the sorted collection
+	Function GetNextDocument As notesdocument
+		If Me.CurrentPosition + 1 > Me.count - 1 Then
+			Set GetNextDocument = Nothing
+		Else
+			Me.currentPosition = Me.currentPosition + 1
+			Set GetNextDocument = Me.Members(Me.CurrentPosition).doc
+		End If
+	End Function
+	
+     ' ---- Return the Nth document
+	Function GetNthDocument(position As Integer) As notesdocument
+		If position > Me.count Or position < 1 Then
+			Set GetNthDocument = Nothing
+		Else
+			Me.currentPosition = position - 1
+			Set GetNthDocument = Me.Members(position - 1).doc
+		End If
+	End Function
+	
+	'--- FGL 2004-04-05: Return the Nth document by long
+	Function GetNthEntry(position As Long) As notesdocument
+		If position > Me.count Or position < 1 Then
+			Set GetNthEntry = Nothing
+		Else
+			Me.currentPosition = position - 1
+			Set GetNthEntry = Me.Members(position - 1).doc
+		End If
+	End Function
+	
+     ' ---- Returns the last document in the sorted collection
+	Function GetLastDocument As notesdocument
+		Me.currentPosition = Me.count - 1
+		Set GetLastDocument = Me.Members(Me.CurrentPosition).doc
+	End Function
+	
+     ' ---- Returns the previous document in the sorted collection
+	Function GetPreviousDocument As notesdocument
+		If Me.CurrentPosition = 0 Then
+			Set GetPreviousDocument = Nothing
+		Else
+			Me.currentPosition = Me.currentPosition - 1
+			Set GetPreviousDocument = Me.Members(Me.CurrentPosition).doc
+		End If
+	End Function
+	
+End Class

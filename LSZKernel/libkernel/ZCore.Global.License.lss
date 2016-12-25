@@ -1,0 +1,488 @@
+'muss rein, damit alle Funktionen global erreichbar sind. Als .lss Datei raus, wie auch alle Use-Einbindungen
+'%INCLUDE "C:\1fgl\workspace\Eclipse3FGL\LSZKernel\libkernel\ZAPI.Basic.Asset.lss"
+'Use "ZCore.Element.."
+'Use "ZCore.Global.Crypt.Simple.Include"
+
+'Private Const sLibZZZ="ZZZBasicInheritStructListHash
+Public Class KernelLicenseZZZ As ObjectZZZ
+	Private sLicense As String 's. Konstruktor
+	Private objSession As Notessession
+	
+	'### Properties
+	'### Die Version des ganzen Kernels
+	Public Property Get KernelVersionText As String
+		KernelVersionText = ""
+	End Property
+	Public Property Get KernelVersion As String
+		KernelVersion = "3.0"
+	End Property
+	Public Property Get KernelVersionDate As String
+		KernelVersionDate = "01.11.2005"
+	End Property
+	
+	'### Die Version DIESES Objekts und der Klassenname
+	Public Property Get ClassName As String
+		ClassName = Typename(Me)
+	End Property 
+	Public Property Get ClassNameParent As String
+		ClassNameParent = ObjectZZZ..ClassName
+	End Property
+	Public Property Get ClassLibrary As String
+		ClassLibrary = "ZBasic.Global.License"
+	End Property
+	Public Property Get VersionText As String
+		VersionText = ""
+	End Property
+	Public Property Get Version As String
+		Version = "1.0"
+	End Property
+	Public Property Get VersionDate As String
+		VersionDate = "01.11.2005"
+	End Property
+	
+	'### PROPERTIES
+	Public Property Get LicenseCurrent As String
+		LicenseCurrent = Me.sLicense
+	End Property
+	Public Property Set LicenseCurrent As String
+		Me.sLicense = LicenseCurrent
+	End Property
+	Public Property Get FormatStringDecrypted As String
+		FormatStringDecrypted = "YYYYMMDD"
+	End Property
+	
+	'Merke: Weil dieses Objekt nichts von ZZZBasicKernelThem erbt, muss ein Session-Property extra definiert werden
+	Public Property Get Session As NotesSession
+		If Me.objSession Is Nothing Then
+			Set session = New notessession
+		Else
+			Set Session = Me.objSession
+		End If
+	End Property
+	Public Property Set Session As notessession
+		Set Me.objSession = session
+	End Property
+	
+	'### Methoden
+	'+++ Konstruktor. Merke: Kein Kernel-Objekt !!! Darum muss die Session auch an die Private new_ Function übergeben werden
+	Sub new(session As notessession, sLicense As String, vFlagToSet As Variant, sFlagControl As String)
+		Call LICNew_(Me, session, sLicense, vFlagToSet, sFlagControl)
+	End Sub
+	Function KeyGet(sLicense As String, sFlagControl As String) As String
+		KeyGet = LICKeyGet_(Me, sLicense, sFlagControl)
+	End Function
+	Function KeySet(sLicense As String, sKey As String, sFlagControl As String) As Boolean
+		KeySet = LICKeySet_(Me, sLicense, sKey, sFlagControl)
+	End Function
+	Function KeyGenerate(ndate As NotesDateTime, sFlagControl As String) As String
+		KeyGenerate = LICKeyGenerate_(Me, nDate, sFlagControl)
+	End Function
+	Function KeyIsValid(sKey As String, sFlagControl As String) As Boolean
+		KeyIsValid = LICKeyIsValid_(Me, sKey, sFlagcontrol)
+	End Function
+	Function LicenseExistsProof(sLicense As String, sFlagControl As String) As Integer
+		LicenseExistsProof = LICLicenseExistsProof_(Me, sLicense, sFlagcontrol)
+	End Function
+	Function LicenseIsValid(sLicense As String, sFlagControl As String) As Boolean
+		LicenseIsValid = LICLicenseIsValid_(Me, sLicense, sFlagControl)
+	End Function
+End Class
+Sub Initialize
+	
+End Sub
+
+Private Function LICKeyGet_(objLicense As KernelLicenseZZZ, sLicenseIn As String, sFlagcontrol As String) As String
+	Dim sReturn As String
+	On Error Goto errobjNoCall
+	Call objLicense.MessageReset(iMSG_TYPE_ERROR,"")  'Damit sich in dieser Methode nicht Fehler aus einer anderen Methode auswirken
+	
+	'+++ Param Check
+	Dim sLicense As String
+	If Len(sLicenseIn) = 0 Then 
+		sLicense = objLicense.LicenseCurrent
+		If Len(sLicense) = 0 Then Error iERR_PARAM_MISSING, "License-String"
+	Else
+		sLicense = sLicenseIn
+	End If
+	
+	'###############
+	
+	sReturn = objLicense.session.GetEnvironmentString(sLicense, False)
+	
+	'###############
+EndTrue:
+	objLicense.Error.iCode = 0
+	LICKeyGet_= sReturn
+	Exit Function
+EndFalse:
+	objLicense.Error.iCode = 0
+	LICKeyGet_  = ""
+	Exit Function
+EndError:
+	LICKeyGet_  = ""
+	Exit Function
+	'Errorhandler für Objekte
+ErrObjNoCall:
+	Dim sScript, icode As Integer, tpcall As TypePAramZZZ
+	sScript = objLicense.ClassLibrary & "\" & Getthreadinfo(LSI_THREAD_PROC)
+	icode = Err 'Beim wiederholten Aufruf (d.h. zwei Zeilen hintereinanger ' Error iERR_NEXT, "das ist ein text" ' aufrufen) verliert Err zwei Stellen von rechts nach dem Aufruf der MEthode objLicense.MessageAppend(..) !!!! 
+	Call objLicense.MessageAppend("",sScript,Erl,Error$, Err, "")
+	Select Case icode
+	Case iMSG_NEXT, iERR_NEXT, iMSG_AGENT_NEXT, iERR_AGENT_NEXT: Resume Next
+	Case iMSG_TRUE, iERR_TRUE, iMSG_AGENT_TRUE, iERR_AGENT_TRUE: Resume EndTrue
+	Case iMSG_FALSE, iERR_FALSE, iMSG_AGENT_FALSE, iERR_AGENT_FALSE: Resume EndFalse
+	Case iERR_OBJECT_ERR, iERR_OBJECT_CUR, iERR_AGENT_CALL: Resume EndError 'Ziel: Nicht jeden Fehler ins Log stellen
+	Case Else: 
+		Call MSG2FileSendZZZ(Nothing, "", objLicense.Error.sString, 1, tpcall, "")
+		'ODER: Msgbox "An error happened, more in this file: " & Chr(13) & MSG2FileSendZZZ(Nothing, "", objLicense.Error.sString, tpcall, "")
+		If tpcall.iErr > 0 Then Msgbox tpcall.sErr   'Fehler im Errorhandling sofort ans Frontend/Serverlog ausgeben		
+		Resume EndError
+	End Select
+End Function
+
+Private Function LICNew_(objLicense As KernelLicenseZZZ, session As NotesSession, sLicenseIn As String, vFlagToSet As Variant, sFlagControl As String) As Boolean
+	On Error Goto errobj
+	If objLicense.Error.iCode > 0 Then Error iERR_OBJECT_PAR, objLicense.MessageAllReceive(Nothing, iMSG_TYPE_ERROR, "") 	'Falls in dem Constructor der Elternklasse ein Fehler aufgetreten ist
+	
+	Dim tpcall As TypeParamZZZ
+	Dim btemp, stemp, itemp', vtemp, ltemp, dtemp
+	
+	'+++ Interne Flags auf default setzen (default = true)
+	'hier: nix
+	'...
+	
+	'+++ weiter Flags setzen
+	If Not Isnull(vFlagToSet) Then
+		Dim saTemp() As String
+		Dim iCounter As Integer
+		itemp = ArrayStringFromVariantZZZ(objLicense.session, vFlagToSet, saTemp, tpcall,"")
+		If tpcall.ierr > 0 Then Error iERR_FUNCTION_CALL, tpcall.serr
+		For iCounter = 0 To itemp
+			btemp = objLicense.flagset(saTemp(iCounter), True)
+		Next			
+		If objLicense.flagget("init") = True Then Goto EndTrue
+	End If
+	
+	'##############
+	
+	Set objLicense.session = session
+	objLicense.LicenseCurrent = sLicenseIn
+	
+	'##############
+EndTrue:
+	objLicense.Error.iCode = 0
+	LICNew_ = True
+	Exit Function
+EndFalse:
+	objLicense.Error.iCode = 0
+	LICNew_  = False
+	Exit Function
+EndError:
+	LICNew_  = False
+	Exit Function
+Errobj:
+	Dim sScript, icode As Integer
+	sScript = objLicense.ClassLibrary & "\" & Getthreadinfo(LSI_THREAD_PROC)
+	icode = Err   'Beim wiederholten Aufruf (d.h. zwei Zeilen hintereinanger ' Error iERR_NEXT, "das ist ein text" ' aufrufen) verliert Err zwei Stellen von rechts nach dem Aufruf der MEthode objLicense.MessageAppend(..) !!!! 
+	Call objLicense.MessageAppend("",sScript,Erl,Error$, Err, "")
+	Select Case icode
+	Case iMSG_NEXT, iERR_NEXT, iMSG_AGENT_NEXT, iERR_AGENT_NEXT: Resume Next
+	Case iMSG_TRUE, iERR_TRUE, iMSG_AGENT_TRUE, iERR_AGENT_TRUE: Resume EndTrue
+	Case iMSG_FALSE, iERR_FALSE, iMSG_AGENT_FALSE, iERR_AGENT_FALSE: Resume EndFalse
+	Case iERR_OBJECT_ERR, iERR_OBJECT_CUR, iERR_AGENT_CALL: Resume EndError 'Ziel: Nicht jeden Fehler ins Log stellen
+	Case Else: 
+		Call MSG2FileSendZZZ(Nothing, "", objLicense.Error.sString, 1, tpcall, "")
+		'ODER: Msgbox "An error happened, more in this file: " & Chr(13) & MSG2FileSendZZZ(Nothing, "", objLicense.Error.sString, tpcall, "")
+		If tpcall.iErr > 0 Then Msgbox tpcall.sErr   'Fehler im Errorhandling sofort ans Frontend/Serverlog ausgeben		
+		Resume EndError
+	End Select
+End Function
+Private Function LICKeySet_(objLicense As KernelLicenseZZZ, sLicenseIn As String, sKey As String, sFlagcontrol As String) As Boolean
+	On Error Goto errobjNoCall
+	Call objLicense.MessageReset(iMSG_TYPE_ERROR,"")  'Damit sich in dieser Methode nicht Fehler aus einer anderen Methode auswirken
+	
+	'+++ Param Check
+	Dim sLicense As String
+	If Len(sLicenseIn) = 0 Then 
+		sLicense = objLicense.LicenseCurrent
+		If Len(sLicense) = 0 Then Error iERR_PARAM_MISSING, "License-String"
+	Else
+		sLicense = sLicenseIn
+	End If
+	
+	'###############
+	
+	Call objLicense.session.SetEnvironmentVar(sLicense, sKey, False)
+	
+	'###############
+EndTrue:
+	objLicense.Error.iCode = 0
+	LICKeySet_= True
+	Exit Function
+EndFalse:
+	objLicense.Error.iCode = 0
+	LICKeySet_  = False
+	Exit Function
+EndError:
+	LICKeySet_  = False
+	Exit Function
+	'Errorhandler für Objekte
+ErrObjNoCall:
+	Dim sScript, icode As Integer, tpcall As TypePAramZZZ
+	sScript = objLicense.ClassLibrary & "\" & Getthreadinfo(LSI_THREAD_PROC)
+	icode = Err 'Beim wiederholten Aufruf (d.h. zwei Zeilen hintereinanger ' Error iERR_NEXT, "das ist ein text" ' aufrufen) verliert Err zwei Stellen von rechts nach dem Aufruf der MEthode objLicense.MessageAppend(..) !!!! 
+	Call objLicense.MessageAppend("",sScript,Erl,Error$, Err, "")
+	Select Case icode
+	Case iMSG_NEXT, iERR_NEXT, iMSG_AGENT_NEXT, iERR_AGENT_NEXT: Resume Next
+	Case iMSG_TRUE, iERR_TRUE, iMSG_AGENT_TRUE, iERR_AGENT_TRUE: Resume EndTrue
+	Case iMSG_FALSE, iERR_FALSE, iMSG_AGENT_FALSE, iERR_AGENT_FALSE: Resume EndFalse
+	Case iERR_OBJECT_ERR, iERR_OBJECT_CUR, iERR_AGENT_CALL: Resume EndError 'Ziel: Nicht jeden Fehler ins Log stellen
+	Case Else: 
+		Call MSG2FileSendZZZ(Nothing, "", objLicense.Error.sString, 1, tpcall, "")
+		'ODER: Msgbox "An error happened, more in this file: " & Chr(13) & MSG2FileSendZZZ(Nothing, "", objLicense.Error.sString, tpcall, "")
+		If tpcall.iErr > 0 Then Msgbox tpcall.sErr   'Fehler im Errorhandling sofort ans Frontend/Serverlog ausgeben		
+		Resume EndError
+	End Select
+End Function
+
+Private Function LICKeyGenerate_(objLicense As KernelLicenseZZZ, nDateIn As NotesDateTime, sFlagcontrol As String) As String
+	Dim sReturn As String
+	Dim  tpcall As TypeParamZZZ
+	On Error Goto errobj
+	Call objLicense.MessageReset(iMSG_TYPE_ERROR,"")  'Damit sich in dieser Methode nicht Fehler aus einer anderen Methode auswirken
+	
+	'+++ Param Check
+	Dim ndate As NotesDatetime
+	If nDateIn Is Nothing Then 
+		Set nDate = New NotesDateTime(Now)		
+	Else
+		Set nDate = nDateIn
+	End If
+	
+	'###############
+	'sReturn = Format$(sDate, "YYYYMMDD") Das Liefert immer das Jahr 9999
+	sReturn = sDateFormatZZZ(objLicense.session, nDate, "YYYYMMDD", tpcall, "")
+	If tpcall.ierr > 0 Then Error iERR_FUNCTION_CALL, tpcall.serr
+	Stop
+	Stop
+	Stop
+	
+	'Todo: Encrypten des Keys
+	Dim objCrypt As CryptSimpleZZZ
+	Set objCrypt = New CryptSimpleZZZ(objLicense.session, "", Null, "")
+	If objCrypt.Error.iCode > 0 Then Error iERR_OBJECT_ERR, objLicense.MessageAllReceive(objCrypt, iMSG_TYPE_ERROR, "")
+	
+	sReturn = objCrypt.encrypt(sreturn, "")
+	If objCrypt.Error.iCode > 0 Then Error iERR_OBJECT_ERR, objLicense.MessageAllReceive(objCrypt, iMSG_TYPE_ERROR, "")	
+	
+	'###############
+EndTrue:
+	objLicense.Error.iCode = 0
+	LICKeyGenerate_= sReturn
+	Exit Function
+EndFalse:
+	objLicense.Error.iCode = 0
+	LICKeyGenerate_  = ""
+	Exit Function
+EndError:
+	LICKeyGenerate_  = ""
+	Exit Function
+	'Errorhandler für Objekte
+ErrObj:
+	Dim sScript, icode As Integer
+	sScript = objLicense.ClassLibrary & "\" & Getthreadinfo(LSI_THREAD_PROC)
+	icode = Err 'Beim wiederholten Aufruf (d.h. zwei Zeilen hintereinanger ' Error iERR_NEXT, "das ist ein text" ' aufrufen) verliert Err zwei Stellen von rechts nach dem Aufruf der MEthode objLicense.MessageAppend(..) !!!! 
+	Call objLicense.MessageAppend("",sScript,Erl,Error$, Err, "")
+	Select Case icode
+	Case iMSG_NEXT, iERR_NEXT, iMSG_AGENT_NEXT, iERR_AGENT_NEXT: Resume Next
+	Case iMSG_TRUE, iERR_TRUE, iMSG_AGENT_TRUE, iERR_AGENT_TRUE: Resume EndTrue
+	Case iMSG_FALSE, iERR_FALSE, iMSG_AGENT_FALSE, iERR_AGENT_FALSE: Resume EndFalse
+	Case iERR_OBJECT_ERR, iERR_OBJECT_CUR, iERR_AGENT_CALL: Resume EndError 'Ziel: Nicht jeden Fehler ins Log stellen
+	Case Else: 
+		Call MSG2FileSendZZZ(Nothing, "", objLicense.Error.sString, 1, tpcall, "")
+		'ODER: Msgbox "An error happened, more in this file: " & Chr(13) & MSG2FileSendZZZ(Nothing, "", objLicense.Error.sString, tpcall, "")
+		If tpcall.iErr > 0 Then Msgbox tpcall.sErr   'Fehler im Errorhandling sofort ans Frontend/Serverlog ausgeben		
+		Resume EndError
+	End Select
+End Function
+
+Private Function LICLicenseExistsProof_(objLicense As KernelLicenseZZZ, sLicenseIn As String, sFlagcontrol As String) As Integer
+	Dim iReturn As Integer
+	iReturn = True
+	
+	Dim btemp As Boolean
+	On Error Goto errobjNoCall
+	Call objLicense.MessageReset(iMSG_TYPE_ERROR,"")  'Damit sich in dieser Methode nicht Fehler aus einer anderen Methode auswirken
+	
+	'+++ Param Check
+	Dim sLicense As String
+	If Len(sLicenseIn) = 0 Then 
+		sLicense = objLicense.LicenseCurrent
+		If Len(sLicense) = 0 Then Error iERR_PARAM_MISSING, "License-String"
+	Else
+		sLicense = sLicenseIn
+	End If
+	
+	'###############
+	Dim sKey As String
+	sKey = objLicense.KeyGet(sLicense, "")
+	If objLicense.Error.iCode > 0 Then Error iERR_OBJECT_CUR, objLicense.Error.sString
+	If Len(sKey) = 0 Then Error iMSG_FALSE, "No License-Key available"
+	
+	btemp = objLicense.KeyIsValid(sKey, "")
+	If objLicense.Error.iCode > 0 Then Error iERR_OBJECT_CUR, objLicense.Error.sString
+	If btemp = True Then Goto endTrue
+	
+	'+++ Fall: Eintrag nicht gültig
+	Error iMSG_NEXT, "License-Key '" & sLicenseIn & "' is not valid"
+	iReturn = 1	
+	
+	'###############
+EndTrue:
+	objLicense.Error.iCode = 0
+	LICLicenseExistsProof_ = iReturn
+	Exit Function
+EndFalse:
+	objLicense.Error.iCode = 0
+	LICLicenseExistsProof_  = 0
+	Exit Function
+EndError:
+	LICLicenseExistsProof_  = -99
+	Exit Function
+	'Errorhandler für Objekte
+ErrObjNoCall:
+	Dim sScript, icode As Integer, 	tpcall As TypeParamZZZ
+	sScript = objLicense.ClassLibrary & "\" & Getthreadinfo(LSI_THREAD_PROC)
+	icode = Err 'Beim wiederholten Aufruf (d.h. zwei Zeilen hintereinanger ' Error iERR_NEXT, "das ist ein text" ' aufrufen) verliert Err zwei Stellen von rechts nach dem Aufruf der MEthode objLicense.MessageAppend(..) !!!! 
+	Call objLicense.MessageAppend("",sScript,Erl,Error$, Err, "")
+	Select Case icode
+	Case iMSG_NEXT, iERR_NEXT, iMSG_AGENT_NEXT, iERR_AGENT_NEXT: Resume Next
+	Case iMSG_TRUE, iERR_TRUE, iMSG_AGENT_TRUE, iERR_AGENT_TRUE: Resume EndTrue
+	Case iMSG_FALSE, iERR_FALSE, iMSG_AGENT_FALSE, iERR_AGENT_FALSE: Resume EndFalse
+	Case iERR_OBJECT_ERR, iERR_OBJECT_CUR, iERR_AGENT_CALL: Resume EndError 'Ziel: Nicht jeden Fehler ins Log stellen
+	Case Else: 
+		Call MSG2FileSendZZZ(Nothing, "", objLicense.Error.sString, 1, tpcall, "")
+		'ODER: Msgbox "An error happened, more in this file: " & Chr(13) & MSG2FileSendZZZ(Nothing, "", objLicense.Error.sString, tpcall, "")
+		If tpcall.iErr > 0 Then Msgbox tpcall.sErr   'Fehler im Errorhandling sofort ans Frontend/Serverlog ausgeben		
+		Resume EndError
+	End Select
+End Function
+Private Function LICKeyIsValid_(objLicense As KernelLicenseZZZ, sKey As String, sFlagcontrol As String) As Boolean
+	Dim ltemp As Long, tpcall As TypeParamZZZ
+	On Error Goto errobj
+	Call objLicense.MessageReset(iMSG_TYPE_ERROR,"")  'Damit sich in dieser Methode nicht Fehler aus einer anderen Methode auswirken
+	
+	'+++ Param Check
+	If Len(sKey) = 0 Then Error iMSG_FALSE, "License-Key not provided."
+	
+	'###############
+	Dim sKeyDecrypt As String
+	
+	'Todo: Key Decrypten
+	Dim objCrypt As CryptSimpleZZZ
+	Set objCrypt = New CryptSimpleZZZ(objLicense.session, "", Null, "")
+	If objCrypt.Error.iCode > 0 Then Error iERR_OBJECT_ERR, objLicense.MessageAllReceive(objCrypt, iMSG_TYPE_ERROR, "")
+	
+	sKeyDecrypt = objCrypt.decrypt(sKey, "")
+	If objCrypt.Error.iCode > 0 Then Error iERR_OBJECT_ERR, objLicense.MessageAllReceive(objCrypt, iMSG_TYPE_ERROR, "")
+	If Len(sKeyDecrypt) = 0 Then Error iMSG_FALSE, objLicense.MessageAllReceive(objCrypt, iMSG_TYPE_INFO, "")
+	
+	Dim nDate As NotesDateTime
+	Set nDate = ndateStringZZZ(objLicense.session, sKeyDecrypt, objLicense.FormatStringDecrypted, tpcall,"")
+	'MERKE: FEHLER HIER NICHT ALS FEHLER AUSGEBEN, DA SOLCH EINE FEHLERMELDUNG AUFSCHLUSS z.B. auf das vorausgesetzte Format liefern könnte.
+	If nDate Is Nothing Then Error iMSG_FALSE, "License-Key '" & sKey & "' is not registered."  'Auch das ist eine Meldung, die auf eine falsche Fährte locken soll.
+	
+	Dim nDateNow As NotesDateTime
+	Set nDateNow = New notesdatetime(Now)
+	Call nDateNow.AdjustDay(-1)
+	
+	'Ist die "gestrige" Systemuhrzeit noch jünger als die Key-Uhrzeit/Datum, so ist das Datum noch nicht erreicht
+	ltemp = ndate.TimeDifference(nDateNow) 
+	If ltemp <= 0 Then Error iMSG_FALSE, "License-Key '" & sKey & "' is expired" 
+	
+	'###############
+EndTrue:
+	objLicense.Error.iCode = 0
+	LICKeyIsValid_ = True
+	Exit Function
+EndFalse:
+	objLicense.Error.iCode = 0
+	LICKeyIsValid_  = False
+	Exit Function
+EndError:
+	LICKeyIsValid_  = False
+	Exit Function
+	'Errorhandler für Objekte
+ErrObj:
+	Dim sScript As String, icode As Integer
+	sScript = objLicense.ClassLibrary & "\" & Getthreadinfo(LSI_THREAD_PROC)
+	icode = Err 'Beim wiederholten Aufruf (d.h. zwei Zeilen hintereinanger ' Error iERR_NEXT, "das ist ein text" ' aufrufen) verliert Err zwei Stellen von rechts nach dem Aufruf der MEthode objLicense.MessageAppend(..) !!!! 
+	Call objLicense.MessageAppend("",sScript,Erl,Error$, Err, "")
+	Select Case icode
+	Case iMSG_NEXT, iERR_NEXT, iMSG_AGENT_NEXT, iERR_AGENT_NEXT: Resume Next
+	Case iMSG_TRUE, iERR_TRUE, iMSG_AGENT_TRUE, iERR_AGENT_TRUE: Resume EndTrue
+	Case iMSG_FALSE, iERR_FALSE, iMSG_AGENT_FALSE, iERR_AGENT_FALSE: Resume EndFalse
+	Case iERR_OBJECT_ERR, iERR_OBJECT_CUR, iERR_AGENT_CALL: Resume EndError 'Ziel: Nicht jeden Fehler ins Log stellen
+	Case Else: 
+		Call MSG2FileSendZZZ(Nothing, "", objLicense.Error.sString, 1, tpcall, "")
+		'ODER: Msgbox "An error happened, more in this file: " & Chr(13) & MSG2FileSendZZZ(Nothing, "", objLicense.Error.sString, tpcall, "")
+		If tpcall.iErr > 0 Then Msgbox tpcall.sErr   'Fehler im Errorhandling sofort ans Frontend/Serverlog ausgeben		
+		Resume EndError
+	End Select
+End Function
+
+Private Function LICLicenseIsValid_(objLicense As KernelLicenseZZZ, sLicenseIn As String, sFlagcontrol As String) As Boolean
+	Dim itemp As Integer
+	On Error Goto errobjNoCall
+	Call objLicense.MessageReset(iMSG_TYPE_ERROR,"")  'Damit sich in dieser Methode nicht Fehler aus einer anderen Methode auswirken
+	
+	'+++ Param Check
+	Dim sLicense As String
+	If Len(sLicenseIn) = 0 Then 
+		sLicense = objLicense.LicenseCurrent
+		If Len(sLicense) = 0 Then Error iERR_PARAM_MISSING, "License-String"
+	Else
+		sLicense = sLicenseIn
+	End If
+	
+	'###############
+	
+	itemp = objLicense.LicenseExistsProof(sLicense, "") 
+	If objLicense.Error.iCode > 0 Then Error iERR_OBJECT_CUR, objLicense.Error.sString
+	
+	Select Case itemp
+	Case -1: Goto EndTrue
+	Case 0,1: Goto EndFalse
+	Case Else: Error iERR_PARAM_VALUE, "unexpected returncode by method .LicenseExistsProof"
+	End Select
+	
+	'###############
+EndTrue:
+	objLicense.Error.iCode = 0
+	LICLicenseIsValid_ = True
+	Exit Function
+EndFalse:
+	objLicense.Error.iCode = 0
+	LICLicenseIsValid_  = False
+	Exit Function
+EndError:
+	LICLicenseIsValid_  = False
+	Exit Function
+	'Errorhandler für Objekte
+ErrObjNoCall:
+	Dim sScript, icode As Integer, 	tpcall As TypeParamZZZ
+	sScript = objLicense.ClassLibrary & "\" & Getthreadinfo(LSI_THREAD_PROC)
+	icode = Err 'Beim wiederholten Aufruf (d.h. zwei Zeilen hintereinanger ' Error iERR_NEXT, "das ist ein text" ' aufrufen) verliert Err zwei Stellen von rechts nach dem Aufruf der MEthode objLicense.MessageAppend(..) !!!! 
+	Call objLicense.MessageAppend("",sScript,Erl,Error$, Err, "")
+	Select Case icode
+	Case iMSG_NEXT, iERR_NEXT, iMSG_AGENT_NEXT, iERR_AGENT_NEXT: Resume Next
+	Case iMSG_TRUE, iERR_TRUE, iMSG_AGENT_TRUE, iERR_AGENT_TRUE: Resume EndTrue
+	Case iMSG_FALSE, iERR_FALSE, iMSG_AGENT_FALSE, iERR_AGENT_FALSE: Resume EndFalse
+	Case iERR_OBJECT_ERR, iERR_OBJECT_CUR, iERR_AGENT_CALL: Resume EndError 'Ziel: Nicht jeden Fehler ins Log stellen
+	Case Else: 
+		Call MSG2FileSendZZZ(Nothing, "", objLicense.Error.sString, 1, tpcall, "")
+		'ODER: Msgbox "An error happened, more in this file: " & Chr(13) & MSG2FileSendZZZ(Nothing, "", objLicense.Error.sString, tpcall, "")
+		If tpcall.iErr > 0 Then Msgbox tpcall.sErr   'Fehler im Errorhandling sofort ans Frontend/Serverlog ausgeben		
+		Resume EndError
+	End Select
+End Function

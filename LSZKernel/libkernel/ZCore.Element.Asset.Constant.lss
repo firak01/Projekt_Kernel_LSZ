@@ -1,0 +1,26 @@
+%REM 
+HIer kommen Konstanten rein, die nicht für die Kernel API, 
+sondern für die Kernel - Objekte interessant sind
+%END REM 
+'Merke: Die KernelZZZ - Klasse selbst gehört zu den "einfachen klassen". Darum zieht sie hieraus ihre Konstanten
+Const sCONFIGPRESERVERZZZ = "Server" 'Merke der Feldname der Items im Profildokument besteht z.B: aus "Server" & sAliasDB & sApplicationKey
+Const sCONFIGPREPATHZZZ = "PathDB"
+Const sCONFIGPREFIELDZZZ = "Fld"          'Merke der Feldname der ITems im Profildokument, welche für Feldwerte verwendet wird, beginnt immer mit diesem Wert
+
+Const sVIEWSEARCHKEYANDFORMZZZ = "viwSearchByKeyAndForm" 'Eine Ansicht, nach der die Importe u.a. Suchen können, es wird immer noch der ApplicationKey angehängt
+Const sPATHFILEDEFAULTZZZ = "fileZZZ"
+Const  sRESOURCE_PRE_FIELD_KEY = "Key" 'MErke der Standard Feldname in dem der Name einer als Embeddeed-Objekt angehängen Ressource kommt ist: Diese Konstante & Dateiname
+Const sRESOURCE_PRE_FIELD_FILE = "Resource" 'Merke das ist der vordere Teil des Feldnamens in dem die Resource gehängt wird. RTF-Feld, das normalerweise dahinter den objKernel.ApplicationKey hat.
+'Also z.B: "ResourceFGL"
+
+
+'### Globale Konstanten
+Public Const sVIEWLOOKUPHELP = "(Help)"
+Public Const sVIEWDRAFTDELETION = "viwSupportDeleteDocs"
+Public Const sVIEWADMINGENERAL = "viwSupportAllDocs"
+Public Const sFIELDFLAGINARC = "FlagInArchiveZZZ"
+Public Const sFIELDFLAGDATEARC = "FlagDateArchiveZZZ"
+
+'### Speziell für das Arbeiten mit LWF-und den verschiedenen Hauptdokumenten
+'Public Const sJOBTYPE1 = "Angebot"
+'Public Const sJOBTYPE2 = "Adhoc-Auftrag" 

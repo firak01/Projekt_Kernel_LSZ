@@ -1,0 +1,207 @@
+Option Public 
+Option Declare
+%REM
+Diese Bibliothek wird exportiert in die Datei
+Q:\App\ClientDrivenResource\OS InstallProgramUtil.lss
+
+Diese Datei wird eingebunden von der LotusScript-Bilbiothek 
+OS InstallProgramInclude
+
+Zweck der Übung ist es Ähnlichkeit zu den Lotus Workflow Bibliotheken herzustellen. Fällt nicht so auf.
+Die Bibliothek soll dann in allen Datenbanken eingebunden werden, im Postopen. 
+%ENDREM
+
+
+
+Function DBCurrentSign(sessionin As NotesSession, sinfoin As String, icodein As Integer, sFlag As String) As Boolean
+%REM
+Diese Funktion wird eingebunden im Postopen einer Datenbank.
+Ziel der Funktion ist es im AdminP-Process Dokumente zu erzeugen, welche eine Signierung der Datenbank mit der ServerID bewirken.
+
+Da dies nur mit den entsprechenden Rechten ausgestattete Anwender tun dürfen, darf für die sonstigen Anwender kein Fehler aufgezeigt werden.
+Natürlich soll jeder Anwender von irgendwelchen Hinweisen verschont bleiben.
+%END REM
+	Dim sScript As String, sinfo As String, icode As Integer
+	sScript = "OS InstallProgramUtil/OSDBCurrentSign"  'Absichtlich nicht GetThreadinfo, wg. der notwendigenKonstanten und der Problematik der Einbindung von lsconst.lss	
+	On Error Goto ErrAgt
+	On Error 20000 Goto ErrNext
+	
+	Dim session As NotesSession
+	If sessionin Is Nothing Then
+		Set session = New NotesSession
+	Else
+		Set session = sessionin
+	End If
+	
+	Dim db As NotesDatabase
+	Set db = session.CurrentDatabase
+	
+	
+	Dim sServer As String
+	sServer = db.Server
+	If Len(sServer) = 0 Then Goto EndFalse 'not for local databases
+	
+	Dim sPath As String
+	sPath = db.FilePath
+	
+	Dim nname As New NotesName(sserver)
+	sServer = nname.Abbreviated
+	
+	Dim adminp As NotesAdministrationProcess
+	Set adminp = session.CreateAdministrationProcess(sServer)
+	Call adminp.SignDatabaseWithServerID(sServer, sPath)
+	
+EndTrue:
+	icodein = 0 
+	sinfoin = sinfo
+	DBCurrentSign = True
+	Exit Function
+EndFalse:
+	sinfoin = sinfo
+	icodein = 0
+	DBCurrentSign = False
+	Exit Function
+endError:
+	sinfoin = sinfo
+	DBCurrentSign = False
+	Exit Function
+errNext:
+	iCodein = Err
+	sinfo = strMsg(session, sInfo, sScript, Erl, Error, icode, "")
+	Resume Next	
+errAgt:
+	iCodein = Err
+	sinfo = strMsg(session, sInfo, sScript, Erl, Error, icode, "")
+	Resume endError	
+End Function
+
+Function DBPathAllSign(sessionin As NotesSession, vsPathAll As Variant, bFlagDBCurrentToSign As Boolean, sinfoin As String, icodein As Integer, sFlagin As String) As Boolean
+%REM
+Diese Funktion wird eingebunden im Postopen einer Datenbank.
+Ziel der Funktion ist es im AdminP-Process Dokumente zu erzeugen, welche eine Signierung der angegebenen Datenbanken mit der ServerID bewirken.
+
+
+Da dies nur mit den entsprechenden Rechten ausgestattete Anwender tun dürfen, darf für die sonstigen Anwender kein Fehler aufgezeigt werden.
+Natürlich soll jeder Anwender von irgendwelchen Hinweisen verschont bleiben.
+%END REM
+	Dim bReturn As Boolean
+	Dim sScript As String, sinfo As String, icode As Integer
+	sScript = "OS InstallProgramUtil/OSDBPathAllSign"   'Absichtlich nicht GetThreadinfo, wg. der notwendigenKonstanten und der Problematik der Einbindung von lsconst.lss	
+	On Error Goto ErrAgt
+	On Error 20000 Goto ErrNext
+	
+	
+	If Isnull(vsPathAll) And bFlagDBCurrentToSign = False And Len(sFlagin) = 0 Then Goto EndFalse
+	
+	Dim sFlag As String, saPathAll() As String, iNrOfPAth As Integer, iCount As Integer
+	If Len(sFlagin) > 0 Then sFlag=Ucase(sFlagIn)	
+	If sFlag = "DEFAULT" Then
+		Redim saPathAll(1) As String
+		saPathAll(0) = "dbliblogv1.nsf"
+		saPAthAll(1) = "dblibagtv1.nsf"
+		iNrOfPAth = Ubound(saPAthAll)
+	Else
+		'Keinen Error für ein anderes FlagControl auswerfen !!! Sonst wird zuviel über die Funktion verraten
+		If Not Isnull(vsPathALL) Then
+			If Not Isarray(vsPathAll) Then
+				Redim saPAthAll(0) As String
+				saPathAll(0) = Cstr(vsPathAll)
+			Else
+				Redim saPathAll(Ubound(vsPathAll)) As String
+				For icount = 0 To Ubound(vsPathAll)
+					saPAthAll(iCount) = Cstr(vsPathAll(iCount))
+				Next
+			End If
+			iNrOfPath = Ubound(saPathAll)
+		Else
+			iNrOfPAth = -1
+		End If
+	End If
+	
+	
+	Dim session As NotesSession
+	If sessionin Is Nothing Then
+		Set session = New notessession
+	Else
+		Set session = sessionin
+	End If
+	
+	'Den aktuellen Server ermitteln
+	Dim db As NotesDatabase
+	Set db = session.CurrentDatabase
+	
+	Dim sServer As String
+	sServer = db.Server
+	If Len(sServer) = 0 Then Error 20010, "Function not designed for use on local database(s)" 
+	
+	Dim nname As New NotesName(sserver)
+	sServer = nname.Abbreviated
+	
+	'Falls gewünscht die aktuelle Datenbank auch unterzeichnen
+	If bFlagDBCurrentToSign = True Then
+		bReturn = DBCurrentSign(session, sinfo, icode, "")
+		If icode > 0 Then Error 20000, sinfo
+	End If
+	
+	If iNrOfPath >= 0 Then
+		Dim adminp As NotesAdministrationProcess
+		Set adminp = session.CreateAdministrationProcess(sServer)  'Hier geht es dann ggf. zum Fehler und die Funktion wird verlassen
+		
+		Dim sPath As String
+		For icount = 0 To iNrOfPath
+			sPath = saPathAll(icount)
+			If Len(sPath) > 0 Then
+				On Error Goto ErrNext				
+				Call adminp.SignDatabaseWithServerID(sServer, sPath)
+			End If
+			On Error Goto ErrAgt 'nur aus Prinzip das Errorhandling wieder zurückstellen
+		Next
+	End If 'iNrOfPath
+	On Error Goto ErrAgt 'nur aus Prinzip das Errorhandling wieder zurückstellen
+	
+EndTrue:
+	icodein = 0 
+	sinfoin = sinfo
+	DBPathAllSign = bReturn
+	Exit Function
+EndFalse:
+	sinfoin = sinfo
+	icodein = 0
+	DBPathAllSign = False
+	Exit Function
+endError:
+	sinfoin = sinfo
+	DBPathAllSign = False
+	Exit Function
+errNext:
+	iCodein = Err
+	sinfo = strMsg(session, sInfo, sScript, Erl, Error, icode, "")
+	Resume Next	
+errAgt:
+	iCodein = Err
+	sinfo = strMsg(session, sInfo, sScript, Erl, Error, icode, "")
+	Resume endError	
+End Function
+
+Function strMsg(session As notessession, sInfoOld As String, sScript As String, iErrLine As Integer, sinfo As String, icode As Integer, sFlagControl As String) As String
+	Dim sReturn As String	
+	
+	'Zusammenbasteln des Error Strings
+	sReturn =  "Error - Script: " & sScript & "; Line: " & Cstr(iErrLine) & "; Info: " & sInfo & "; Code: " & Cstr(iCode)
+	If Len(sinfoOld) > 0 Then sReturn = sReturn & Chr(13) & Chr(10) & sInfoOld	
+	strMsg = sReturn
+End Function
+Function OSDBEnvSign() As Boolean
+	Dim s As String, i As Integer
+	OSDBEnvSign = DBPathAllSign(Nothing, Null, False, s, i, "DEFAULT")
+End Function
+
+Function OSDBCurEnvSign() As Boolean
+	Dim s As String, i As Integer
+	OSDBCurEnvSign = DBPathAllSign(Nothing, Null, True, s, i, "DEFAULT")
+End Function
+
+Function OSDBCurSign() As Boolean
+	Dim s As String, i As Integer
+	OSDBCurSign = DBCurrentSign(Nothing, s, i, "")
+End Function

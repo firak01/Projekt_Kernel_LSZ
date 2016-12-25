@@ -1,0 +1,2911 @@
+'muss rein, damit alle Funktionen global erreichbar sind. Als .lss Datei raus, wie auch alle Use-Einbindungen
+'%INCLUDE "C:\1fgl\workspace\Eclipse3FGL\LSZKernel\libkernel\ZAPI.Basic.Asset.lss"
+'Use "ZBasic.DOM.."
+'Use "ZCore.Element.."   
+
+'Die Bezeichnung der Scriptbibliothek
+'Private Const sLIBZZZ = "ZZZBasicKernelHandler"
+
+
+Public Type TypeLogZZZ
+	sLogText As String	'Der Text, der letztendlich in das Log eingetragen wird
+	iErrNumber As Integer                'Die Fehlernummer
+	iErrLine As Integer                     'Die Zeile in der der Fehler auftritt
+	sErrString As String					'Die Fehlermeldung
+	iLogLevelCurrent As Integer		'Die Ebene des Eintrags (Merke: 0 bedeutet als Fehler eintragen)
+	iLogLevelGlobal As Integer		'Die im Konfigurationsdokument eingestellte Ebene für die Protokollierung
+	sScriptCalling As String  'Die Postion aus der z.B. die Fehlerroutine aufgerufen wird
+	sAgentCallingName As String			'Der Agent/die Scriptposition, die alles gestartet hat.
+	sAgentCallingNameAlias As String		'Der Alias des Agenten, s.o.
+	sUserCalling As String			'Der Benutzer, der gerade angemeldet ist
+	bFlagOutputFrontendError As Boolean	'True bedeutet, daß der Output eines Fehlers als MsgBox im Frontend passieren soll. Merke: Der Befehl msgbox bewirkt bei Agenten, die auf dem Server laufen, einen Eintrag im Serverlog
+	bFlagOutputFrontend As Boolean 		'dito, nur für den normalen Fall
+End Type
+
+'Die Kernelklasse  
+Public Class KernelKernelZZZ As ObjectZZZ
+	'Initalisierte Variablen durch den Konstruktor
+	Private docProfileKernel As notesdocument			'Das Profildokument für den Kernel. Hierdrin steht welcher ApplicationKey verwendet werden soll.
+	Private docProfileApplication As notesdocument	'Das Profildokument der Applikation. Hierdrin stehen u.a. alle Datenbankpfade, die aus dem LWF-Application Setup Document hier eingetragen werden.
+	Private docSetupApplication As notesdocument	'Das LWF-Application Setup Document
+	Private docSetupApplicationZZZ As notesdocument 'Das Setup-Dokument des Z-Kernels
+	Private sKernelKey As String
+	Private sApplicationKey As String
+	Private sApplicationKeyParent As String			'Ein Key, der z.B. in einer anderen Datenbank als Application - Key verwendet wird. Hierüber kann man dann gecustomizde Kerenl-Design Elemente finden.
+	Private sLocationCur As String						'Der Name der Lokation, also der Servername oder der Benutzername (lokal) in CN - Form
+	Private sFilePathDefault As String					'Der Name des Default Filepaths im SetupDokument des Z-Kernels, fall der leer ist, wird 'FileZZZ' 
+	
+	'Datenbanken. Merke: Werden auf Anforderung geholt. Aber dann zentral im Kernelobjekt gespeichert.
+	Private dbConfiguration As notesdatabase			 	'Die Konfigurationsdatenbank, das muss nicht immer die Applikationsdatenbank sein.
+	Private dbApplication As notesdatabase
+	Private dbLog As notesdatabase
+	Private dbHelp As notesdatabase
+	Private dbDirectory As notesdatabase					'Das DominoDirectory (N&A) auf dem Server
+	Private dbApplicationArchive As notesdatabase		'Die Archivdatenbank der Applikation
+	Private dbSupportMail As notesdatabase					'Die Mail-DB für den Support, normalerweise als Mail-In Datenbank eingerichtet.
+	Private dbLogServer As notesdatabase					'Die Protokolldatenbank des Servers
+	Private dbMailboxServer As notesdatabase				'Die Mail.box DB des Servers	
+	Private dbSupportHelpdesk As notesdatabase			'Die Helpdeskdatenbank des Supports
+	Private dbDirectoryMaster As notesdatabase			'Das Master N&A
+	Private dbCatalogServer As notesdatabase				'Die Katologdatenbank auf dem Server für alle Notesdatenbanken
+	Private dbCurrent As notesdatabase						'Die aktuelle Datenbank, in der der Kernel Initialisert werden ist.
+	Private dbInterchange As notesdatabase				'Die ZZZ-Kernel Datenbank für die Konfiguration des Datenaustauschs zwischen Frontend und Serveragenten
+	Private dbInterchangeAgent As NotesDatabase		' "                                    in welcher der Agent laufen soll. Hintergrund: Diese Datenbank ist ggf. anders unterzeichnet z.B. mit der Server Id
+	Private dbInterchangeCache As notesdatabase		' " 							   für die Parameterdokumente, die die Backendagenten mit Daten füttern
+	Private dbApplHelp As notesdatabase					'Die Hilfedatenbank für die Applikation
+	
+	'Das Objekt für die Fehlerprotokollierung des Kernels
+	Private objLog As KernelKernelLogZZZ
+	Private iLogLevelGlobal As Integer							'Das LogLevel wird einmal geholt und dann auch im Kernel-Objekt gespeichert
+	
+	'Flags
+	Private bFlagCreate As Boolean                                  'Wird beim Konfigurieren/ErstellenUpdaten des Profildokuments verwendet, damit nicht etwas aus nicht vorhandenen Profildokumenten gelesen wird.
+	Private bFlagConfigWarningDisabled As Boolean			'bewirkt, das keine Warnmeldungen mehr angezeigt werden.
+	Private bFlagConfigInitialisation As Boolean			'wird beim Aktualisieren der Profile gesetzt, bewirkt, dass die LogDB-Suche abgebrochen wird
+																			'vermeidet dadurch eine Endlosschleife
+	
+	'#################################################################################################
+	'### Properties
+	'########################
+	
+	'### Die Version DIESES Objekts
+	Public Property Get VersionText As String
+		VersionText = ""
+	End Property 
+	Public Property Get Version As String
+		Version = "3.0"
+	End Property
+	Public Property Get VersionDate As String
+		VersionDate = "31.03.2005"
+	End Property
+	Public Property Get ClassNameParent As String
+		ClassNameParent = ObjectZZZ..ClassName
+	End Property
+	Public Property Get ClassLibrary As String
+		ClassLibrary = "ZBasic.Kernel"
+	End Property
+	
+	'### Die Location, sprich Benutzer oder Server
+	Public Property Get LocationCurrent As String
+		LocationCurrent = Me.sLocationCur
+	End Property
+	Public Property Set LocationCurrent As String
+		Me.sLocationCur = LocationCurrent
+	End Property
+	
+	'### Den Default Dateipfad
+	Public Property Get FilePathDefault As String
+		On Error Goto errobj
+		Call Me.MessageReset(iMSG_TYPE_ERROR,"")  'Daimt sich in dieser Methode nicht Fehler aus einer anderen Methode auswirken
+		
+		If Len(Me.sFilePathDefault) = 0 Then
+			Me.sFilePathDefault = KernelFilePathDefaultGet_(Me,"")
+		End If
+		
+EndTrue:
+		FilePathDefault = Me.sFilePathDefault
+		Exit Property
+EndFalse:
+		FilePathDefault =  ""
+		Exit Property
+EndError:
+		FilePathDefault =  ""
+		Exit Property
+Errobj:
+		Dim sScript As String
+		sScript = Me.ClassLibrary & "\Property Get FilePathDefault()" 'sScript = objKernel.ClassLibrary & "\" & Getthreadinfo(LSI_THREAD_PROC)
+		Call Me.MessageAppend("",sScript,Erl,Error$, Err, "")
+		Select Case Err
+		Case iMSG_NEXT, iERR_NEXT: Resume Next
+		Case iMSG_TRUE, iERR_TRUE: Resume EndTrue
+		Case iMSG_FALSE, iERR_FALSE: Resume EndFalse
+		Case Else: Resume EndError
+		End Select
+	End Property
+	Public Property Set FilePathDefault As String
+		Me.sFilePathDefault = FilePathDefault
+	End Property
+	
+	'### Das globlale Log Level
+	Public Property Get LogLevelGlobal As Integer
+		LogLevelGlobal = Me.iLogLevelGlobal
+	End Property
+	Public Property Set LogLevelGlobal As Integer
+		Me.iLogLevelGlobal = LogLevelGlobal
+	End Property
+	
+	'### Das KernelLog
+	Public Property Get  LogObject As KernelKernelLogZZZ
+		Set LogObject = Me.objLog       
+	End Property
+	Public Property Set LogObject As KernelKernelLogZZZ
+		Set Me.objLog = LogObject
+	End Property
+	
+	'### Falls kein ApplikationKey bei der initierung des Kernel objekts mitgegeben wird, wird hierauf zugegriffen
+	Property Get ApplicationKeyDefault As String		
+		'Diese Property muss applicationsspecifisch überschrieben werden
+		ApplicationKeyDefault = ""
+	End Property
+	
+	
+	'### Der Schlüssel der Applikation(en) und des Kernels	
+	Public Property Get ApplicationKey() As String
+		On Error Goto errobj
+		Call Me.MessageReset(iMSG_TYPE_ERROR,"")  'Daimt sich in dieser Methode nicht Fehler aus einer anderen Methode auswirken
+		
+		
+		If Len(Me.sApplicationKey) = 0 Then
+			     '1. Versuch: Zugriff auf den Default-ApplicationKey, der im Kernel-Profildokument eingestellt worden sein muß
+				'TODO: Das muss bei der Konfiguration extra anzugeben sein
+			Dim doctemp As NotesDocument
+			Set doctemp = Me.KernelProfile()
+			If Not doctemp Is Nothing Then
+				Me.sApplicationKey = .ApplicationKeyZZZ(0)			
+			Else
+				Error iERR_PROPERTY_MISSING, "Kernel profile document"
+			End If
+			If Len(Me.sApplicationKey) = 0 Then
+				'2.  Versuch: Zugriff auf den Default-ApplicationKey, der in dem Design der KernelZZZ-Klasse hinterlegt ist
+				Me.sApplicationKey = Me.ApplicationKeyDefault()						
+				If(Len(Me.sApplicationKey)) = 0 Then Error iERR_PROPERTY_MISSING, "ApplicationKey, neither no default application key configured in kernel document, nor in the KernelZZZ-Class"					
+			End If		
+		End If
+EndTrue:
+		ApplicationKey = Me.sApplicationKey	
+		Exit Property
+EndFalse:
+		ApplicationKey = ""
+		Exit Property
+EndError:
+		ApplicationKey = ""
+		Exit Property
+Errobj:
+		Dim sScript As String
+		sScript = Me.ClassLibrary & "\Property Get ApplicationKey()" 'sScript = objKernel.ClassLibrary & "\" & Getthreadinfo(LSI_THREAD_PROC)
+		Call Me.MessageAppend("",sScript,Erl,Error$, Err, "")
+		Select Case Err
+		Case iMSG_NEXT, iERR_NEXT: Resume Next
+		Case iMSG_TRUE, iERR_TRUE: Resume EndTrue
+		Case iMSG_FALSE, iERR_FALSE: Resume EndFalse
+		Case Else: Resume EndError
+		End Select
+	End Property
+	
+	Public Property Set ApplicationKey() As String		
+		'Setzen des neuen Applicationprofile-Dokuments
+		If Not Len(ApplicationKey) = 0 Then
+			If Not Me.Status.bFlagInit = True And Not Me.bFlagCreate = True Then  'Beim Initialisiertem Objekt (z.B: in der Konfiguration nicht auf das noch nicht vorhandene Profildokument zugreifen
+				Set Me.docProfileApplication = KernelApplProfileRefresh_(Me, ApplicationKey, "")							
+			End If
+			Me.sApplicationKey = ApplicationKey
+		End If
+	End Property
+	Public Property Set ApplicationParentKey() As String		
+		Me.sApplicationKeyParent = ApplicationParentKey
+	End Property
+	
+	'##############################
+	Public Property Get ApplicationParentKey() As String
+		On Error Goto errobj
+		Call Me.MessageReset(iMSG_TYPE_ERROR,"")  'Daimt sich in dieser Methode nicht Fehler aus einer anderen Methode auswirken
+		
+		If Len(Me.sApplicationKeyParent) = 0 Then
+			Dim doctemp As notesdocument
+			Set doctemp = Me.ApplicationProfile()
+			If doctemp Is Nothing Then Error iERR_PROPERTY_MISSING, "ApplicationProfile-Document"
+			
+			Me.sApplicationKeyParent = doctemp.ApplicationKeyParentZZZ(0)			
+		End If		
+		If Len(Me.sApplicationKeyParent) = 0 Then  'Falls das immer noch leer ist ...
+			Me.sApplicationKeyParent = Me.ApplicationKey()
+		End If
+		
+endTrue:
+		ApplicationParentKey = Me.sApplicationKeyParent
+		Exit Property
+Endfalse:
+		ApplicationParentKey = Me.sApplicationKeyParent
+		Exit Property
+endError:
+		ApplicationParentKey = ""
+		Exit Property
+Errobj:
+		Dim sScript As String
+		sScript = Me.ClassLibrary & "\Property Get ApplicationParentKey()" 'sScript = objKernel.ClassLibrary & "\" & Getthreadinfo(LSI_THREAD_PROC)
+		Call Me.MessageAppend("",sScript,Erl,Error$, Err, "")
+		Select Case Err
+		Case iMSG_NEXT, iERR_NEXT: Resume Next
+		Case iMSG_TRUE, iERR_TRUE: Resume EndTrue
+		Case iMSG_FALSE, iERR_FALSE: Resume EndFalse
+		Case Else: Resume EndError
+		End Select
+	End Property
+	
+	'########################################
+	Public Property Get KernelKey() As String
+		KernelKey = Me.sKernelKey
+	End Property
+	Public Property Set KernelKey() As String			
+		On Error Goto errobj
+		Call Me.MessageReset(iMSG_TYPE_ERROR,"")  'Daimt sich in dieser Methode nicht Fehler aus einer anderen Methode auswirken
+		
+		
+		'1. KernelKey neu setzen
+		Dim dbCur As notesdatabase
+		Dim docProfileTemp As notesdocument
+		Dim sKernelKey As String 
+		If Not Len(KernelKey) = 0 Then
+			sKernelKey = Ucase(KernelKey)
+		Else
+			sKernelKey = "ZZZ" 'default	
+		End If
+		
+		'2. Kernel-Profildokument neu holen, ausser, beim Initialisieren
+		If Not Me.Status.bFlagInit = True And Not Me.bFlagCreate = True Then
+			Dim sNameServer As String
+			Set dbCur = Me.dbCurrent                      'entspricht der "KernelDBCalling Property !!! Diese wird bei new(..) immer gesetzt
+			sNameServer = Me.sLocationCur            'damit bei lokalen DBs auch der Benutzername herangezogen wird. Diese wird bei new(..) immer gesetzt
+			Set docProfileTemp = dbcur.GetProfileDocument("frmAdminKey" & sKernelKey, sNameServer & sKernelKey)	
+			If Not docProfileTemp.hasitem("ApplicationKeyZZZ") Then 
+				Error iERR_PROPERTY_MISSING, "Kernel profile document for '" & sNameServer & "' not configured."
+			Else
+				Set Me.docProfileKernel = docProfileTemp
+			End If						
+		End If
+endtrue:	
+		Me.sKernelKey = sKernelKey
+		Exit Property
+endFalse:
+		Me.sKernelKey = ""
+		Exit Property
+endError:
+		Me.sKernelKey = ""
+		Exit Property
+Errobj:
+		Dim sScript As String
+		sScript = Me.ClassLibrary & "\Property Set KernelKey()" 'sScript = objKernel.ClassLibrary & "\" & Getthreadinfo(LSI_THREAD_PROC)
+		Call Me.MessageAppend("",sScript,Erl,Error$, Err, "")
+		Select Case Err
+		Case iMSG_NEXT, iERR_NEXT: Resume Next
+		Case iMSG_TRUE, iERR_TRUE: Resume EndTrue
+		Case iMSG_FALSE, iERR_FALSE: Resume EndFalse
+		Case Else: Resume EndError
+		End Select
+	End Property
+	
+	
+	'###########################
+	'### Datenbanken
+	'###########################
+	'### Die aktuelle Datenbank
+	Public Property Get KernelDBCalling() As notesdatabase
+		Set KernelDBCalling = Me.dbCurrent
+	End Property
+	Public Property Set KernelDBCalling() As notesdatabase
+		Set Me.dbCurrent = KernelDBCalling
+	End Property
+	
+	'### Die Konfigurationsdatenbank
+	Public Property Get ConfigurationDBCurrent() As notesdatabase
+		If Me.dbConfiguration Is Nothing Then
+			Dim stemp As String
+			stemp = "Configuration"
+			Set Me.dbConfiguration = KernelDBByAliasGet_(Me, stemp,"")
+			If Me.dbConfiguration Is Nothing Then
+				'Die aktuelle Datenbank wird als Konfigurationsdatenbank angenommen
+				Set Me.dbConfiguration = session.currentdatabase
+			End If
+		End If
+		Set ConfigurationDBCurrent = Me.dbConfiguration
+	End Property
+	Public Property Set ConfigurationDBCurrent() As notesdatabase
+		Set Me.dbConfiguration = ConfigurationDBCurrent
+	End Property
+	
+	'### Die Applikationsdatenbank
+	Public Property Get ApplicationDBCurrent() As notesdatabase
+		If Me.dbApplication Is Nothing Then
+			Dim stemp As String
+			stemp = "Application"
+			Set Me.dbApplication = KernelDBByAliasGet_(Me, stemp,"")
+		End If
+		Set ApplicationDBCurrent = Me.dbApplication
+	End Property	
+	Public Property Set ApplicationDBCurrent() As notesdatabase
+		Set Me.dbApplication = ApplicationDBCurrent
+	End Property
+	
+	'### Die LogDatenbank
+	Public Property Get ApplicationLogDBCurrent() As notesdatabase
+		If Me.dbLog Is Nothing Then
+			Set Me.dbLog = KernelDBLogRefresh_(Me)
+		End If
+		Set ApplicationLogDBCurrent = Me.dbLog
+	End Property
+	Public Property Set ApplicationLogDBCurrent() As notesdatabase
+		Set Me.dbLog = ApplicationLogDBCurrent
+	End Property
+	
+	'### Das Domino-Directory auf dem Server
+	Public Property Get DirectoryDBCurrent() As notesdatabase
+		If Me.dbDirectory Is Nothing Then
+			Set Me.dbdirectory = KernelDBByAliasGet_(Me, "Directory","")
+		End If
+		Set DirectoryDBCurrent = Me.dbdirectory
+	End Property
+	Public Property Set DirectoryDBCurrent() As notesdatabase
+		Set Me.dbDirectory = DirectoryDBCurrent
+	End Property
+	
+	'### Die Archiv-Datenbank für die Applikation
+	Public Property Get ApplicationArchiveDBCurrent() As notesdatabase
+		If Me.dbApplicationArchive Is Nothing Then
+			Set Me.dbApplicationArchive = KernelDBByAliasGet_(Me, "ApplicationArchive","")
+		End If
+		Set ApplicationArchiveDBCurrent = Me.dbApplicationArchive
+	End Property
+	Public Property Set ApplicationArchiveDBCurrent() As notesdatabase
+		Set Me.dbApplicationArchive = ApplicationArchiveDBCurrent
+	End Property
+	
+	'### Die Mail-In Datenbank für den Support
+	Public Property Get SupportMailDBCurrent() As notesdatabase
+		If Me.dbSupportMail Is Nothing Then
+			Set Me.dbSupportMail = KernelDBByAliasGet_(Me, "SupportMail","")
+		End If
+		Set SupportMailDBCurrent = Me.dbSupportMail
+	End Property
+	Public Property Set SupportMailDBCurrent() As notesdatabase
+		Set Me.dbSupportMail = SupportMailDBCurrent
+	End Property
+	
+	'### Die Serverprotokoll Datenbank
+	Public Property Get LogDBCurrent() As notesdatabase
+		If Me.dbLogServer Is Nothing Then
+			Set Me.dbLogServer = KernelDBByAliasGet_(Me, "Log","")
+		End If
+		Set LogDBCurrent = Me.dbLogServer
+	End Property
+	Public Property Set LogDBCurrent() As notesdatabase
+		Set Me.dbLogServer = LogDBCurrent
+	End Property
+	
+	'### Die Mail.Box Datenbank des Servers
+	Public Property Get MailboxDBCurrent() As notesdatabase
+		If Me.dbMailboxServer Is Nothing Then
+			Set Me.dbMailboxServer = KernelDBByAliasGet_(Me, "Mailbox","")
+		End If
+		Set MailboxDBCurrent = Me.dbMailboxServer
+	End Property
+	Public Property Set MailboxDBCurrent() As notesdatabase
+		Set Me.dbMailboxServer = MailboxDBCurrent
+	End Property
+	
+	'### Die HelpdeskDatenbank des Supports
+	Public Property Get SupportHelpdeskDBCurrent() As notesdatabase
+		If Me.dbSupportHelpdesk Is Nothing Then
+			Set Me.dbSupportHelpdesk = KernelDBByAliasGet_(Me, "SupportHelpdesk","")
+		End If
+		Set SupportHelpdeskDBCurrent = Me.dbSupportHelpdesk
+	End Property
+	Public Property Set SupportHelpdeskDBCurrent() As notesdatabase
+		Set Me.dbSupportHelpdesk = SupportHelpdeskDBCurrent
+	End Property
+	
+	'### Das Master N&A
+	Public Property Get DirectoryMasterDBCurrent() As notesdatabase
+		If Me.dbDirectoryMaster Is Nothing Then
+			Set Me.dbDirectoryMaster = KernelDBByAliasGet_(Me, "DirectoryMaster","")
+		End If
+		Set DirectoryMasterDBCurrent = Me.dbDirectoryMaster
+	End Property
+	Public Property Set DirectoryMasterDBCurrent() As notesdatabase
+		Set Me.dbDirectoryMaster = DirectoryMasterDBCurrent
+	End Property
+	
+	'### Der Datenbanken-Katalog
+	Public Property Get CatalogDBCurrent() As notesdatabase
+		If Me.dbCatalogServer Is Nothing Then
+			Set Me.dbCatalogServer = KernelDBByAliasGet_(Me, "DatabaseCatalog","")
+		End If
+		Set CatalogDBCurrent = Me.dbCatalogServer
+	End Property
+	Public Property Set CatalogServerDBCurrent() As notesdatabase
+		Set Me.dbCatalogServer = CatalogDBCurrent
+	End Property
+	
+	'### Die Datenbank für die Datenaustausch-Konfiguration
+	Public Property Get InterchangeDBCurrent() As notesdatabase
+		If Me.dbInterchange Is Nothing Then
+			Set Me.dbInterchange = KernelDBByAliasGet_(Me, "Interchange","")
+		End If
+		Set InterchangeDBCurrent = Me.dbInterchange
+	End Property
+	Public Property Set InterchangeDBCurrent() As notesdatabase
+		Set Me.dbInterchange = InterchangeDBCurrent
+	End Property
+	
+	'### Die Datenbank für den Agenten selbst
+	Public Property Get InterchangeAgentDBCurrent() As notesdatabase
+		If Me.dbInterchangeAgent Is Nothing Then
+			Set Me.dbInterchangeAgent = KernelDBByAliasGet_(Me, "InterchangeAgent","")
+		End If
+		
+		'Falls das nicht explizit angegeben ist, wird die Konfigurationsdatenbank dafür benutzt
+		If Me.dbInterchangeAgent Is Nothing Then
+			Set Me.dbInterchangeAgent = Me.InterchangeDBCurrent
+		End If
+		Set InterchangeAgentDBCurrent = Me.dbInterchangeAgent
+	End Property
+	Public Property Set InterchangeAgentDBCurrent() As notesdatabase
+		Set Me.dbInterchangeAgent = InterchangeAgentDBCurrent
+	End Property
+	
+	
+	
+	'### Die Datenbank für die Parameter/Controldokumente, welche dem Datenaustausch zwischen Serveragent und Client dienen
+	Public Property Get InterchangeCacheDBCurrent() As notesdatabase
+		If Me.dbInterchangeCache Is Nothing Then
+			Set Me.dbInterchangeCache = KernelDBByAliasGet_(Me, "InterchangeCache","")
+			
+			'Falls das nicht explizit angegeben ist, wird die Konfigurationsdatenbank dafür benutz			
+			If Me.dbInterchangeCache Is Nothing Then
+				Set Me.dbInterchangeCache = Me.InterchangeAgentDBCurrent()
+			End If
+		End If
+		Set InterchangeCacheDBCurrent = Me.dbInterchangeCache
+	End Property
+	Public Property Set InterchangeCacheDBCurrent() As notesdatabase
+		Set Me.dbInterchangeCache = InterchangeCacheDBCurrent
+	End Property
+	
+	'### Die Hilfedatenbank
+	Public Property Get ApplicationHelpDBCurrent() As notesdatabase
+		If Me.dbInterchange Is Nothing Then
+			Set Me.dbApplHelp = KernelDBByAliasGet_(Me, "ApplicationHelp","")
+		End If
+		Set ApplicationHelpDBCurrent = Me.dbApplHelp
+	End Property
+	Public Property Set ApplicationHelpDBCurrent() As notesdatabase
+		Set Me.dbApplHelp = ApplicationHelpDBCurrent
+	End Property
+	
+	
+	'############################
+	'### Konfigurationsdokumente 
+	'############################
+	
+	'### Das Profildokument
+	Public Property Get ApplicationProfile() As notesdocument	
+		On Error Goto errobj
+		Call Me.MessageReset(iMSG_TYPE_ERROR,"")  'Daimt sich in dieser Methode nicht Fehler aus einer anderen Methode auswirken
+		
+		'++++
+		Dim sNameServer As String
+		
+		If Me.docProfileApplication Is Nothing Then
+			'+++ Applicationkey holen
+			Dim sApplicationKey As String
+			sApplicationKey = Me.ApplicationKey()
+			
+			'+++ Applicationprofil-Dokument holen
+			If Len(sApplicationKey) = 0 Then					
+				Error iERR_PROPERTY_MISSING, "ApplicationKey"									
+			Else
+				Dim dbCur As notesdatabase
+				Set dbCur = Me.dbCurrent
+				
+				If Len(dbcur.server) = 0 Then
+					sNameServer = Me.sessionKernel.username
+				Else
+					Dim NameServer As New notesname(dbcur.server)
+					sNameServer = NameServer.canonical
+				End If
+				
+				Set Me.docProfileApplication = dbcur.GetProfileDocument("frmAdminPath" & Me.sKernelKey, sNameServer & sApplicationKey)
+				If Not Me.docProfileApplication.hasitem("LogLevelZZZ") Then				
+					Error iERR_PROPERTY_MISSING,  "database '" & dbcur.title & "' not configured. Profiledocument missing (Mask: frmAdminPath " & Me.sKernelKey & ", Key: '" & sApplicationKey	& "')"
+				Elseif Me.docProfileApplication.LogLevelZZZ(0) = "" Then
+					Error iERR_PROPERTY_MISSING,  "database '" & dbcur.title & "' not configured. Profiledocument missing (Mask: frmAdminPath " & Me.sKernelKey & ", Key: '" & sApplicationKey	& "')"
+				End If											
+			End If 'len(sApplicationKey) = 0
+		End If
+		
+endTrue:
+		Set ApplicationProfile = Me.docProfileApplication
+		Exit Property
+EndFalse: 
+		Set ApplicationProfile = Nothing
+		Exit Property
+endError:
+		Set ApplicationProfile = Nothing
+		Exit Property
+Errobj:
+		Dim sScript As String
+		sScript = sScript = Me.ClassLibrary & "\Property Get ApplicationProfile()" 'sScript = objKernel.ClassLibrary & "\" & Getthreadinfo(LSI_THREAD_PROC)
+		Call Me.MessageAppend("",sScript,Erl,Error$, Err, "")
+		Select Case Err
+		Case iMSG_NEXT, iERR_NEXT: Resume Next
+		Case iMSG_TRUE, iERR_TRUE: Resume EndTrue
+		Case iMSG_FALSE, iERR_FALSE: Resume EndFalse
+		Case Else: Resume EndError
+		End Select
+	End Property
+	Public Property Set ApplicationProfile() As notesdocument
+		Set Me.docProfileApplication = ApplicationProfile
+	End Property
+	
+	
+	
+	Public Property Get KernelProfile() As notesdocument		
+		Set KernelProfile = Me.docProfileKernel
+	End Property
+	Public Property Set KernelProfile() As notesdocument
+		Set Me.docProfileKernel = KernelProfile
+	End Property
+	
+	'### Das LWF-Application Setup Document
+	Public Property Set LWFProfile() As notesdocument
+		Set Me.docSetupApplication = LWFProfile
+	End Property
+	Public Property Get LWFProfile() As notesdocument
+		If Me.docSetupApplication Is Nothing Then
+			Set Me.docSetupApplication = KernelDocAdminLWFGet_(Me)
+		End If		
+		Set LWFProfile = Me.docSetupApplication
+	End Property
+	
+	'### Das Application-Setup-Dokument des Z-Kernels
+	Public Property Set ApplicationSetup() As notesdocument
+		Set Me.docSetupApplicationZZZ = ApplicationSetup
+	End Property
+	Public Property Get ApplicationSetup() As notesdocument
+		If Me.docSetupApplicationZZZ Is Nothing Then
+			Set Me.docSetupApplicationZZZ = KernelDocAdminGet_(Me)
+		End If		
+		Set ApplicationSetup = Me.docSetupApplicationZZZ
+	End Property
+	
+	
+	'### Folgende Properties werden von der - include Bibliothek überschreiben
+	Public Property Get MainDocumentFormList As Variant
+		Dim saTemp() As String
+		Redim saTemp(0)
+		saTemp(0) = ""		
+		MainDocumentFormList = saTemp
+	End Property
+	
+	
+	'###################################################################################################
+	'### Funktionen
+	'########################
+	
+	'### Konstruktor 
+	Sub new(sessionObj As notessession, sKeyKernel As String, sKeyApplication As String,vFlagToSet As Variant,  sFlagControl As String)
+		Call KernelNew_(Me, sessionObj, sKeyKernel, sKeyApplication, vFlagToSet, sFlagControl)		
+	End Sub
+	
+	'### AgentRunOnServer
+	Function AgentRunOnServer(sAgentName As String, doc As notesdocument, sFlagControl As String) As Boolean
+		AgentRunOnServer = KernelAgentRunOnServer_(Me, sAgentName, doc, sFlagControl)		
+	End Function
+	
+	'### Interne Ansicht ermitteln
+	Function ViewInternalGet(dbToLookFor As notesdatabase, sViewname As String, sFlagControl As String) As notesview
+		Set ViewInternalGet = KernelViewInternalGet_(Me, dbToLookFor, sViewName, sFlagControl)
+	End Function
+	
+	'### Internen Agenten ermitteln
+	Function AgentInternalGet(dbToLookFor As notesdatabase, sAgentname As String, sFlagControl As String) As notesagent
+		Set AgentInternalGet =  KernelAgentInternalGet_(Me, dbToLookFor, sAgentname, sFlagControl)
+	End Function
+	
+	'### Datenbank ermitteln, per Alias
+	Function DBByAliasGet(sAlias As String, sFlagControl As String) As notesdatabase
+		Set DBByAliasGet = KernelDBByAliasGet_(Me, sAlias, sFlagControl)
+	End Function
+	
+	'### Datanbank ermitteln, per Pfad
+	Function DBGet(sServer As String, sPath As String, sFlagControl As String) As notesdatabase
+		Set DBGet = KernelDBGet_(Me, sServer, sPath, sFlagControl)
+	End Function
+	
+	'### Profildokument explicit holen
+	Function ApplicationProfileRefresh(sKeyApplication As String, sFlagControl As String) As notesdocument
+		Set ApplicationProfileRefresh = KernelApplProfileRefresh_(Me, sKeyApplication, sFlagControl)
+	End Function
+	
+	'### Ist es eine Serverdatenbank auf der gerade gearbeitet wird, oder lokal
+	Function LocationIsOnSameServer(dbCurrent As notesdatabase, sLocation As String, sFlagControl As String) As Boolean
+		LocationIsOnSameServer = KernelLocationIsOnSameServer_(Me, dbCurrent, sLocation, sFlagControl)
+	End Function
+	
+	'### Den Location-Namen anhand eines Datanbank-Handles ermitteln	
+	Function LocationByDBGet(db As NotesDatabase, sFlagControl As String) As String
+		LocationByDBGet = KernelLocationByDBGet_(Me, db, sFlagControl)
+	End Function
+	
+	'### Erstelle eine leere, Datenbank (enthält lediglich eine viwDocIDZZZ Ansicht)
+	Function DBEmptyCreate(sServer As String, sPath As String, sFlagControl As String) As notesdatabase
+		Set DBEmptyCreate = KernelDBEmptyCreate_(Me, sServer, sPath, sFlagControl)
+	End Function
+	
+	'### Erstelle die default Zugriffsfelder, welche dem Server, den Administratoren, etc. über Rollen den Zugriff auf die Dokumente sichern sollen
+	Function AccessFieldAllDefaultCreate(doc As notesdocument, sFlagControl As String) As Boolean
+		AccessFieldAllDefaultCreate = KernelAccessFieldAllDefaultCreate_(Me, doc, sFlagControl)
+	End Function
+	
+	'### Behandlung der internen Kernel-Flags, die teilweise in die Notes-ini teilweise direkt in ein Dokument geschrieben werden
+	Function EnvironmentSet(doc As notesdocument, sZAlias As String, iFlagEnable As Integer, sFlagControl As String) As Boolean
+		EnvironmentSet = KernelEnvironmentSet_(Me, doc, sZAlias, iFlagEnable, sFlagControl)		
+	End Function
+	Function EnvironmentGet(doc As notesdocument, sZAlias As String, sFlagControl As String) As Boolean
+		EnvironmentGet = KernelEnvironmentGet_(Me, doc, sZAlias, sFlagControl)
+	End Function
+	Function EnvironmentValueSet(doc As notesdocument, sZAlias As String, vValue As Variant, sFlagControl As String) As Boolean
+		EnvironmentValueSet = KernelEnvironmentValueSet_(Me, doc, sZAlias, vValue, sFlagControl)
+	End Function
+	Function EnvironmentValueGet(doc As notesdocument, sZAlias As String, sFlagControl As String) As Variant
+		EnvironmentValueGet = KernelEnvironmentValueGet_(Me, doc, sZAlias, sFlagControl)
+	End Function
+	Function EnvironmentProof(sZAlias As String, sFlagControl As String) As Integer
+		EnvironmentProof = KernelEnvironmentProof_(Me, sZAlias, sFlagControl)
+	End Function	
+	
+	'### Behandlung der internen Flags	
+	'+++ Diese Funktion setzt die internen Flags. Mir erscheint dies besser als eine eigene Funktion für alle Flags
+	Function FlagSet(sFlagName As String, bHow As Boolean) As Boolean
+		Dim bReturn As Boolean
+		Dim sWhat As String	
+		sWhat = Trim(sFlagName)
+		If Len(sWhat) = 0 Then Goto EndError
+		
+		bReturn = ObjectZZZ..flagset(sWhat, bHow)
+		If bReturn = True Then Goto EndSuccess
+		
+		sWhat = Lcase(sWhat)
+		Select Case sWhat
+		Case "create":
+			Me.bFlagCreate = bHow
+			bReturn = True
+		Case "configwarningdisabled":
+			Me.bFlagconfigwarningdisabled = bHow
+			bReturn = True	
+		Case "configinitialisation":
+			Me.bFlagconfiginitialisation =  bHow
+			bReturn = True
+		Case Else
+			Goto EndError
+		End Select		
+endSuccess:
+		FlagSet = bReturn
+		Exit Function
+endError:
+		FlagSet = False
+		Exit Function	
+	End Function			
+	
+	'+++ Diese Funktion liest die internen Flags aus.
+	Function FlagGet(sFlagName As String) As Boolean		
+		Dim sWhat As String	
+		Dim bHow As Boolean
+		sWhat = Trim(sFlagName)
+		If Len(sWhat) = 0 Then Goto EndError	
+		
+		bHow = ObjectZZZ..flagget(sWhat)
+		If bHow = True Then Goto EndSuccess
+		
+		sWhat = Lcase(sWhat)
+		Select Case sWhat
+		Case "create": bHow = Me.bFlagCreate
+		Case "configwarningdisabled": bHow = Me.bFlagconfigwarningdisabled
+		Case "configinitialisation": bHow = Me.bFlagconfiginitialisation
+		Case Else: Goto EndError			
+		End Select		
+endSuccess:
+		FlagGet = bHow
+		Exit Function
+endError:
+		FlagGet = False
+		Exit Function
+ErrHandler:
+		Resume EndError	
+	End Function			
+End Class
+
+	'###################################################################################################
+	'###################################################################################################
+	'###################################################################################################
+Public Class KernelKernelLogZZZ As ObjectZZZ
+	Private objKernel As KernelKernelZZZ
+	Private sessionLog As notessession
+	Private dbLog As notesdatabase
+	Private nLog As NotesLog
+	Private agtAgentCalling As notesagent 			'Handle auf das Agentenobjekt
+	Public TypeLogEntry As TypeLogZZZ	
+	
+	'#############################
+	'### Properties
+	'#############################
+	
+	'### Session
+	Public Property Get Session() As notessession
+		Set Session = sessionLog
+	End Property
+	Public Property Set Session() As notessession
+		Set Me.SessionLog = Session
+	End Property
+	
+	'### Kernel
+	Public Property Get KernelObject As KernelKernelZZZ
+		Set KernelObject = Me.objKernel
+	End Property
+	Public Property Set KernelObject As KernelKernelZZZ
+		Set Me.objKernel = KernelObject
+	End Property
+	
+	'### Noteslog
+	Public Property Get LogCurrent As NotesLog
+		If Me.nLog Is Nothing Then
+			Dim tempLog As NotesLog
+			Set tempLog = New NotesLog(Me.AgentCallingName)
+			Call tempLog.OpenNotesLog( Me.dbLog.server, Me.dbLog.filepath )
+			Set Me.nLog = tempLog
+		End If
+		Set LogCurrent = Me.nLog
+	End Property
+	Public Property Set LogCurrent As noteslog
+		Set Me.nLog = LogCurrent	
+	End Property
+	
+	'### Protokolldatenbank
+	Public Property Get ApplicationLogDBCurrent() As notesdatabase
+		Set ApplicationLogDBCurrent = Me.dbLog	
+	End Property
+	Public Property Set ApplicationLogDBCurrent() As Notesdatabase
+		Set Me.dbLog = ApplicationLogDBCurrent
+	End Property
+	
+	'### Ermittlung des aufrufenden Agenten
+	Public Property Get AgentCallingName() As String
+		If Len(Me.TypeLogEntry.sAgentCallingName) = 0 Then
+			Call Me.AgentCallingRefresh(Nothing, "")			
+		End If			
+		AgentCallingName = Me.TypeLogEntry.sAgentCallingName
+	End Property
+	Public Property Set AgentCallingName() As String
+		Me.TypeLogEntry.sAgentCallingName = AgentCallingName
+	End Property
+	Public Property Get AgentCallingNameAlias() As String
+		If Len(Me.TypeLogEntry.sAgentCallingName) = 0 Then
+			Call Me.AgentCallingRefresh(Nothing, "")			
+		End If	
+		AgentCallingNameAlias = Me.TypeLogEntry.sAgentCallingNameAlias
+	End Property
+	Public Property Set AgentCallingNameAlias() As String
+		Me.TypeLogEntry.sAgentCallingNameAlias = AgentCallingNameAlias
+	End Property
+	Public Property Get AgentCalling As notesagent
+		If Len(Me.TypeLogEntry.sAgentCallingName) = 0 Then
+			Call Me.AgentCallingRefresh( Nothing, "")			
+		End If	 
+		Set AgentCalling = Me.agtAgentCalling
+	End Property
+	Public Property Set AgentCalling As notesagent
+		Set Me.agtAgentCalling = AgentCalling
+	End Property
+	
+	
+	'### Die aktuelle Scriptposition
+	Public Property Get Scriptposition As String
+		Scriptposition = Me.TypeLogEntry.sScriptCalling
+	End Property
+	Public Property Set Scriptposition As String
+		Me.TypeLogEntry.sScriptCalling = Scriptposition
+	End Property
+	
+	'### Der aktuelle Text des Log Eintrags
+	Public Property Get Text As String
+		Text = Me.TypeLogEntry.sLogText
+	End Property
+	Public Property Set Text As String
+		Me.TypeLogEntry.sLogText = Text
+	End Property
+	
+	'### Der aktuelle Fehlertext
+	Public Property Get ErrorString As String
+		ErrorString = Me.TypeLogEntry.sErrString
+	End Property
+	Public Property Set ErrorString As String
+		Me.TypeLogEntry.sErrString = ErrorString
+	End Property
+	
+	'### Die aktuelle Fehlernummer
+	Public Property Get ErrorNumber As Integer
+		ErrorNumber = Me.TypeLogEntry.iErrNumber
+	End Property
+	Public Property Set ErrorNumber As Integer
+		Me.TypeLogEntry.iErrNumber = ErrorNumber
+	End Property
+	
+	'### Die Fehlerzeile
+	Public Property Get ErrorLine As Integer
+		ErrorLine = Me.TypeLogEntry.iErrLine
+	End Property
+	Public Property Set ErrorLine As Integer
+		Me.TypeLogEntry.iErrLine = ErrorLine
+	End Property
+	
+	'### Globales Protokolllevel
+	Public Property Get LogLevelGlobal As Integer
+		If Me.TypeLogEntry.iLogLevelGlobal = 0 Then 
+			Me.TypeLogEntry.iLogLevelGlobal = Me.LogLevelGlobalRefresh()
+		End If
+		LogLevelGlobal = Me.TypeLogEntry.iLogLevelGlobal
+	End Property
+	Public Property Set LogLevelGlobal As Integer
+		Me.TypeLogEntry.iLogLevelGlobal = LogLevelGlobal
+	End Property
+	
+	'### Für diesen Protokollaufruf eingestelles LogLevel
+	Public Property Get LogLevelCurrent As Integer
+		LogLevelCurrent = Me.TypeLogEntry.iLogLevelCurrent
+	End Property	
+	Public Property Set LogLevelCurrent As Integer
+		Me.TypeLogEntry.iLogLevelCurrent = LogLevelCurrent
+	End Property
+	
+	
+	'################################
+	'### Funktionen 
+	'################################
+	
+ 	'### Konstruktor
+	Sub new(objKernel As KernelKernelZZZ, vFlagToSet As Variant, sFlagControl As String)
+		Call LogNew_(objKernel, Me, vFlagToSet, sFlagControl)
+	End Sub
+	
+	'+++ 
+	Function LogLevelGlobalRefresh()
+		LogLevelGlobalRefresh = LogLevelGlobalRefresh_(Me)
+	End Function
+	
+	'### Den aktuellen Agenten holen
+	Function AgentCallingRefresh(nAgent As NotesAgent, sFlagControl As String) As Boolean
+		AgentCallingRefresh = LogAgentCallingRefresh_(Me, nAgent, sFlagControl)
+	End Function
+	
+	'### Aufruf zum Protokollschreiben (Merke: Bei Verwendung des LogLevels 0 wird der Eintrag auch als Fehlerprotokoll geschrieben)
+	Function HandleLog(sScriptPosCalling As String, sText As String, iLevel As Integer, sFlagControl As String) As Boolean
+		Me.Text = sText		
+		Me.LogLevelCurrent = iLevel
+		Me.ScriptPosition = sScriptPosCalling		
+		HandleLog = LogHandle_(Me, sFlagControl)		
+	End Function
+	
+	'### Aufruf zum Fehlerprotokollschreiben
+	Function HandleLogError(sScriptPosCalling As String, iErl As Integer,sError As String, iErr As Integer, sFlagControl As String) As Boolean
+		Me.ErrorNumber = iErr
+		Me.ErrorLine = iErl
+		Me.ErrorString = sError
+		Me.ScriptPosition = sScriptPosCalling		
+		Me.LogLevelCurrent = 0
+		Me.Text = Me.StringErrorMake("")
+		
+		HandleLogError = LogHandle_(Me, sFlagControl)
+	End Function
+	
+	'### Erstellen des Fehlerstrings
+	Function StringErrorMake(sFlagControl As String) As String			
+		StringErrorMake = LogStringErrorMake_(Me, sFlagControl)
+	End Function
+	
+	'### Behandlung der internen Flags	
+	'+++ Diese Funktion setzt die internen Flags. Mir erscheint dies besser als eine eigene Funktion für alle Flags
+	Function FlagSet(sFlagName As String, bHow As Boolean) As Boolean
+		Dim bReturn As Boolean
+		Dim sWhat As String	
+		sWhat = Trim(sFlagName)
+		If Len(sWhat) = 0 Then Goto EndError
+		sWhat = Lcase(sWhat)
+		
+		bReturn = ObjectZZZ..flagset(sWhat, bHow)
+		If bReturn = True Then Goto endSuccess
+		
+		Select Case sWhat
+		Case "outputfrontenderror": 
+			Me.TypeLogEntry.bFlagOutputFrontendError = bHow
+			bReturn = True
+		Case "outputfrontend":
+			Me.TypeLogEntry.bFlagoutputfrontend = bHow
+			bReturn = True
+		End Select		
+endSuccess:
+		FlagSet = bReturn
+		Exit Function
+endError:
+		FlagSet = False
+		Exit Function
+	End Function			
+	
+	'+++ Diese Funktion liest die internen Flags aus.
+	Function FlagGet(sFlagName As String) As Boolean
+		Dim sWhat As String	
+		Dim bHow As Boolean
+		sWhat = Trim(sFlagName) 
+		If Len(sWhat) = 0 Then Goto EndError			
+		sWhat = Lcase(sWhat)
+		
+		bHow = ObjectZZZ..flagget(sWhat)
+		If bHow = True Then Goto EndSuccess
+		
+		Select Case sWhat
+		Case "outputfrontenderror": bHow = Me.TypeLogEntry.bFlagoutputfrontenderror
+		Case "outputfrontend": bHow = Me.TypeLogEntry.bFlagoutputfrontend
+		Case Else: Goto EndError
+		End Select		
+endSuccess:
+		FlagGet = bHow
+		Exit Function
+endError:
+		FlagGet = False
+		Exit Function
+	End Function	
+End Class
+
+
+
+
+
+
+
+
+
+
+
+
+Private Function KernelAgentRunOnServer_(objKernel As KernelKernelZZZ, sAgentName As String, doc As notesdocument, sFlagControl As String) As Boolean
+	Dim bReturn As Boolean	
+	Dim btemp As Boolean
+	On Error Goto errobjNoCall
+	Call objKernel.MessageReset(iMSG_TYPE_ERROR,"")  'Daimt sich in dieser Methode nicht Fehler aus einer anderen Methode auswirken
+	
+	'##############
+	Dim dbcur As notesdatabase
+	Dim agent As notesagent
+	Dim sNoteid As String
+	
+	If Not doc Is Nothing Then		
+		sNoteid = doc.noteid		
+	End If
+	
+	Set dbcur = objKernel.KernelDBCalling
+	If objKernel.Error.iCode > 0 Then Error iERR_OBJECT_CUR, objKernel.Error.sString
+	
+	'Set agent = dbcur.getagent(sAgentName)
+	Set agent = objKernel.AgentInternalGet(dbCur, sAgentName, "")
+	If objKernel.Error.iCode > 0 Then Error iERR_OBJECT_CUR, objKernel.Error.sString
+	If agent Is Nothing Then Error iERR_PROPERTY_MISSING, "Agent '" & sAgentName & "' not found in database '" & dbcur.title & "'"
+	
+	'Lokal oder auf einem Server
+	If Len(dbcur.server) = 0 Then
+		bReturn = agent.run(sNoteID)
+	Else
+		bReturn = agent.runonserver(sNoteID)		
+	End If
+	
+	'#######
+endTrue:
+	objKernel.Error.iCode = 0
+	KernelAgentRunOnServer_ = bReturn
+	Exit Function
+EndFalse:
+	objKernel.Error.iCode = 0
+	KernelAgentRunOnServer_ = False
+	Exit Function
+endError:
+	KernelAgentRunOnServer_ = False
+	Exit Function
+ErrobjNoCall:
+	Dim sScript As String, icode As Integer, tpcall As TypeParamZZZ
+	sScript = objKernel.ClassLibrary & "\" & Getthreadinfo(LSI_THREAD_PROC)
+	icode = Err
+	Call objKernel.MessageAppend("",sScript,Erl,Error$, Err, "")
+	Select Case icode
+	Case iMSG_NEXT, iERR_NEXT: Resume Next
+	Case iMSG_TRUE, iERR_TRUE: Resume EndTrue
+	Case iMSG_FALSE, iERR_FALSE: Resume EndFalse
+	Case iERR_OBJECT_ERR, iERR_OBJECT_CUR: Resume EndError 'Ziel: Nicht jeden Fehler ins Log stellen
+	Case Else: 
+		Call MSG2FileSendZZZ(Nothing, "", objKernel.Error.sString, 1, tpcall, "")
+		If tpcall.iErr > 0 Then Msgbox tpcall.sErr   'Fehler im Errorhandling sofort ans Frontend/Serverlog ausgeben
+		'Msgbox "An error happened, more in this file: " & Chr(13) & stemp
+		Resume EndError
+	End Select
+End Function
+Private Function KernelApplProfileRefresh_(objKernel As KernelKernelZZZ, sKeyApplication, sFlagControl) As notesdocument
+	Dim docReturn As NotesDocument
+	Dim btemp As Boolean
+	On Error Goto errobjNoCall
+	Call objKernel.MessageReset(iMSG_TYPE_ERROR,"")  'Daimt sich in dieser Methode nicht Fehler aus einer anderen Methode auswirken
+	
+	
+	'### Falls das Profildokument gerade erstellt wird, kann nix geholt werden
+	If objKernel.flagget("Create") = True Or objKernel.flagget("Init") = True Goto endfalse
+	
+	'###########################
+	Dim dbCur As notesdatabase
+	Dim nameServer As notesname
+	Dim sNameServer As String
+	
+	Set dbCur = objKernel.KernelDBCalling
+	If Len(dbcur.server) > 0 Then
+		Set NameServer = New notesname(dbcur.server)		
+		sNameServer = NameServer.canonical
+	Else
+		sNameServer = objKernel.Session.username
+	End If
+	
+	Set docReturn = dbcur.GetProfileDocument("frmAdminPath" & objKernel.KernelKey, sNameServer & sKeyApplication)
+	If Not docReturn.hasitem("LogLevelZZZ") Then
+		Error iERR_PROPERTY_MISSING, "application profiledocument does not contain any log level entry. Not configured ?"
+	Elseif docReturn.LogLevelZZZ(0) = "" Then
+		Error iERR_PROPERTY_MISSING, "application profiledocument does not contain a valid log level entry. Not configured ?"
+	End If	
+	
+	'############################
+EndTrue:
+	objKernel.Error.iCode = 0
+	Set objKernel.ApplicationProfile = docReturn
+	Set KernelApplProfileRefresh_ = docReturn
+	Exit Function	
+endFalse:
+	objKernel.Error.iCode = 0
+	Set objKernel.ApplicationProfile = Nothing
+	Set KernelApplProfileRefresh_ = Nothing
+	Exit Function
+EndError:
+	Set objKernel.ApplicationProfile = Nothing
+	Set KernelApplProfileRefresh_ = Nothing
+	Exit Function
+ErrobjNoCall:
+	Dim sScript As String, icode As Integer, tpcall As TypeParamZZZ
+	sScript = objKernel.ClassLibrary & "\" & Getthreadinfo(LSI_THREAD_PROC)
+	icode = Err
+	Call objKernel.MessageAppend("",sScript,Erl,Error$, Err, "")
+	Select Case icode
+	Case iMSG_NEXT, iERR_NEXT: Resume Next
+	Case iMSG_TRUE, iERR_TRUE: Resume EndTrue
+	Case iMSG_FALSE, iERR_FALSE: Resume EndFalse
+	Case iERR_OBJECT_ERR, iERR_OBJECT_CUR: Resume EndError 'Ziel: Nicht jeden Fehler ins Log stellen
+	Case Else: 
+		Call MSG2FileSendZZZ(Nothing, "", objKernel.Error.sString, 1, tpcall, "")
+		If tpcall.iErr > 0 Then Msgbox tpcall.sErr   'Fehler im Errorhandling sofort ans Frontend/Serverlog ausgeben
+		'Msgbox "An error happened, more in this file: " & Chr(13) & stemp
+		Resume EndError
+	End Select
+End Function
+Private Function KernelDBByAliasGet_(objKernel As KernelKernelZZZ, sAliasInput As String, sFlagControlInput As String) As notesdatabase
+	Dim dbReturn As notesdatabase
+	Dim btemp As Boolean
+	On Error Goto errobjNoCall
+	Call objKernel.MessageReset(iMSG_TYPE_ERROR,"")  'Daimt sich in dieser Methode nicht Fehler aus einer anderen Methode auswirken
+	
+	'### Variablen
+	Dim docProfil As notesdocument
+	Dim itemserver As notesitem, itempath As notesitem
+	Dim sAlias As String, sServer As String, sPath As String
+	Dim sTemp As String, itemp As Integer
+	
+	'### Übergabeparameter prüfen
+	If Len(sAliasInput) = 0 Then
+		Error iERR_PARAM_MISSING, "AliasName"	
+	Else
+		sAlias = sAliasInput
+	End If	
+	
+	'### Ermittlung der Datenbank	
+	'1. Profildokument ermitteln
+	Set docprofil = objKernel.ApplicationProfile()
+	If objkernel.Error.iCode > 0 Then Error iERR_OBJECT_CUR, objKernel.Error.sString
+	If docProfil Is Nothing Then Error iERR_PARAM_MISSING, "Profiledocument not found for the alias '" & sAlias & "'"
+	
+	'2. Items holen
+	'a) Servereintrag
+	stemp = sCONFIGPRESERVERZZZ & sAlias & objKernel.ApplicationKey
+	Set itemserver = docprofil.getfirstitem(stemp)		
+	'MErke: Falls etwas nicht konfiguriert ist, dann darf es nicht zwangsläufig zu einem Fehler kommen, es kann ja sein, dass ggf. eine andere DAtenbank dafür einspringt
+	'If itemserver Is Nothing Then Error iERR_PARAM_MISSING, "Field entry for database-server not found in profile-document (" & sTemp & ")"
+'Also:
+	If itemserver Is Nothing Then Error iMSG_FALSE, "Field entry for database-server not found in profile-document (" & sTemp & ")"
+	sServer = Trim(itemserver.values(0))
+	If sServer = "local" Or sServer = "-" Then sServer = ""
+	
+	'b) Pfadeintrag
+	stemp = sCONFIGPREPATHZZZ & sAlias & objKernel.ApplicationKey
+	Set itempath = docprofil.getfirstitem(stemp)		
+	'dito s. Server If itempath Is Nothing Then Error iERR_PARAM_MISSING, "Field entry for database-path not found in profile-document (" & sTemp & ")"
+	If itempath Is Nothing Then	Error iMSG_FALSE, "Field entry for database-path not found in profile-document (" & sTemp & ")"
+	sPath = Trim(itempath.values(0))
+	If Len(sPath) = 0 Then Error iMSG_FALSE, "Field entry for database-path is empty in profile-document (" & sTemp & ")"
+	
+	'Datenbankhandle
+	Set dbReturn = objKernel.DBGet(sServer, sPath, "")	
+	If objKernel.Error.iCode > 0 Then
+		Error iERR_NEXT, "Error when trying to get a database handle for the database with alias: '" & sAlias & "'"
+		Error iERR_OBJECT_CUR, objKernel.Error.sString
+	End If
+	
+	'#############################
+EndTrue:
+	objKernel.Error.iCode = 0
+	Set KernelDBByAliasGet_ = dbReturn
+	Exit Function	
+EndFalse:
+	objKernel.Error.iCode = 0
+	Set KernelDBByAliasGet_ = Nothing
+	Exit Function
+EndError:
+	Set KernelDBByAliasGet_ = Nothing		
+	Exit Function			
+ErrobjNoCall:
+	Dim sScript As String, icode As Integer, tpcall As TypeParamZZZ
+	sScript = objKernel.ClassLibrary & "\" & Getthreadinfo(LSI_THREAD_PROC)
+	icode = Err
+	Call objKernel.MessageAppend("",sScript,Erl,Error$, Err, "")
+	Select Case icode
+	Case iMSG_NEXT, iERR_NEXT: Resume Next
+	Case iMSG_TRUE, iERR_TRUE: Resume EndTrue
+	Case iMSG_FALSE, iERR_FALSE: Resume EndFalse
+	Case iERR_OBJECT_ERR, iERR_OBJECT_CUR: Resume EndError 'Ziel: Nicht jeden Fehler ins Log stellen
+	Case Else: 
+		stemp = MSG2FileSendZZZ(Nothing, "", objKernel.Error.sString, 1, tpcall, "")
+		If tpcall.iErr > 0 Then Msgbox tpcall.sErr   'Fehler im Errorhandling sofort ans Frontend/Serverlog ausgeben
+		'Msgbox "An error happened, more in this file: " & Chr(13) & stemp
+		Resume EndError
+	End Select
+End Function
+Private Function KernelDBGet_(objKernel As KernelKernelZZZ, sServerIn As String, sPathIn As String, sFlagControl As String) As notesdatabase
+	Dim dbReturn As notesdatabase
+	Dim btemp As Boolean
+	On Error Goto errobjNoCall
+	Call objKernel.MessageReset(iMSG_TYPE_ERROR,"")  'Daimt sich in dieser Methode nicht Fehler aus einer anderen Methode auswirken
+	
+	
+	'### Übergabeparameter prüfen
+	Dim sServer As String, sPath As String	
+	If Len(sPathIn) = 0 Then 
+		Error iERR_PARAM_MISSING, "database-path"
+	Else
+		sPath = sPathIn
+	End If
+	sServer = sServerin
+	
+	'############
+	Dim docprofil As notesdocument
+	Dim itempath As notesitem
+	Dim itemserver As notesitem
+	
+	Dim skey As String
+	
+	'1. Handle auf das Datenbankobjekt prüfen
+	Set dbReturn = New NotesDatabase(sServer, sPath)
+	If dbReturn Is Nothing Then Error iERR_PARAM_VALUE, "Database not found. (Server: " & sServer & " Path: " & sPath & ")"
+	If dbReturn.isOpen = False Then Error iERR_PARAM_VALUE, "unable to open database. Access ?  (Server: " & sServer & " Path: " & sPath & ")"
+	
+EndTrue:
+	objKernel.Error.iCode = 0
+	Set KernelDBGet_ = dbReturn
+	Exit Function	
+EndFalse:
+	objKernel.Error.iCode = 0
+	Set KernelDBGet_ = Nothing
+	Exit Function
+EndError:
+	Set KernelDBGet_ = Nothing		
+	Exit Function	
+ErrobjNoCall:
+	Dim sScript As String, icode As Integer, tpcall As TypeParamZZZ
+	sScript = objKernel.ClassLibrary & "\" & Getthreadinfo(LSI_THREAD_PROC)
+	icode = Err
+	Call objKernel.MessageAppend("",sScript,Erl,Error$, Err, "")
+	Select Case icode
+	Case iMSG_NEXT, iERR_NEXT: Resume Next
+	Case iMSG_TRUE, iERR_TRUE: Resume EndTrue
+	Case iMSG_FALSE, iERR_FALSE: Resume EndFalse
+	Case iERR_OBJECT_ERR, iERR_OBJECT_CUR: Resume EndError 'Ziel: Nicht jeden Fehler ins Log stellen
+	Case Else: 
+		Call MSG2FileSendZZZ(Nothing, "", objKernel.Error.sString, 1, tpcall, "")
+		If tpcall.iErr > 0 Then Msgbox tpcall.sErr   'Fehler im Errorhandling sofort ans Frontend/Serverlog ausgeben
+		'Msgbox "An error happened, more in this file: " & Chr(13) & stemp
+		Resume EndError
+	End Select
+End Function
+Private Function KernelDBLogRefresh_(objKernel As KernelkernelZZZ) As notesdatabase
+	Dim dbReturn As notesdatabase
+	Dim btemp As Boolean
+	On Error Goto errobj
+	Call objKernel.MessageReset(iMSG_TYPE_ERROR,"")  'Daimt sich in dieser Methode nicht Fehler aus einer anderen Methode auswirken
+	
+	If objKernel.Status.bFlagInit = True Then
+		Set KernelDBLogRefresh_ = objKernel.ApplicationDBCurrent 'Die aktuelle Applikations-Datenbank als Notlösung für die Protokollierung
+	Else
+		Set dbReturn = objKernel.DBByAliasGet("ApplicationLog","")
+		If objKernel.Error.iCode > 0 Then Error iERR_OBJECT_CUR, objKernel.Error.sString
+		If dbReturn Is Nothing Then 
+			Set dbReturn = objKernel.ApplicationDBCurrent
+			If objKernel.Error.iCode > 0 Then Error iERR_OBJECT_CUR, objKernel.Error.sString
+		End If
+		Set objKernel.ApplicationLogDBCurrent  = dbReturn
+	End If
+	
+EndTrue:
+	objKernel.Error.iCode = 0
+	Set KernelDBLogRefresh_ = dbReturn
+	Exit Function
+EndFalse:
+	objKernel.Error.iCode = 0
+	Set KernelDBLogRefresh_ = Nothing
+	Exit Function
+EndError:
+	Set KernelDBLogRefresh_ = Nothing
+	Exit Function
+Errobj:
+	Dim sScript As String, icode As Integer, tpcall As TypeParamZZZ
+	sScript = objKernel.ClassLibrary & "\" & Getthreadinfo(LSI_THREAD_PROC)
+	icode = Err
+	Call objKernel.MessageAppend("",sScript,Erl,Error$, Err, "")
+	Select Case icode
+	Case iMSG_NEXT, iERR_NEXT: Resume Next
+	Case iMSG_TRUE, iERR_TRUE: Resume EndTrue
+	Case iMSG_FALSE, iERR_FALSE: Resume EndFalse
+	Case iERR_OBJECT_ERR, iERR_OBJECT_CUR: Resume EndError 'Ziel: Nicht jeden Fehler ins Log stellen
+	Case Else: 
+		Call MSG2FileSendZZZ(Nothing, "", objKernel.Error.sString, 1, tpcall, "")
+		If tpcall.iErr > 0 Then Msgbox tpcall.sErr   'Fehler im Errorhandling sofort ans Frontend/Serverlog ausgeben
+		'Msgbox "An error happened, more in this file: " & Chr(13) & stemp
+		Resume EndError
+	End Select
+End Function
+Private Function KernelDocAdminGet_(objKernel As KernelKernelZZZ) As notesdocument
+%REM wir d von ApplicationSetup aufgerufen,
+liefert das Application Dokument zurück (das echte, nicht das Profildokument)
+%END REM
+	Dim docReturn As notesdocument
+	Dim btemp As Boolean
+	On Error Goto errobjNoCall
+	Call objKernel.MessageReset(iMSG_TYPE_ERROR,"")  'Daimt sich in dieser Methode nicht Fehler aus einer anderen Methode auswirken
+	
+	
+	'###	Variablen
+	Dim dbConfig As notesdatabase
+	Dim col As notesdocumentcollection
+	Dim sSearch As String	
+	
+	'### Das LWF-Konfigurationsdokument suchen	
+	sSearch=|Form = "frmApplicationSetupZZZ" & ApplicationKeyZZZ = "| & objKernel.ApplicationKey & |" & LocationZZZ = "| & objKernel.LocationCurrent & |"|
+	If objKernel.Error.iCode > 0 Then Error iERR_OBJECT_CUR, objKernel.Error.sString
+	
+	Set dbConfig = objKernel.ConfigurationDBCurrent
+	If objKernel.Error.iCode > 0 Then Error iERR_OBJECT_CUR, objKernel.Error.sString
+	If dbConfig Is Nothing Then Error iERR_PROPERTY_MISSING, "No handle on Configuration database"
+	
+	Set col= dbConfig.Search(sSearch, Nothing, 0 )
+	If col.Count = 0 Then Error iERR_PARAM_MISSING, "Kernel configuration document not found - Searchstring: '" & sSearch & "'"
+	If col.Count >= 2 Then Error iERR_PARAM_VALUE, Cstr(col.Count) & " Configuration documents found."
+	
+	Set docReturn=col.GetFirstDocument
+	
+	'################################
+EndTrue:
+	objKernel.Error.iCode = 0
+	Set KernelDocAdminGet_ = docReturn
+	Exit Function
+EndFalse:
+	objKernel.Error.iCode = 0
+	Set KernelDocAdminGet_ = Nothing
+	Exit Function
+EndError:
+	'Call objKernel.KernelLog.HandleLog(sScript, sInfo, 0)
+	Set KernelDocAdminGet_ = Nothing
+	Exit Function
+ErrobjNoCall:
+	Dim sScript As String, icode As Integer, tpcall As TypeParamZZZ
+	sScript = objKernel.ClassLibrary & "\" & Getthreadinfo(LSI_THREAD_PROC)
+	icode = Err
+	Call objKernel.MessageAppend("",sScript,Erl,Error$, Err, "")
+	Select Case icode
+	Case iMSG_NEXT, iERR_NEXT: Resume Next
+	Case iMSG_TRUE, iERR_TRUE: Resume EndTrue
+	Case iMSG_FALSE, iERR_FALSE: Resume EndFalse
+	Case iERR_OBJECT_ERR, iERR_OBJECT_CUR: Resume EndError 'Ziel: Nicht jeden Fehler ins Log stellen
+	Case Else: 
+		Call MSG2FileSendZZZ(Nothing, "", objKernel.Error.sString, 1, tpcall, "")
+		If tpcall.iErr > 0 Then Msgbox tpcall.sErr   'Fehler im Errorhandling sofort ans Frontend/Serverlog ausgeben
+		'Msgbox "An error happened, more in this file: " & Chr(13) & stemp
+		Resume EndError
+	End Select
+End Function
+Private Function KernelDocAdminLWFGet_(objKernel As KernelKernelZZZ) As notesdocument
+%REM
+Diese Funktion ermittelt das LWF-Administrationsdokument
+Das wird z.B. bei der Vergabe einer Neuen Nummer gebraucht.
+%END REM
+	Dim docReturn As notesdocument
+	Dim btemp As Boolean
+	On Error Goto errobj
+	Call objKernel.MessageReset(iMSG_TYPE_ERROR,"")  'Daimt sich in dieser Methode nicht Fehler aus einer anderen Methode auswirken
+	
+	
+	'###	Variablen
+	Dim dbCur As notesdatabase
+	Dim col As notesdocumentcollection
+	Dim sSearch As String	
+	
+	
+	'### Das LWF-Konfigurationsdokument suchen	
+	Set dbCur = objKernel.ApplicationDBCurrent
+	If objKernel.Error.iCode > 0 Then Error iERR_OBJECT_CUR, objKernel.Error.sString
+	If dbCur Is Nothing Then 
+		Error iERR_PROPERTY_MISSING, "no handle on application database"
+	Else		
+		sSearch=|Form = "(OS Application Setup)"|
+		Set col=dbCur.Search(sSearch, Nothing, 0 )
+		If col.Count = 0 Then Error iERR_PARAM_MISSING, "no LWF-Configuration document found in database '" & dbCur.Title & "', Searchstring: '" & sSearch & "'"
+		If col.Count >= 2 Then Error iERR_PARAM_VALUE, Cstr(col.Count) & " LWF-Configuration documents found in database '" & dbCur.Title & "', Searchstring: '" & sSearch & "'"
+		
+		Set docReturn=col.GetFirstDocument
+	End If	
+	
+	'################################
+EndTrue:
+	objKernel.Error.iCode = 0
+	Set KernelDocAdminLWFGet_ = docReturn
+	Exit Function
+EndFalse:
+	objKernel.Error.iCode = 0
+	Set KernelDocAdminLWFGet_ = Nothing
+	Exit Function
+EndError:
+	Set KernelDocAdminLWFGet_ = Nothing
+	Exit Function
+Errobj:
+	Dim sScript As String, icode As Integer, tpcall As TypeParamZZZ
+	sScript = objKernel.ClassLibrary & "\" & Getthreadinfo(LSI_THREAD_PROC)
+	icode = Err
+	Call objKernel.MessageAppend("",sScript,Erl,Error$, Err, "")
+	Select Case icode
+	Case iMSG_NEXT, iERR_NEXT: Resume Next
+	Case iMSG_TRUE, iERR_TRUE: Resume EndTrue
+	Case iMSG_FALSE, iERR_FALSE: Resume EndFalse
+	Case iERR_OBJECT_ERR, iERR_OBJECT_CUR: Resume EndError 'Ziel: Nicht jeden Fehler ins Log stellen
+	Case Else: 
+		Call MSG2FileSendZZZ(Nothing, "", objKernel.Error.sString, 1, tpcall, "")
+		If tpcall.iErr > 0 Then Msgbox tpcall.sErr   'Fehler im Errorhandling sofort ans Frontend/Serverlog ausgeben
+		'Msgbox "An error happened, more in this file: " & Chr(13) & stemp
+		Resume EndError
+	End Select
+End Function
+Private Function KernelFilePathDefaultGet_(objKernel As KernelKernelZZZ, sFlagControl As String) As String
+	Dim sReturn As String
+	Dim btemp As Boolean, stemp as string
+	On Error Goto errobj
+	Call objKernel.MessageReset(iMSG_TYPE_ERROR,"")  'Daimt sich in dieser Methode nicht Fehler aus einer anderen Methode auswirken
+	
+	
+	'################################
+%REM ALTE VERSION, NUN  WIRD DER WERT AUS DEM PROFILDOKUMENT GEHOLT, 2006-04-03, FGL
+	Dim docApplicationSetup As NotesDocument 
+	
+	Set docApplicationSetup = objKernel.ApplicationSetup
+	If objKernel.Error.iCode > 0 Then Error iERR_OBJECT_CUR, objKernel.Error.sString
+	If docApplicationSetup Is Nothing Then Error iERR_PROPERTY_MISSING, "No handle on application-setup-document."
+	
+	sReturn = docApplicationSetup.FilePathZZZ(0)
+	If Len(sReturn) = 0 Then
+		sReturn = objKernel.Session.GetenvironmentString("Directory", True)		
+		sReturn = sReturn & sSEPDIRECTORYZZZ & sPATHFILEDEFAULTZZZ
+	End If
+%ENDREM
+	Dim docProfile As notesdocument
+	Set docProfile = objKernel.ApplicationProfile
+	If objKernel.Error.iCode > 0 Then Error iERR_OBJECT_CUR, objKernel.Error.sString
+	If docProfile Is Nothing Then Error iERR_PROPERTY_MISSING, "No handle on application-profile-document."
+	
+	Dim item As notesitem
+	Set item = docProfile.GetFirstItem(sCONFIGPREFIELDZZZ & "PathFileDefaultZZZ")
+	If Not item Is Nothing Then
+		stemp = item.Values(0)
+		If Len(Trim(stemp)) = 0 Then
+			sReturn = objKernel.Session.GetenvironmentString("Directory", True)		
+			sReturn = sReturn & sSEPDIRECTORYZZZ & sPATHFILEDEFAULTZZZ
+		Else
+			sReturn = item.Values(0)
+		End If				
+	Else
+		sReturn = objKernel.Session.GetenvironmentString("Directory", True)		
+		sReturn = sReturn & sSEPDIRECTORYZZZ & sPATHFILEDEFAULTZZZ
+	End If
+	
+	
+	'################################
+EndTrue:
+	objKernel.Error.iCode = 0
+	KernelFilePathDefaultGet_ = sReturn
+	Exit Function		
+EndFalse:
+	objKernel.Error.iCode = 0
+	KernelFilePathDefaultGet_ = ""
+	Exit Function		
+EndError:
+	'Call objKernel.KernelLog.HandleLog(sScript, sInfo, 0)
+	KernelFilePathDefaultGet_ = ""
+	Exit Function
+Errobj:
+	Dim sScript As String, icode As Integer, tpcall As TypeParamZZZ
+	sScript = objKernel.ClassLibrary & "\" & Getthreadinfo(LSI_THREAD_PROC)
+	icode = Err
+	Call objKernel.MessageAppend("",sScript,Erl,Error$, Err, "")
+	Select Case icode
+	Case iMSG_NEXT, iERR_NEXT: Resume Next
+	Case iMSG_TRUE, iERR_TRUE: Resume EndTrue
+	Case iMSG_FALSE, iERR_FALSE: Resume EndFalse
+	Case iERR_OBJECT_ERR, iERR_OBJECT_CUR: Resume EndError 'Ziel: Nicht jeden Fehler ins Log stellen
+	Case Else: 
+		Call MSG2FileSendZZZ(Nothing, "", objKernel.Error.sString, 1, tpcall, "")
+		If tpcall.iErr > 0 Then Msgbox tpcall.sErr   'Fehler im Errorhandling sofort ans Frontend/Serverlog ausgeben
+		'Msgbox "An error happened, more in this file: " & Chr(13) & stemp
+		Resume EndError
+	End Select
+End Function
+Private Function KernelLocationIsOnSameServer_(objKernel As KernelKernelZZZ, dbCurIn As notesdatabase, sLocationIn As String, sFlagControl As String) As Boolean
+	Dim btemp As Boolean
+	On Error Goto errobj
+	Call objKernel.MessageReset(iMSG_TYPE_ERROR,"")  'Daimt sich in dieser Methode nicht Fehler aus einer anderen Methode auswirken
+	
+	
+	'################################	
+	
+	Dim dbCur As notesdatabase, sLocation As String
+	Dim nname1 As notesname, nname2 As notesname
+	Dim sServer As String
+	If dbCurin Is Nothing Then
+		Set dbCur = objKernel.KernelDBCalling
+		If objKernel.Error.iCode > 0 Then Error iERR_OBJECT_CUR, objKernel.Error.sString
+	Else
+		Set dbCur = dbCurIn
+	End If
+	If Len(sLocationIn) = 0 Then
+		sLocation = objKernel.LocationCurrent
+		If objKernel.Error.iCode > 0 Then Error iERR_OBJECT_CUR, objKernel.Error.sString
+	Else
+		sLocation = sLocationIn
+	End If
+	
+	'### 
+	sServer = dbCur.Server
+	Set nname1 = New notesname(sServer)	
+	Set nname2 = New notesname(sLocation)
+	
+	If Lcase(nname1.canonical) <> Lcase(nname2.canonical) And _
+	Not (Lcase(nname1.canonical) = "lokal" Or Lcase(nname1.canonical) = "local" Or Lcase(nname1.canonical) = "" )  Then 'Dies nur, wenn ein anderer Server konfguriert werden soll		
+		Goto EndFalse
+	End If
+	
+EndTrue:
+	objKernel.Error.iCode = 0
+	KernelLocationIsOnSameServer_ = True
+	Exit Function	
+EndFalse:
+	KernelLocationIsOnSameServer_ = False
+	Exit Function
+EndError:
+	KernelLocationIsOnSameServer_  = False
+	Exit Function	
+Errobj:
+	Dim sScript As String, icode As Integer, tpcall As TypeParamZZZ
+	sScript = objKernel.ClassLibrary & "\" & Getthreadinfo(LSI_THREAD_PROC)
+	icode = Err
+	Call objKernel.MessageAppend("",sScript,Erl,Error$, Err, "")
+	Select Case icode
+	Case iMSG_NEXT, iERR_NEXT: Resume Next
+	Case iMSG_TRUE, iERR_TRUE: Resume EndTrue
+	Case iMSG_FALSE, iERR_FALSE: Resume EndFalse
+	Case iERR_OBJECT_ERR, iERR_OBJECT_CUR: Resume EndError 'Ziel: Nicht jeden Fehler ins Log stellen
+	Case Else: 
+		Call MSG2FileSendZZZ(Nothing, "", objKernel.Error.sString, 1, tpcall, "")
+		If tpcall.iErr > 0 Then Msgbox tpcall.sErr   'Fehler im Errorhandling sofort ans Frontend/Serverlog ausgeben
+		'Msgbox "An error happened, more in this file: " & Chr(13) & stemp
+		Resume EndError
+	End Select
+End Function
+Private Function KernelNew_(objKernel As KernelKernelZZZ,sessionIn As notessession,  sKeyKernelIn As String, sKeyApplicationIn As String, vFlagToSet As Variant, sFlagControlIn As String) As Boolean
+%REM
+Dies ist der Konstruktor der Kernel-Klasse
+%END REM	
+	Dim tpcall As TypeParamZZZ
+	Dim btemp As Boolean, itemp As Integer
+	On Error Goto errobj
+	'Merke Im Konstruktor wird kein Fehler zurückgesetzt, sondern als iERR_OBJECT_PAR zurückgegeben
+	
+	'Nur zum Debuggen
+	'Print sScript & "#Function start"
+	'Print sScript & "#Exit function at once"
+	'Exit Function 
+	
+	'### Besonderheit, hier wird auch bei "Init" als Flag die Session Property gefüllt. Das ist einfach sicherer.
+	If sessionIn Is Nothing Then
+		Set objKernel.session = New notessession
+	Else
+		Set objKernel.session = sessionin
+	End If
+	
+	'### Param-Check	
+	'Falls in dem Constructor der Elternklasse ein Fehler aufgetreten ist
+	If objKernel.Error.iCode > 0 Then Error iERR_OBJECT_PAR, objKernel.MessageAllReceive(Nothing, iMSG_TYPE_ERROR, "")
+	
+	'+++ Flags prüfen
+	If Not Isnull(vFlagToSet) Then
+		Dim saTemp() As String
+		Dim iCounter As Integer
+		itemp = ArrayStringFromVariantZZZ(sessionin, vFlagToSet, saTemp, tpcall,"")
+		If tpcall.ierr > 0 Then Error iERR_FUNCTION_CALL, tpcall.serr
+		For iCounter = 0 To itemp
+			btemp = objKernel.flagset(saTemp(iCounter), True)
+		Next	
+		If objKernel.flagget("init") = True Then Goto EndTrue			
+	End If
+	
+	
+	'### Aktuelle Datenbank
+	Dim dbCur As notesdatabase
+	Set dbCur = objKernel.session.currentdatabase
+	Set objKernel.KernelDBCalling = dbCur
+	
+	'Nur zum Debuggen
+	'Print sScript & "#Handle on KernelDBCalling"
+	'Print sScript & "#Exit function at once"
+	'Exit Function 
+	
+	'### Aktueller Servername, dieser entspricht der aktuellen Lokation (also auch dem aktuellen Benutzer)	
+	Dim docProfileKernel As notesdocument
+	Dim docProfileApplication As notesdocument
+	Dim NameServer As notesname
+	Dim item As notesitem
+	Dim sKeyApplication As String, sKeyProfile As String, sNameServer As String, sKeyKernel As String
+	Dim doctemp As notesdocument
+	
+	If Len(dbcur.server) > 0 Then
+		Set NameServer = New notesname(dbcur.server)		
+		sNameServer = NameServer.canonical
+	Else
+		sNameServer = objKernel.session.username
+	End If
+	objKernel.LocationCurrent = sNameServer
+	
+	'Nur zum Debuggen
+	'Print sScript & "#Setting LocationCurrent as: '" & sNameServer & "'"
+	'Print sScript & "#Exit function at once"
+	'Exit Function 
+	
+	'### Kernel Key setzen und Profildokument ermitteln
+	objKernel.KernelKey = sKeyKernelIn         'das ist normalerweise "ZZZ"	
+	If objKernel.Error.iCode > 0 Then Error iERR_OBJECT_CUR, objKernel.Error.sString
+	
+	'+++ Den ApplicationKey setzen und das Profildokument für die Applikation in der aktuellen Datenbank aktualisieren.
+	'		 wird kein Key angegeben, so muß der ApplicationKey explizit gesetzt werden, andernfalls werden Default-Werte verwendet.
+	If Len(sKeyApplicationIn) = 0 Then
+		sKeyApplication = objKernel.ApplicationKeyDefault
+		If Len(sKeyApplication) = 0 Then
+			sKeyApplication = objKernel.ApplicationKey
+			If objKernel.Error.iCode > 0 Then Error iERR_OBJECT_CUR, objKernel.Error.sString
+			If Len(skeyApplication) = 0 Then Error iERR_PARAM_MISSING, "ApplicationKey"
+		End If
+	Else
+		'!!! Falls z.B. in der Action Konfiguration ein '*' angegeben worden ist und dem Konstruktor übergeben wurde, dann soll auch auf den default-Kernel-Key zurückgegriffen werden
+		If sKeyApplicationIn = "*" Then
+			sKeyApplication = objKernel.ApplicationKeyDefault
+		Else
+			sKeyApplication = sKeyApplicationIn
+		End If
+	End If
+	
+	'Mit Setzen dieser Property wird auch das Profildokument gesetzt, ausser im "CREATE" Fall
+	objKernel.ApplicationKey = sKeyApplication	
+	If objKernel.Error.iCode > 0 Then Error iERR_OBJECT_CUR, objKernel.Error.sString
+	
+	'Nur zum Debuggen
+	'Print sScript & "#Finished KernelProperty-Basic settings: '" & sNameServer & "' and application: '" & objKernel.ApplicationKey & "'"
+	'Print sScript & "#Exit function at once"
+	'Exit Function 	
+	
+	'+++ Falls die Profildokumente gerade erstellt werden, ist hier schluss
+	If objKernel.flagget("create") = True Then Goto endTrue
+	
+	'### Kernel-Log initialisieren
+	Dim objLog As KernelKernelLogZZZ
+	Set objLog = New KernelKernelLogZZZ(objKernel, Null, "")
+	If objLog.Error.iCode > 0 Then Error iERR_OBJECT_ERR, objKernel.MessageAllReceive(objLog, iMSG_TYPE_ERROR,"")
+	
+	'Nur zum Debuggen
+	'Print sScript & "#Finished initializing KernelLogObject, ready to put it into a property."
+	'Print sScript & "#Exit function at once"
+	'Exit Function 
+	
+	Set objKernel.LogObject = objLog
+	
+	'Nur zum Debuggen
+	'Print sScript & "#KernelLogObject successfuly passed to property."
+	'Print sScript & "#Exit function at once"
+	'Exit Function 
+	
+	'++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+EndTrue:
+	objKernel.Error.iCode = 0
+	KernelNew_ = True
+	Exit Function
+endFalse:
+	objKernel.Error.iCode = 0
+	KernelNew_ = False
+	Exit Function
+EndError:
+	KernelNew_ = False
+	Exit Function
+Errobj:
+	Dim sScript As String, icode As Integer
+	sScript = objKernel.ClassLibrary & "\" & Getthreadinfo(LSI_THREAD_PROC)
+	icode = Err
+	Call objKernel.MessageAppend("",sScript,Erl,Error$, Err, "")
+	Select Case icode
+	Case iMSG_NEXT, iERR_NEXT: Resume Next
+	Case iMSG_TRUE, iERR_TRUE: Resume EndTrue
+	Case iMSG_FALSE, iERR_FALSE: Resume EndFalse
+	Case iERR_OBJECT_ERR, iERR_OBJECT_CUR: Resume EndError 'Ziel: Nicht jeden Fehler ins Log stellen
+	Case Else: 
+		Call MSG2FileSendZZZ(Nothing, "", objKernel.Error.sString, 1, tpcall, "")
+		If tpcall.iErr > 0 Then Msgbox tpcall.sErr   'Fehler im Errorhandling sofort ans Frontend/Serverlog ausgeben
+		'Msgbox "An error happened, more in this file: " & Chr(13) & stemp
+		Resume EndError
+	End Select
+End Function
+Function KernelViewInternalGet_(objKernel As KernelKernelZZZ, dbToLookFor As notesdatabase, sViewname As String,sFlagControl As String) As notesview
+	Dim vwReturn As notesview	
+	Dim btemp As Boolean
+	On Error Goto errobj
+	Call objKernel.MessageReset(iMSG_TYPE_ERROR,"")  'Daimt sich in dieser Methode nicht Fehler aus einer anderen Methode auswirken
+	
+	'+++ Übergabeparameter prüfen 
+	Dim sView As String
+	sView = Lcase(Trim(sViewName))
+	If Len(sView) = 0 Then Error iERR_PARAM_MISSING, "Viewname"
+	If dbToLookFor Is Nothing Then Error iERR_PARAM_MISSING, "Database to look for"
+	If dbToLookFor.isopen = False Then Error iERR_PARAM_VALUE, "No access on database '" & dbToLookFor.Title & "'"
+	
+	'+++ Ansicht ermitteln
+	'1. Versuch
+	Set vwReturn = dbToLookFor.getview(sView)
+	If vwReturn Is Nothing Then
+		
+	'2. Versuch, ggf. die Klammern weglassen oder hinzufügen
+		If Left(sView,1) = "(" Then
+			If Len(sview) >= 3 Then
+				sview = Mid$(sview, 2, Len(sView)-1)
+				Set vwReturn = dbToLookFor.getview(sView)				
+			End If
+		Else
+			Set vwReturn = dbToLookFor.getview("(" & sView & ")")					
+		End If
+	End If 'vw is nothing
+	
+	'Dies nicht als Fehler ausgeben, sondern lediglich als Hinweismeldung
+	If vwReturn Is Nothing Then Error iERR_DESIGN_MISSING, "View '" & sView & "' does not exist in database '" & dbToLookFor.Title & "'"
+	
+'##############
+EndTrue:
+	objKernel.Error.iCode = 0
+	Set KernelViewInternalGet_ = vwReturn
+	Exit Function
+EndFalse:
+	objKernel.Error.iCode = 0
+	Set KernelViewInternalGet_ = Nothing
+	Exit Function
+EndError:
+	Set KernelViewInternalGet_ = Nothing
+	Exit Function
+Errobj:
+	Dim sScript As String, icode As Integer, tpcall As TypeParamZZZ
+	sScript = objKernel.ClassLibrary & "\" & Getthreadinfo(LSI_THREAD_PROC)
+	icode = Err
+	Call objKernel.MessageAppend("",sScript,Erl,Error$, Err, "")
+	Select Case icode
+	Case iMSG_NEXT, iERR_NEXT: Resume Next
+	Case iMSG_TRUE, iERR_TRUE: Resume EndTrue
+	Case iMSG_FALSE, iERR_FALSE: Resume EndFalse
+	Case iERR_OBJECT_ERR, iERR_OBJECT_CUR: Resume EndError 'Ziel: Nicht jeden Fehler ins Log stellen
+	Case Else: 
+		Call MSG2FileSendZZZ(Nothing, "", objKernel.Error.sString, 1, tpcall, "")
+		If tpcall.iErr > 0 Then Msgbox tpcall.sErr   'Fehler im Errorhandling sofort ans Frontend/Serverlog ausgeben
+		'Msgbox "An error happened, more in this file: " & Chr(13) & stemp
+		Resume EndError
+	End Select
+End Function
+Private Function LogEntryActionMake_(objLog As KernelKernelLogZZZ) As Boolean
+	Dim btemp As Boolean
+	On Error Goto errobj
+	Call objLog.MessageReset(iMSG_TYPE_ERROR,"")  'Daimt sich in dieser Methode nicht Fehler aus einer anderen Methode auswirken
+	
+	
+	'### Pfad zur Protokolldatenbank ermitteln
+	'Dim objKernel As KernelKernelZZZ
+	'Dim session As notessession
+	Dim dbLog As notesdatabase 
+	Dim noteslog As NotesLog	
+	Dim sloglevel As String, slogtext As String, sAgentName As String
+	
+	Dim sTemp As String
+	
+	Set dbLog = objLog.ApplicationLogDBCurrent
+	If objLog.Error.iCode > 0 Then Error iERR_OBJECT_CUR, objLog.Error.sString
+	
+	If dbLog Is Nothing Then Error iERR_PROPERTY_MISSING, "no handle on log-database."
+	If dbLog.isopen = False Then Error iERR_PROPERTY_VALUE, "no access on log-database: '" & dblog.Title & "' (Server: " & dbLog.server & " Path: " & dblog.FilePath & ")"
+	
+	'### Informationen aus der Struktur
+	sLogLevel = Cstr(objLog.LogLevelCurrent)
+	If objLog.Error.iCode > 0 Then Error iERR_OBJECT_CUR, objLog.Error.sString
+	sLogText = objLog.Text
+	sAgentName = objLog.AgentCallingName & "\" & objLog.Scriptposition
+	
+	'### Protokolldokument erzeugen und Meldung eintragen
+	If objLog.FlagGet("OutputFrontend") = False Then
+		Set noteslog = objLog.LogCurrent    'das wurde geändert 26.09.04       Session.CreateLog( sAgentName )		
+		'Call notesLog.OpenNotesLog( dbLog.server, dbLog.filepath )
+		noteslog.logaction(sLogText & " (" & sLoglevel & ")")
+	Else
+		Msgbox sAgentname & ": " & Chr(13) & sLogText & " (" & sLoglevel & ")"
+	End If
+	
+EndTrue:
+	objLog.Error.iCode = 0
+	LogEntryActionMake_ = True
+	Exit Function 
+EndFalse:
+	objLog.Error.iCode = 0
+	LogEntryActionMake_ = True
+	Exit Function 
+EndError:
+	LogEntryActionMake_ = False
+	Exit Function 
+Errobj:
+	Dim sScript As String, icode As Integer, tpcall As TypeParamZZZ
+	sScript = objLog.ClassLibrary & "\" & Getthreadinfo(LSI_THREAD_PROC)
+	icode = Err
+	Call objLog.MessageAppend("",sScript,Erl,Error$, Err, "")
+	Select Case icode
+	Case iMSG_NEXT, iERR_NEXT: Resume Next
+	Case iMSG_TRUE, iERR_TRUE: Resume EndTrue
+	Case iMSG_FALSE, iERR_FALSE: Resume EndFalse
+	Case iERR_OBJECT_ERR, iERR_OBJECT_CUR: Resume EndError 'Ziel: Nicht jeden Fehler ins Log stellen
+	Case Else: 
+		Call MSG2FileSendZZZ(Nothing, "", objLog.Error.sString, 1, tpcall, "")
+		If tpcall.iErr > 0 Then Msgbox tpcall.sErr   'Fehler im Errorhandling sofort ans Frontend/Serverlog ausgeben
+		'Msgbox "An error happened, more in this file: " & Chr(13) & stemp
+		Resume EndError
+	End Select
+End Function
+Private Function LogEntryErrorMake_(objLog As KernelKernelLogZZZ) As Boolean
+	Dim btemp As Boolean
+	On Error Goto errobj
+	Call objLog.MessageReset(iMSG_TYPE_ERROR,"")  'Daimt sich in dieser Methode nicht Fehler aus einer anderen Methode auswirken
+	
+	'### Pfad zur Protokolldatenbank ermitteln	
+	Dim dblog As notesdatabase
+	Dim noteslog As NotesLog
+	Dim sLogLevel As String, sLogText As String, iErrNumber As Integer, sAgentName As String, sInfotype As String, sInfotypedescription
+	
+	Set dbLog = objLog.ApplicationLogDBCurrent()
+	If objLog.Error.iCode > 0 Then Error iERR_OBJECT_CUR, objLog.Error.sString
+	
+	If dbLog Is Nothing Then Error iERR_PROPERTY_MISSING, "no handle on log database"
+	If dbLog.isopen = False Then Error iERR_PROPERTY_VALUE, "no access on  log-database: '" & dblog.Title & "' (Server: " & dbLog.server & " Path: " & dblog.FilePath & ")"
+	
+	'### Informationen aus der Struktur
+	sLogText = objLog.Text
+	iErrNumber = objLog.ErrorNumber
+	sAgentName = objLog.AgentCallingName & "\" & objLog.Scriptposition
+	
+	'### Protokolldokument erzeugen und Meldung eintragen
+	If objLog.FlagGet("OutputFrontendError") = False Then
+		Set noteslog = objLog.LogCurrent
+		Call noteslog.logerror(iErrNumber, sLogText)	
+	Else
+		If iErrNumber >= 1 Then
+			sInfotype = "Ausnahmefehler:"
+			sInfotypeDescription = Chr(13) & "Bitte fertigen Sie einen Screenshot an und senden Sie diesen an den Support dieser Anwendung." & _
+			Chr(13) & sAgentName & " - " & Cstr(iErrNumber)
+		Else
+			sInfotype = "Ausnahmehinweis:"
+			sInfotypeDescription = Chr(13) & "Hilft Ihnen der Hinweis nicht weiter, dann senden Sie bitte einen Screenshot an den Support dieser Anwendung." & _
+			Chr(13) & sAgentName & " - " & Cstr(iErrNumber)
+		End If
+		Msgbox sInfotype & Chr(13) & sLogText & Chr(13) & sInfotypeDescription
+	End If
+EndTrue:
+	objLog.Error.iCode = 0
+	LogEntryErrorMake_ = True
+	Exit Function
+EndFalse:
+	objLog.Error.iCode = 0
+	LogEntryErrorMake_ = False
+	Exit Function
+EndError:
+	LogEntryErrorMake_ = False
+	Exit Function 
+Errobj:
+	Dim sScript As String, icode As Integer, tpcall As TypeParamZZZ
+	sScript = objLog.ClassLibrary & "\" & Getthreadinfo(LSI_THREAD_PROC)
+	icode = Err
+	Call objLog.MessageAppend("",sScript,Erl,Error$, Err, "")
+	Select Case icode
+	Case iMSG_NEXT, iERR_NEXT: Resume Next
+	Case iMSG_TRUE, iERR_TRUE: Resume EndTrue
+	Case iMSG_FALSE, iERR_FALSE: Resume EndFalse
+	Case iERR_OBJECT_ERR, iERR_OBJECT_CUR: Resume EndError 'Ziel: Nicht jeden Fehler ins Log stellen
+	Case Else: 
+		Call MSG2FileSendZZZ(Nothing, "", objLog.Error.sString, 1, tpcall, "")
+		If tpcall.iErr > 0 Then Msgbox tpcall.sErr   'Fehler im Errorhandling sofort ans Frontend/Serverlog ausgeben
+		'Msgbox "An error happened, more in this file: " & Chr(13) & stemp
+		Resume EndError
+	End Select
+End Function
+Private Function LogHandle_(objLog As KernelKernelLogZZZ, sFlagControl As String) As Boolean
+	Dim bReturn As Boolean
+	Dim btemp As Boolean
+	On Error Goto errobj
+	Call objLog.MessageReset(iMSG_TYPE_ERROR,"")  'Daimt sich in dieser Methode nicht Fehler aus einer anderen Methode auswirken
+	
+	'### Übergabeparameter prüfen
+	Dim iLevel As Integer
+	iLevel = objLog.LogLevelGlobal
+	If objLog.Error.iCode > 0 Then Error iERR_OBJECT_CUR, objLog.Error.sString	
+	If iLevel = 0 Then Goto EndFalse               'Bei einem LogLevel von 0 wird nix protokolliert
+	
+	'Auswerten der benutzerdefinierten Struktur "LogEntry"
+	Dim tL As TypeLogZZZ
+	If  objLog.LogLevelCurrent >= 1  Then 					'Merke: Im Fehlerfall ist sLogLevel = "0"			
+		
+         '## Prüfung des Log-Levels des Protokolleintrags, falls der gewünschte Eintrag kleiner als der LogLevel ist, nicht weiter bearbeiten.
+		Dim iLevelCur As Integer
+		iLevelCur = objLog.LogLevelCurrent
+		If objLog.Error.iCode > 0 Then Error iERR_OBJECT_CUR, objLog.Error.sString	
+		If iLevel < iLevelCur Then Goto endfalse
+		
+		'####### LOG - Aktion - Eintrag ##############################	
+		bReturn = LogEntryActionMake_(objLog)		
+	Else 
+		
+      	'####### LOG - Error - Eintrag ##################################		
+		bReturn = LogEntryErrorMake_(objLog)
+	End If	
+EndTrue:
+	objLog.Error.iCode = 0
+	LogHandle_ = bReturn
+	Exit Function
+EndFalse:
+	objLog.Error.iCode = 0
+	LogHandle_ = False
+	Exit Function
+EndError:
+	LogHandle_ = False
+	Exit Function
+Errobj:
+	Dim sScript As String, icode As Integer, tpcall As TypeParamZZZ
+	sScript = objLog.ClassLibrary & "\" & Getthreadinfo(LSI_THREAD_PROC)
+	icode = Err 
+	Call objLog.MessageAppend("",sScript,Erl,Error$, Err, "")
+	Select Case icode
+	Case iMSG_NEXT, iERR_NEXT: Resume Next
+	Case iMSG_TRUE, iERR_TRUE: Resume EndTrue
+	Case iMSG_FALSE, iERR_FALSE: Resume EndFalse
+	Case iERR_OBJECT_ERR, iERR_OBJECT_CUR: Resume EndError 'Ziel: Nicht jeden Fehler ins Log stellen
+	Case Else: 
+		Call MSG2FileSendZZZ(Nothing, "", objLog.Error.sString, 1, tpcall, "")
+		If tpcall.iErr > 0 Then Msgbox tpcall.sErr   'Fehler im Errorhandling sofort ans Frontend/Serverlog ausgeben
+		'Msgbox "An error happened, more in this file: " & Chr(13) & stemp
+		Resume EndError
+	End Select
+End Function
+Private Function LogLevelGlobalRefresh_(objLog As KernelKernelLogZZZ) As Integer
+%REM
+Diese Funktion ermittelt den LogLEvel aus dem Konfigurationsdokument.
+Sie wird einmal im Konstruktor des Log-Objekts ausgeführt.
+%END REM
+	Dim iReturn As Integer
+	Dim btemp As Boolean
+	On Error Goto errobj
+	Call objLog.MessageReset(iMSG_TYPE_ERROR,"")  'Daimt sich in dieser Methode nicht Fehler aus einer anderen Methode auswirken
+	
+	'### Variablen
+	Dim docprofile As notesdocument
+	Dim nname As notesname
+	Dim item As notesitem
+	
+	'### Schnelles Ende
+	If objLog.Status.bFlagInit = True Then Goto EndFalse
+	
+	
+	'### Profildokument ermitteln
+	Dim objKernel As KernelKernelZZZ
+	Set objKernel = objLog.KernelObject
+	Set docprofile = objKernel.ApplicationProfile()
+	If objKernel.Error.iCode > 0 Then Error iERR_OBJECT_ERR, objLog.MessageLastReceive(objKernel, iMSG_TYPE_ERROR, "")
+	If docprofile Is Nothing Then Error iERR_PROPERTY_MISSING, "no handle on application profile document."
+	
+	Set item = docprofile.getfirstitem("LogLevel" & objKernel.KernelKey)
+	If objKernel.Error.iCode > 0 Then Error iERR_OBJECT_ERR, objLog.MessageLastReceive(objKernel, iMSG_TYPE_ERROR, "")	
+	If item Is Nothing Then
+		Error iERR_PROPERTY_MISSING, "Field 'LogLevel"  & objKernel.KernelKey & "' is not available in the profile-document."
+	Else
+		If Len(item.values(0)) > 0 Then
+			iReturn = Cint(item.values(0))			
+		Else
+			iReturn = 0
+		End If
+	End If
+	
+EndTrue:
+	objLog.Error.iCode = 0
+	
+	'Wert an Kernelobjekt übergeben
+	objKernel.LogLevelGlobal = iReturn 
+	LogLevelGlobalRefresh_ = iReturn
+	Exit Function	
+EndFalse:
+	objLog.Error.iCode = 0
+	
+	'Wert an Kernelobjekt übergeben
+	objKernel.LogLevelGlobal = 0
+	LogLevelGlobalRefresh_ = 0 	
+	Exit Function 
+EndError:
+	'Wert an Kernelobjekt übergeben
+	objKernel.LogLevelGlobal = -1
+	LogLevelGlobalRefresh_ = -1
+	Exit Function	
+Errobj:
+	Dim sScript As String, icode As Integer, tpcall As TypeParamZZZ
+	sScript = objLog.ClassLibrary & "\" & Getthreadinfo(LSI_THREAD_PROC)
+	icode = Err
+	Call objLog.MessageAppend("",sScript,Erl,Error$, Err, "")
+	Select Case icode
+	Case iMSG_NEXT, iERR_NEXT: Resume Next
+	Case iMSG_TRUE, iERR_TRUE: Resume EndTrue
+	Case iMSG_FALSE, iERR_FALSE: Resume EndFalse
+	Case iERR_OBJECT_ERR, iERR_OBJECT_CUR: Resume EndError 'Ziel: Nicht jeden Fehler ins Log stellen
+	Case Else: 
+		Call MSG2FileSendZZZ(Nothing, "", objLog.Error.sString, 1, tpcall, "")
+		If tpcall.iErr > 0 Then Msgbox tpcall.sErr   'Fehler im Errorhandling sofort ans Frontend/Serverlog ausgeben
+		'Msgbox "An error happened, more in this file: " & Chr(13) & stemp
+		Resume EndError
+	End Select
+End Function
+Private Function LogNew_(objKernel As KernelKernelZZZ, objLog As KernelKernelLogZZZ, vFlagToSet As Variant, sFlagControlin As String) As Boolean
+	Dim tpcall As TypeParamZZZ
+	Dim btemp As Boolean, itemp As Integer, stemp As String
+	On Error Goto errobj
+	Call objKernel.MessageReset(iMSG_TYPE_ERROR,"")  'Daimt sich in dieser Methode nicht Fehler aus einer anderen Methode auswirken
+	
+	
+	'Nur zum Debuggen
+	'Print sScript & "#Starting function, with ApplicationKey as Parameter: '" & sKeyApplication & "'"
+	'Print sScript & "#Exit function at once"
+	'Exit Function 
+	
+	
+	'#########
+	'Ggf. gibt es das LogObjekt schon in dem KernelObjekt, dann die Informationen übernehmen
+	If Not objKernel.LogObject Is Nothing Then
+		Set objLog = objKernel.LogObject
+		Goto EndTrue
+	End If
+	
+	'######### Übergabeparameter prüfen (generell)
+	'Falls in dem Constructor der Elternklasse ein Fehler aufgetreten ist
+	If objKernel.Error.iCode > 0 Then Error iERR_OBJECT_PAR, objKernel.MessageAllReceive(Nothing, iMSG_TYPE_ERROR, "")
+	
+	If Not Isnull(vFlagToSet) Then
+		Dim saTemp() As String 
+		Dim iCounter As Integer
+		itemp = ArrayStringFromVariantZZZ(objKernel.session, vFlagToSet, saTemp, tpcall,"")
+		If tpcall.ierr > 0 Then Error iERR_FUNCTION_CALL, tpcall.serr
+		For iCounter = 0 To itemp
+			btemp = objLog.flagset(saTemp(iCounter), True)
+		Next	
+		If objLog.flagget("init") = True Then Goto EndTRUE
+	End If
+	
+	If Len(sFlagControlIn) > 0 Then
+		Dim sFlagControl As String
+		sFlagControl = Ucase(sFlagControlIn)
+%REM das wird nun durch Flags-gelöst
+		If sFlagControl <> "INIT" Then
+			Error iERR_PARAM_VALUE, "FlagControl='" & sFlagControlInput & "', but expected 'INIT'"
+		Else
+			Goto EndSuccess
+		End If
+%ENDREM
+	End If
+	
+	'######### Übergabeparameter prüfen (speziell)
+	Dim dbCur As notesdatabase
+	Dim agent As notesagent	
+	
+	'KernelObjekt und Session
+	Set objLog.Session = objKernel.Session()
+	
+	'Nur zum Debuggen
+	'Print sScript & "#Parameter 'SessionObject' successfuly put into properties: '" & sKeyApplication & "'"
+	'Print sScript & "#Exit function at once"
+	'Exit Function 
+	
+	Set objLog.KernelObject = objKernel
+	If objLog.Error.iCode > 0 Then Error iERR_OBJECT_CUR, objLog.Error.sString
+	
+	'Nur zum Debuggen
+	'Print sScript & "#All Parameter successfuly put into properties: '" & objLog.KernelObject.ApplicationKey & "'"
+	'Print sScript & "#Exit function at once"
+	'Exit Function 
+	
+	'########
+	'Das eingestellte LogLevel
+	'Falls es sich um den Wert 0 Handelt, kann es sein, dass das LogLevel noch garnicht geholt worden ist.
+	itemp = objKernel.LogLevelGlobal
+	If objKernel.Error.iCode > 0 Then Error iERR_OBJECT_ERR, objLog.MessageLastReceive(objKernel, iMSG_TYPE_ERROR, "")	
+	
+	If itemp = 0 Then
+		itemp = objLog.LogLevelGlobalRefresh()
+		If objLog.Error.iCode > 0 Then Error iERR_OBJECT_CUR, objLog.Error.sString
+	End If
+	objLog.LogLevelGlobal = itemp				
+	
+	'Nur zum Debuggen
+	'Print sScript & "#LogLevel successfuly received it is: '" & Cstr(objLog.LogLevelGlobal) & " for the '" & objLog.KernelObject.ApplicationKey & "'"
+	'Print sScript & "#Exit function at once"
+	'Exit Function 
+	
+	
+	'Handle auf die Logdatenbank		
+	Dim dbLog As notesdatabase
+	Set dbLog = objKernel.ApplicationLogDBCurrent
+	If objKernel.Error.iCode > 0 Then Error iERR_OBJECT_ERR, objLog.MessageLastReceive(objKernel, iMSG_TYPE_ERROR, "")	
+	Set objLog.ApplicationLogDBCurrent = dbLog
+	
+EndTrue:
+	'### Übergabe des neu erstellten Log-Objektes an an das Kernel-Objekt (teilweise andere wichtige Objekte sind schon innerhalb der Unterfunktionen an das KErnelobjekt übergeben worden)
+	Set objKernel.LogObject = objLog	
+	
+	objLog.Error.iCode = 0
+	LogNew_ = True
+	Exit Function	
+EndFalse:
+	Set objKernel.LogObject = Nothing	
+	objLog.Error.iCode = 0
+	LogNew_ = False
+	Exit Function	
+EndError:
+	Set objKernel.LogObject = Nothing	
+	LogNew_ = False
+	Exit Function	
+Errobj:
+	Dim sScript As String, icode As Integer
+	sScript = objLog.ClassLibrary & "\" & Getthreadinfo(LSI_THREAD_PROC)
+	icode = Err
+	Call objLog.MessageAppend("",sScript,Erl,Error$, Err, "")
+	Select Case icode
+	Case iMSG_NEXT, iERR_NEXT: Resume Next
+	Case iMSG_TRUE, iERR_TRUE: Resume EndTrue
+	Case iMSG_FALSE, iERR_FALSE: Resume EndFalse
+	Case iERR_OBJECT_ERR, iERR_OBJECT_CUR: Resume EndError 'Ziel: Nicht jeden Fehler ins Log stellen
+	Case Else: 
+		Call MSG2FileSendZZZ(Nothing, "", objLog.Error.sString, 1, tpcall, "")
+		If tpcall.iErr > 0 Then Msgbox tpcall.sErr   'Fehler im Errorhandling sofort ans Frontend/Serverlog ausgeben
+		'Msgbox "An error happened, more in this file: " & Chr(13) & stemp
+		Resume EndError
+	End Select
+End Function
+Private Function LogStringErrorMake_(objLog As KernelKernelLogZZZ, sFlagControl As String) As String	
+	Dim sReturn As String
+	Dim btemp As Boolean
+	On Error Goto errobj
+	Call objLog.MessageReset(iMSG_TYPE_ERROR,"")  'Daimt sich in dieser Methode nicht Fehler aus einer anderen Methode auswirken
+	
+	'#####
+	Dim iErrorNumber As Integer
+	Dim iErrorLine As Integer
+	Dim sErrorString As String
+	Dim sScriptposition As String
+	iErrorNumber = objLog.ErrorNumber
+	iErrorLine = objLog.ErrorLine
+	sErrorString = objLog.ErrorString
+	sScriptposition = objLog.Scriptposition
+	
+	sReturn =  "Error " & Cstr(iErrorNumber) & " (" & sErrorString & ") in function '" & sScriptPosition & "', line: " & Cstr(iErrorline)
+	
+EndTrue:
+	LogStringErrorMake_ = sReturn
+	Exit Function
+EndFalse:
+	LogStringErrorMake_ = ""
+	Exit Function
+EndError:
+	LogStringErrorMake_ = ""
+	Exit Function
+Errobj:
+	Dim sScript As String, icode As Integer, tpcall As TypeParamZZZ
+	sScript = objLog.ClassLibrary & "\" & Getthreadinfo(LSI_THREAD_PROC)
+	icode = Err
+	Call objLog.MessageAppend("",sScript,Erl,Error$, Err, "")
+	Select Case icode
+	Case iMSG_NEXT, iERR_NEXT: Resume Next
+	Case iMSG_TRUE, iERR_TRUE: Resume EndTrue
+	Case iMSG_FALSE, iERR_FALSE: Resume EndFalse
+	Case iERR_OBJECT_ERR, iERR_OBJECT_CUR: Resume EndError 'Ziel: Nicht jeden Fehler ins Log stellen
+	Case Else: 
+		Call MSG2FileSendZZZ(Nothing, "", objLog.Error.sString, 1, tpcall, "")
+		If tpcall.iErr > 0 Then Msgbox tpcall.sErr   'Fehler im Errorhandling sofort ans Frontend/Serverlog ausgeben
+		'Msgbox "An error happened, more in this file: " & Chr(13) & stemp
+		Resume EndError
+	End Select
+End Function
+Function KernelAgentInternalGet_(objKernel As KernelKernelZZZ, dbToLookForIn As notesdatabase, sAgentNamein As String, sFlagControlin As String) As notesagent	
+	Dim agtReturn As notesagent
+	Dim btemp As Boolean
+	On Error Goto errobj
+	Call objKernel.MessageReset(iMSG_TYPE_ERROR,"")  'Daimt sich in dieser Methode nicht Fehler aus einer anderen Methode auswirken
+	
+	
+	'+++ Übergabeparameter prüfen 
+	Dim sAgentName As String
+	Dim dbToLookFor As notesdatabase
+	
+	sAgentName = Lcase(Trim(sAgentNameIn))
+	If Len(sAgentName) = 0 Then Error iERR_PARAM_MISSING, "Agentname"
+	If dbToLookForIn Is Nothing Then
+		Set dbToLookFor = objKernel.KernelDBCalling		
+		If objKernel.Error.iCode > 0 Then Error iERR_OBJECT_CUR, objKernel.Error.sString
+		If dbToLookFor Is Nothing Then Error iERR_PARAM_MISSING, "Database to look for"
+	Else
+		Set dbToLookFor = dbToLookForIn
+	End If	
+	If dbToLookFor.isopen = False Then Error iERR_PARAM_VALUE, "No access on database '" & dbToLookFor.Title & "'"
+	
+	'+++ Agent ermitteln	
+	
+	'1. Versuch
+	Set agtReturn = dbToLookFor.getagent(sAgentname)
+	If agtReturn Is Nothing Then
+		
+	'2. Versuch, ggf. die Klammern weglassen oder hinzufügen
+		If Left(sAgentname,1) = "(" Then
+			If Len(sAgentname) >= 3 Then
+				sAgentname = Mid$(sAgentname, 2, Len(sAgentname)-1)
+				Set agtReturn = dbToLookFor.getagent(sAgentname)				
+			End If
+		Else
+			Set agtReturn = dbToLookFor.getagent("(" & sagentname & ")")					
+		End If
+	End If 'vw is nothing 
+	If agtReturn Is Nothing Then Error iERR_DESIGN_MISSING, "Agent " & sagentnamein & " is not available in '" & dbToLookFor.Title & "'"
+	
+	'##############################
+endTrue:
+	objKernel.Error.iCode = 0
+	Set KernelAgentInternalGet_ = agtReturn
+	Exit Function
+endfalse: 
+	objKernel.Error.iCode = 0
+	Set KernelAgentInternalGet_ = Nothing
+	Exit Function
+endError:
+	Set KernelAgentInternalGet_ = Nothing
+	Exit Function	
+Errobj:
+	Dim sScript As String, icode As Integer, tpcall As TypeParamZZZ
+	sScript = objKernel.ClassLibrary & "\" & Getthreadinfo(LSI_THREAD_PROC)
+	icode = Err
+	Call objKernel.MessageAppend("",sScript,Erl,Error$, Err, "")
+	Select Case icode
+	Case iMSG_NEXT, iERR_NEXT: Resume Next
+	Case iMSG_TRUE, iERR_TRUE: Resume EndTrue
+	Case iMSG_FALSE, iERR_FALSE: Resume EndFalse
+	Case iERR_OBJECT_ERR, iERR_OBJECT_CUR: Resume EndError 'Ziel: Nicht jeden Fehler ins Log stellen
+	Case Else: 
+		Call MSG2FileSendZZZ(Nothing, "", objKernel.Error.sString, 1, tpcall, "")
+		If tpcall.iErr > 0 Then Msgbox tpcall.sErr   'Fehler im Errorhandling sofort ans Frontend/Serverlog ausgeben
+		'Msgbox "An error happened, more in this file: " & Chr(13) & stemp
+		Resume EndError
+	End Select
+End Function
+Private Function KernelDBEmptyCreate_(objKernel As KernelKernelZZZ, sServerIn As String, sPathIn As String, sFlagControlIn As String) As notesdatabase
+	Dim dbReturn  As notesdatabase
+	Dim btemp As Boolean
+	On Error Goto errobj
+	Call objKernel.MessageReset(iMSG_TYPE_ERROR,"")  'Daimt sich in dieser Methode nicht Fehler aus einer anderen Methode auswirken
+	
+	
+	'### Übergabeparameter prüfen 
+	Dim sPath As String
+	sPath = sPathin
+	If Len(sPath) = 0 Then Error iERR_PARAM_MISSING, "Database-path"
+	
+	Dim sServer As String
+	sServer = sServerIn
+	If Len(sServer) > 0 Then
+		If Ucase(sServer) = "LOCAL" Or Ucase(sServer) = "LOKAL" Then
+			sServer = ""
+		Elseif sServer = "-" Then
+			sServer = ""
+		End If
+	End If
+	
+	'dim sFlagControl as String
+	'sFlagControl = sFlagControlin
+	
+	'### Main
+	Dim db As notesdatabase
+	Dim vw As notesview, docvw As notesdocument, doctemp As notesdocument
+	Dim stemp As String
+	
+	Set db = objKernel.KernelDBCalling
+	Set dbReturn = New notesdatabase(sServer, sPath)
+	If Not dbReturn Is Nothing Then
+		Call dbReturn.create(sServer,sPath,True,4) 'Datenbank muss mit true geöffnet werden, sonst bekommt man beim hinzufügen der Ansicht einen Fehler
+		
+		If dbReturn.isopen = True Then
+			
+			'+++ Eine View hinzufügen, damit diese Datenbank auch ohne Fehler geöffnet werden kann
+			Set vw = objKernel.ViewInternalGet(db, "viwDocIDZZZ","")
+			If objKernel.Error.iCode > 0 Then Error iERR_OBJECT_CUR, objKernel.Error.sString
+			
+			If Not vw Is Nothing Then
+				stemp = vw.universalid
+				Set docvw = db.getdocumentbyunid(stemp)
+				Set doctemp =  docvw.copytodatabase(dbReturn)
+				doctemp.universalid = stemp
+			Else
+				Error iMSG_TRUE, "database can not be opened in frontend. It is created, but does not contain any design element."
+			End If
+		Else
+			Error iMSG_TRUE, "database can not be opened in frontend. It is created, but you can´t access it."			
+		End If
+	Else
+		Error iERR_PARAM_VALUE, "Database could not be created,using: " & sServer & "!!" & sPath
+	End If
+	
+	'##############################
+endTrue:
+	objKernel.Error.iCode = 0
+	Set KernelDBEmptyCreate_ = dbReturn
+	Exit Function
+endfalse:
+	objKernel.Error.iCode = 0
+	Set KernelDBEmptyCreate_ = Nothing
+	Exit Function
+endError:
+	Set KernelDBEmptyCreate_ = Nothing
+	Exit Function	
+Errobj:
+	Dim sScript As String, icode As Integer, tpcall As TypeParamZZZ
+	sScript = objKernel.ClassLibrary & "\" & Getthreadinfo(LSI_THREAD_PROC)
+	icode = Err
+	Call objKernel.MessageAppend("",sScript,Erl,Error$, Err, "")
+	Select Case icode
+	Case iMSG_NEXT, iERR_NEXT: Resume Next
+	Case iMSG_TRUE, iERR_TRUE: Resume EndTrue
+	Case iMSG_FALSE, iERR_FALSE: Resume EndFalse
+	Case iERR_OBJECT_ERR, iERR_OBJECT_CUR: Resume EndError 'Ziel: Nicht jeden Fehler ins Log stellen
+	Case Else: 
+		Call MSG2FileSendZZZ(Nothing, "", objKernel.Error.sString, 1, tpcall, "")
+		If tpcall.iErr > 0 Then Msgbox tpcall.sErr   'Fehler im Errorhandling sofort ans Frontend/Serverlog ausgeben
+		'Msgbox "An error happened, more in this file: " & Chr(13) & stemp
+		Resume EndError
+	End Select
+End Function
+Private Function KernelEnvironmentProof_(objKernel As KernelKernelZZZ, sZAliasIn As String, sFlagControlIn As String) As Integer
+	Dim iReturn As Integer
+	Dim btemp As Boolean
+	On Error Goto errobj
+	Call objKernel.MessageReset(iMSG_TYPE_ERROR,"")  'Daimt sich in dieser Methode nicht Fehler aus einer anderen Methode auswirken
+	
+	'### Param-Check
+	Dim session As notessession
+	Dim item As notesitem
+	
+	Dim sZAlias As String
+	If Len(sZAliasIn) = 0 Then
+		Goto EndFalse
+	Else
+		sZAlias = Ucase(sZAliasIn)
+	End If
+	'###############################
+	Dim itemp As Integer
+	
+	'Dummy document
+	Dim doctemp As notesdocument
+	Set doctemp = objKernel.KernelDBCalling.Createdocument( )
+	
+	'### 1. Prüfen auf boolean variable
+	'a) ini
+	'alten Wert sichern
+	Dim iOld As Integer
+	iOld = objKernel.EnvironmentGet(Nothing, sZAlias, "")
+	If objKernel.Error.iCode > 0 Then Error iERR_OBJECT_CUR, objKernel.Error.sString
+	
+	'testweise den wert setzen
+	itemp = objKernel.EnvironmentSet(Nothing, sZAliasIn, iOld, "")
+	If objKernel.Error.iCode > 0 Then Error iERR_OBJECT_CUR, objKernel.Error.sString
+	
+	'wenn der Wert "setzbar" war, wird true zurückgegeben worden sein
+	If itemp = True Then	iReturn = iReturn + 1
+	
+	'b) doc
+	'testweise den wert setzen
+	itemp = objKernel.EnvironmentSet(doctemp, sZAliasIn, iOld, "")
+	If objKernel.Error.iCode > 0 Then Error iERR_OBJECT_CUR, objKernel.Error.sString
+	
+	If itemp = True Then iReturn = iReturn + 10
+	
+	
+	
+	'### 2. Prüfen auf value variable
+	'alten Wert sichern ist nicht notwendig, da wir mit einem dummy-Dokument arbeiten, das nicht gespeichert wird	
+	'a) ini
+	'alten Wert sichern
+	Dim vOld As Variant
+	vOld = objKernel.EnvironmentValueGet(Nothing, sZAliasIn, "")
+	If objKernel.Error.iCode > 0 Then Error iERR_OBJECT_CUR, objKernel.Error.sString
+	
+	'testweise den wert setzen
+	itemp = objKernel.EnvironmentValueSet(Nothing, sZAliasIn, vOld, "")
+	If objKernel.Error.iCode > 0 Then Error iERR_OBJECT_CUR, objKernel.Error.sString
+	
+	If itemp = True Then 	iReturn = iReturn + 2
+	
+	'b) doc
+	'testweise einen Wert setzen
+	itemp = objKernel.EnvironmentValueSet(doctemp, sZAlias, Cstr(Now), "")
+	If objKernel.Error.iCode > 0 Then Error iERR_OBJECT_CUR, objKernel.Error.sString
+	
+	If itemp = True Then 	iReturn = iReturn + 20
+	
+	
+	'###############################
+EndTrue:
+	objKernel.Error.iCode = 0
+	KernelEnvironmentProof_ = iReturn
+	Exit Function
+EndFalse:
+	objKernel.Error.iCode = 0
+	KernelEnvironmentProof_ = False
+	Exit Function
+EndError:
+	KernelEnvironmentProof_ = False
+	Exit Function
+Errobj:
+	Dim sScript As String, icode As Integer, tpcall As TypeParamZZZ
+	sScript = objKernel.ClassLibrary & "\" & Getthreadinfo(LSI_THREAD_PROC)
+	icode = Err
+	Call objKernel.MessageAppend("",sScript,Erl,Error$, Err, "")
+	Select Case icode
+	Case iMSG_NEXT, iERR_NEXT: Resume Next
+	Case iMSG_TRUE, iERR_TRUE: Resume EndTrue
+	Case iMSG_FALSE, iERR_FALSE: Resume EndFalse
+	Case iERR_OBJECT_ERR, iERR_OBJECT_CUR: Resume EndError 'Ziel: Nicht jeden Fehler ins Log stellen
+	Case Else: 
+		Call MSG2FileSendZZZ(Nothing, "", objKernel.Error.sString, 1, tpcall, "")
+		If tpcall.iErr > 0 Then Msgbox tpcall.sErr   'Fehler im Errorhandling sofort ans Frontend/Serverlog ausgeben
+		'Msgbox "An error happened, more in this file: " & Chr(13) & stemp
+		Resume EndError
+	End Select
+End Function
+Private Function KernelEnvironmentValueGet_(objKernel As KernelKernelZZZ, docIn As notesdocument, sZAliasIn As String, sFlagControlIn As String) As Variant
+	Dim vReturn As Variant	
+	Dim btemp As Boolean
+	On Error Goto errobj
+	Call objKernel.MessageReset(iMSG_TYPE_ERROR,"")  'Daimt sich in dieser Methode nicht Fehler aus einer anderen Methode auswirken
+	
+	'### Param-Check
+	Dim session As notessession
+	Dim item As notesitem
+	
+	Dim sZAlias As String
+	If Len(sZAliasIn) = 0 Then
+		Goto EndFalse
+	Else
+		sZAlias = Ucase(sZAliasIn)
+	End If
+	'###############################
+	
+	If docIn Is Nothing Then		
+		'+++ Fall: Eintrag aus der Notes.ini lesen
+		Set session = objKernel.session		
+		
+		Select Case sZAlias
+		Case "TEST":
+			vReturn = session.GetEnvironmentString(objKernel.KernelKey & "TEST", False)			
+			Goto EndTrue
+		End Select
+	Else
+		'+++ Fall: Wert aus dem Dokument lesen
+		Select Case sZAlias
+		Case "TEST":
+			vReturn = docIn.getitemvalue("TEST" & objKernel.KernelKey)
+			Goto EndTrue
+		End Select
+	End If
+	
+	'###############################
+EndTrue:
+	objKernel.Error.iCode = 0
+	KernelEnvironmentValueGet_ = vReturn
+	Exit Function
+EndFalse:
+	objKernel.Error.iCode = 0
+	KernelEnvironmentValueGet_ = Null
+	Exit Function
+EndError:
+	KernelEnvironmentValueGet_ = Null
+	Exit Function
+Errobj:
+	Dim sScript As String, icode As Integer, tpcall As TypeParamZZZ
+	sScript = objKernel.ClassLibrary & "\" & Getthreadinfo(LSI_THREAD_PROC)
+	Call objKernel.MessageAppend("",sScript,Erl,Error$, Err, "")
+	icode = Err
+	Call objKernel.MessageAppend("",sScript,Erl,Error$, Err, "")
+	Select Case icode
+	Case iMSG_NEXT, iERR_NEXT: Resume Next
+	Case iMSG_TRUE, iERR_TRUE: Resume EndTrue
+	Case iMSG_FALSE, iERR_FALSE: Resume EndFalse
+	Case iERR_OBJECT_ERR, iERR_OBJECT_CUR: Resume EndError 'Ziel: Nicht jeden Fehler ins Log stellen
+	Case Else: 
+		Call MSG2FileSendZZZ(Nothing, "", objKernel.Error.sString, 1, tpcall, "")
+		If tpcall.iErr > 0 Then Msgbox tpcall.sErr   'Fehler im Errorhandling sofort ans Frontend/Serverlog ausgeben
+		'Msgbox "An error happened, more in this file: " & Chr(13) & stemp
+		Resume EndError
+	End Select
+End Function
+Private Function KernelEnvironmentValueSet_(objKernel As KernelKernelZZZ, docIn As notesdocument, sZAliasIn As String, vValueIn As Variant, sFlagControlIn As String) As Boolean
+	Dim tpcall As TypeParamZZZ
+	Dim btemp As Boolean
+	On Error Goto errobj
+	Call objKernel.MessageReset(iMSG_TYPE_ERROR,"")  'Daimt sich in dieser Methode nicht Fehler aus einer anderen Methode auswirken
+	
+	'### Param-Check
+	Dim session As notessession
+	Dim item As notesitem
+	
+	Dim sZAlias As String
+	If Len(sZAliasIn) = 0 Then
+		Goto EndFalse
+	Else
+		sZAlias = Ucase(sZAliasIn)
+	End If
+	
+	
+	'###############################
+	If docIn Is Nothing Then
+		Set session = objKernel.session
+		
+		'+++ Fall: Es handelt sich um einen Notes.ini - Variable
+		Select Case sZAlias
+		Case "TEST":
+			Call session.SetEnvironmentVar(objKernel.KernelKey & "DebugMode",vValueIn , False )		
+			Goto EndTRUE
+		End Select		
+	Else
+		'+++ Fall: Ein Feld, dass in einem Dokument gesetzt werden soll
+		Select Case sZAlias
+		Case "TEST":
+			btemp = DocItemInstanceAllRemoveZZZ(Nothing, docIn, "TEST" & objKernel.KernelKey, tpcall, "")		
+			If tpcall.ierr > 0 Then Error iERR_FUNCTION_CALL, tpcall.serr
+			
+			Set item = New notesitem(docIn, "TEST" & objKernel.KernelKey,vValueIn)				
+			item.issummary = True
+			Goto EndTrue
+		End Select
+	End If
+	
+'###############################
+EndTrue:
+	objKernel.Error.iCode = 0
+	KernelEnvironmentValueSet_ = True
+	Exit Function
+EndFalse:
+	objKernel.Error.iCode = 0
+	KernelEnvironmentValueSet_ = False
+	Exit Function
+EndError:
+	KernelEnvironmentValueSet_ = False
+	Exit Function
+Errobj:
+	Dim sScript As String, icode As Integer
+	sScript = objKernel.ClassLibrary & "\" & Getthreadinfo(LSI_THREAD_PROC)
+	icode = Err
+	Call objKernel.MessageAppend("",sScript,Erl,Error$, Err, "")
+	Select Case icode
+	Case iMSG_NEXT, iERR_NEXT: Resume Next
+	Case iMSG_TRUE, iERR_TRUE: Resume EndTrue
+	Case iMSG_FALSE, iERR_FALSE: Resume EndFalse
+	Case iERR_OBJECT_ERR, iERR_OBJECT_CUR: Resume EndError 'Ziel: Nicht jeden Fehler ins Log stellen
+	Case Else: 
+		Call MSG2FileSendZZZ(Nothing, "", objKernel.Error.sString, 1, tpcall, "")
+		If tpcall.iErr > 0 Then Msgbox tpcall.sErr   'Fehler im Errorhandling sofort ans Frontend/Serverlog ausgeben
+		'Msgbox "An error happened, more in this file: " & Chr(13) & stemp
+		Resume EndError
+	End Select
+End Function
+Private Function KernelEnvironmentGet_(objKernel As KernelKernelZZZ, docIn As notesdocument, sZAliasIn As String, sFlagControlIn As String) As Boolean
+	Dim btemp As Boolean, stemp As String
+	On Error Goto errobj
+	Call objKernel.MessageReset(iMSG_TYPE_ERROR,"")  'Daimt sich in dieser Methode nicht Fehler aus einer anderen Methode auswirken
+	
+	'### Param-Check
+	Dim session As notessession
+	Dim item As notesitem
+	
+	Dim sZAlias As String
+	If Len(sZAliasIn) = 0 Then
+		Goto EndFalse
+	Else
+		sZAlias = Ucase(sZAliasIn)
+	End If
+	
+	'###############################
+	If docIn Is Nothing Then		
+		'+++ Fall: Eintrag aus der Notes.ini lesen
+		Set session = objKernel.session		
+		
+		Select Case sZAlias
+		Case "DEBUGFRONTEND":
+			stemp = Lcase(session.GetEnvironmentString(objKernel.KernelKey & "DebugMode", False))
+			If stemp <> "ja" And stemp <> "yes" Then Goto EndFalse
+		End Select
+	Else
+		'+++ Fall: Wert aus dem Dokument lesen
+		Select Case sZAlias
+		Case "DEBUGBACKEND":
+			Set item = docIn.getfirstitem("FlagDebugBackend" & objKernel.KernelKey)
+			If Not item Is Nothing Then
+				If Lcase(Cstr(item.values(0))) <> "ja" And Lcase(Cstr(item.Values(0))) <> "yes" Then Goto endFalse
+			Else
+				Goto EndFalse
+			End If
+		End Select
+	End If
+	
+	
+'###############################
+EndTrue:
+	objKernel.Error.iCode = 0
+	KernelEnvironmentGet_ = True
+	Exit Function
+EndFalse:
+	objKernel.Error.iCode = 0
+	KernelEnvironmentGet_ = False
+	Exit Function
+EndError:
+	KernelEnvironmentGet_ = False
+	Exit Function
+Errobj:
+	Dim sScript As String, icode As Integer, tpcall As TypeParamZZZ
+	sScript = objKernel.ClassLibrary & "\" & Getthreadinfo(LSI_THREAD_PROC)
+	icode = Err
+	Call objKernel.MessageAppend("",sScript,Erl,Error$, Err, "")
+	Select Case icode
+	Case iMSG_NEXT, iERR_NEXT: Resume Next
+	Case iMSG_TRUE, iERR_TRUE: Resume EndTrue
+	Case iMSG_FALSE, iERR_FALSE: Resume EndFalse
+	Case iERR_OBJECT_ERR, iERR_OBJECT_CUR: Resume EndError 'Ziel: Nicht jeden Fehler ins Log stellen
+	Case Else: 
+		Call MSG2FileSendZZZ(Nothing, "", objKernel.Error.sString, 1, tpcall, "")
+		If tpcall.iErr > 0 Then Msgbox tpcall.sErr   'Fehler im Errorhandling sofort ans Frontend/Serverlog ausgeben
+		'Msgbox "An error happened, more in this file: " & Chr(13) & stemp
+		Resume EndError
+	End Select
+End Function
+Private Function KernelEnvironmentSet_(objKernel As KernelKernelZZZ, docIn As notesdocument, sZAliasIn As String, iFlagEnable As Integer, sFlagControlIn As String) As Boolean
+	Dim tpcall As TypeParamZZZ
+	Dim btemp As Boolean, stemp As String
+	On Error Goto errobj
+	Call objKernel.MessageReset(iMSG_TYPE_ERROR,"")  'Daimt sich in dieser Methode nicht Fehler aus einer anderen Methode auswirken
+	
+	'### Param-Check
+	Dim session As notessession
+	Dim item As notesitem
+	
+	Dim sZAlias As String
+	If Len(sZAliasIn) = 0 Then
+		Goto EndFalse
+	Else
+		sZAlias = Ucase(sZAliasIn)
+	End If
+	
+	
+	'###############################
+	Set session = objKernel.session	
+	If docIn Is Nothing Then
+		'+++ Fall: Es handelt sich um einen Notes.ini - Variable
+		Select Case sZAlias
+		Case "DEBUGFRONTEND":
+			If iFlagEnable = True Then
+				Call session.SetEnvironmentVar(objKernel.KernelKey & "DebugMode","Ja" , False )		
+			Else
+				Call session.SetEnvironmentVar(objKernel.KernelKey & "DebugMode","" , False )		
+			End If
+			Goto EndTrue
+		End Select		
+	Else
+		'+++ Fall: Ein Feld, dass in einem Dokument gesetzt werden soll
+		Select Case sZAlias
+		Case "DEBUGBACKEND":
+			If iFlagEnable = True Then
+				Set item = New notesitem(docIn, "FlagDebugBackend" & objKernel.KernelKey, "1")				
+				item.issummary = True
+			Else
+				btemp = DocItemInstanceAllRemoveZZZ(session, docIn, "FlagDebugBackend" & objKernel.KernelKey, tpcall, "")		
+				If tpcall.ierr > 0 Then Error iERR_FUNCTION_CALL, tpcall.serr
+			End If
+			Goto EndTrue
+		End Select
+	End If
+	
+'###############################
+EndTrue:
+	objKernel.Error.iCode = 0
+	KernelEnvironmentSet_ = True
+	Exit Function
+EndFalse:
+	objKernel.Error.iCode = 0
+	KernelEnvironmentSet_ = False
+	Exit Function
+EndError:
+	KernelEnvironmentSet_ = False
+	Exit Function
+Errobj:
+	Dim sScript As String, icode As Integer
+	sScript = objKernel.ClassLibrary & "\" & Getthreadinfo(LSI_THREAD_PROC)
+	icode = Err
+	Call objKernel.MessageAppend("",sScript,Erl,Error$, Err, "")
+	Select Case icode
+	Case iMSG_NEXT, iERR_NEXT: Resume Next
+	Case iMSG_TRUE, iERR_TRUE: Resume EndTrue
+	Case iMSG_FALSE, iERR_FALSE: Resume EndFalse
+	Case iERR_OBJECT_ERR, iERR_OBJECT_CUR: Resume EndError 'Ziel: Nicht jeden Fehler ins Log stellen
+	Case Else: 
+		Call MSG2FileSendZZZ(Nothing, "", objKernel.Error.sString, 1, tpcall, "")
+		If tpcall.iErr > 0 Then Msgbox tpcall.sErr   'Fehler im Errorhandling sofort ans Frontend/Serverlog ausgeben
+		'Msgbox "An error happened, more in this file: " & Chr(13) & stemp
+		Resume EndError
+	End Select
+End Function
+Private Function LogAgentCallingRefresh_(objLog As KernelKernelLogZZZ, nagentin As notesagent, sFlagControlin As String) As Boolean
+	Dim btemp As Boolean
+	On Error Goto errobj
+	Call objLog.MessageReset(iMSG_TYPE_ERROR,"")  'Daimt sich in dieser Methode nicht Fehler aus einer anderen Methode auswirken
+	
+	'### Übergabeparameter prüfen
+	Dim nagent As NotesAgent
+	If nagentin Is Nothing Then
+		Set nagent = objLog.Session.currentagent	
+	Else
+		Set nagent = nagentin
+	End If
+	
+	'### Main 
+	Dim itemp As Integer
+	'Name des aufrufenden Agenten
+	If Not nagent Is Nothing Then
+		itemp = Instr(nagent.name,"|")
+		If itemp <> 0 Then
+			objLog.AgentCallingName = Trim(Left$(nagent.name, itemp -1))
+			objLog.AgentCallingNameAlias = Trim(Right$(nagent.name, Len(nagent.name) - itemp ))
+			Set objLog.AgentCalling = nagent
+		Else
+			objLog.AgentCallingName = nagent.name
+			objLog.AgentCallingNameAlias = ""
+			Set objLog.AgentCalling = nagent
+		End If		
+	Else
+		objLog.AgentCallingName = ""
+		objLog.AgentCallingNameAlias = ""
+		Set objLog.AgentCalling = Nothing
+		Goto endfalse
+	End If	
+	
+	'#######################################
+EndTrue:
+	objLog.Error.iCode = 0
+	LogAgentCallingRefresh_ = True
+	Exit Function 
+endFalse:
+	objLog.Error.iCode = 0
+	LogAgentCallingRefresh_ = False
+	Exit Function 	
+EndError:
+	LogAgentCallingRefresh_ = False
+	Exit Function
+Errobj:
+	Dim sScript As String, icode As Integer, tpcall As TypeParamZZZ
+	sScript = objLog.ClassLibrary & "\" & Getthreadinfo(LSI_THREAD_PROC)
+	icode = Err
+	Call objLog.MessageAppend("",sScript,Erl,Error$, Err, "")
+	Select Case icode
+	Case iMSG_NEXT, iERR_NEXT: Resume Next
+	Case iMSG_TRUE, iERR_TRUE: Resume EndTrue
+	Case iMSG_FALSE, iERR_FALSE: Resume EndFalse
+	Case iERR_OBJECT_ERR, iERR_OBJECT_CUR: Resume EndError 'Ziel: Nicht jeden Fehler ins Log stellen
+	Case Else: 
+		Call MSG2FileSendZZZ(Nothing, "", objLog.Error.sString, 1, tpcall, "")
+		If tpcall.iErr > 0 Then Msgbox tpcall.sErr   'Fehler im Errorhandling sofort ans Frontend/Serverlog ausgeben
+		'Msgbox "An error happened, more in this file: " & Chr(13) & stemp
+		Resume EndError
+	End Select
+End Function
+Private Function KernelAccessFieldAllDefaultCreate_(objKernel As KernelKernelZZZ, doc As NotesDocument, sFlagControlin As String) As Boolean
+	Dim tpcall As TypeParamZZZ
+	Dim btemp As Boolean
+	On Error Goto errobj
+	Call objKernel.MessageReset(iMSG_TYPE_ERROR,"")  'Daimt sich in dieser Methode nicht Fehler aus einer anderen Methode auswirken
+	
+	'### Übergabeparameter prüfen
+	If doc Is Nothing Then Goto EndFalse
+	
+	'### Main 
+	Dim saRoleAuthor(2) As String
+	saRoleAuthor(0) = "Admin"
+	saRoleAuthor(1) = "Support"
+	saRoleAuthor(2) = "Server"
+	
+	Dim saRoleReader(0) As String
+	saRoleReader(0) = "Reader"
+	
+	Dim saKey(1) As String
+	saKey(0) = objKernel.KernelKey
+	saKey(1) = objKernel.ApplicationKey
+	
+	Dim iCount As Integer
+	Dim vsaRoleReader As Variant
+	Dim vsaRoleAuthor As Variant	
+	Dim sItem As String
+	Dim item As notesitem
+	For iCount = 0 To Ubound(saKey)
+		
+	'+++++++ Autoren	
+		sItem = "Author" & saKey(iCount)
+		Call DocItemInstanceAllRemoveZZZ(objKernel.session, doc, sItem, tpcall, "")
+		If tpcall.ierr > 0 Then Error iERR_FUNCTION_CALL, tpcall.serr
+		
+		vsaRoleAuthor = ArrayStringPlusStringZZZ( objKernel.session, saRoleAuthor, "[" & objKernel.KernelKey, tpcall, "BEFORE")	
+		If tpcall.ierr > 0 Then Error iERR_FUNCTION_CALL, tpcall.serr
+		vsaRoleAuthor = ArrayStringPlusStringZZZ( objKernel.session, vsaRoleAuthor, "]", tpcall, "BEHIND")
+		If tpcall.ierr > 0 Then Error iERR_FUNCTION_CALL, tpcall.serr
+		Set item = New notesitem(doc, sItem, vsaRoleAuthor, AUTHORS)
+		item.IsSummary = True
+		
+	'++++++  Leser		
+		sItem = "Reader" & saKey(iCount)
+		Call DocItemInstanceAllRemoveZZZ(objKernel.session, doc, sItem, tpcall, "")
+		If tpcall.ierr > 0 Then Error iERR_FUNCTION_CALL, tpcall.serr
+		
+		vsaRoleReader = ArrayStringPlusStringZZZ( objKernel.session, saRoleAuthor, "[" & objKernel.KernelKey, tpcall, "BEFORE")			
+		If tpcall.ierr > 0 Then Error iERR_FUNCTION_CALL, tpcall.serr
+		vsaRoleReader = ArrayStringPlusStringZZZ( objKernel.session, vsaRoleAuthor, "]", tpcall, "BEHIND")	
+		If tpcall.ierr > 0 Then Error iERR_FUNCTION_CALL, tpcall.serr
+		Set item = New notesitem(doc, sItem, vsaRoleReader, READERS)
+		item.IsSummary = True
+	Next iCount
+	
+	'#######################################
+EndTrue:
+	objKernel.Error.iCode = 0
+	KernelAccessFieldAllDefaultCreate_ = True
+	Exit Function 
+endFalse:
+	objKernel.Error.iCode = 0
+	KernelAccessFieldAllDefaultCreate_= False
+	Exit Function 	
+EndError:
+	KernelAccessFieldAllDefaultCreate_= False
+	Exit Function
+Errobj:
+	Dim sScript As String, icode As Integer
+	sScript = objKernel.ClassLibrary & "\" & Getthreadinfo(LSI_THREAD_PROC)
+	icode = Err
+	Call objKernel.MessageAppend("",sScript,Erl,Error$, Err, "")
+	Select Case icode
+	Case iMSG_NEXT, iERR_NEXT: Resume Next
+	Case iMSG_TRUE, iERR_TRUE: Resume EndTrue
+	Case iMSG_FALSE, iERR_FALSE: Resume EndFalse
+	Case iERR_OBJECT_ERR, iERR_OBJECT_CUR: Resume EndError 'Ziel: Nicht jeden Fehler ins Log stellen
+	Case Else: 
+		Call MSG2FileSendZZZ(Nothing, "", objKernel.Error.sString, 1, tpcall, "")
+		If tpcall.iErr > 0 Then Msgbox tpcall.sErr   'Fehler im Errorhandling sofort ans Frontend/Serverlog ausgeben
+		'Msgbox "An error happened, more in this file: " & Chr(13) & stemp
+		Resume EndError
+	End Select
+End Function
+Private Function KernelLocationByDBGet_(objKernel As KernelKernelZZZ, dbIn As notesdatabase, sFlagControlin As String) As String
+	Dim sReturn As String
+	Dim btemp As Boolean
+	On Error Goto errobj
+	Call objKernel.MessageReset(iMSG_TYPE_ERROR,"")  'Daimt sich in dieser Methode nicht Fehler aus einer anderen Methode auswirken
+	
+	'### Übergabeparameter prüfen
+	If dbIn Is Nothing Then Goto EndFalse
+	
+	'### Main 
+	Dim sserver As String
+	sServer = dbIn.Server
+	
+	Dim nname1 As NotesName 
+	Set nname1 = New notesname(sServer)
+	If (Lcase(nname1.canonical) = "lokal" Or Lcase(nname1.canonical) = "local" Or Lcase(nname1.canonical) = "" )  Then
+		'Location-Namen aus dem Usernamen holen
+		Dim session As NotesSession
+		Set session = objKernel.Session
+		
+		sServer = session.UserName
+		Set nname1 = New notesname(sServer)	
+	End If
+	sReturn = nname1.Canonical
+	
+	'#######################################
+EndTrue:
+	objKernel.Error.iCode = 0
+	KernelLocationByDBGet_ = sReturn
+	Exit Function 
+endFalse: 
+	objKernel.Error.iCode = 0
+	KernelLocationByDBGet_ = ""
+	Exit Function 	
+EndError:
+	KernelLocationByDBGet_= ""
+	Exit Function
+Errobj:
+	Dim sScript As String, icode As Integer, tpcall As TypeParamZZZ
+	sScript = objKernel.ClassLibrary & "\" & Getthreadinfo(LSI_THREAD_PROC)
+	icode = Err
+	Call objKernel.MessageAppend("",sScript,Erl,Error$, Err, "")
+	Select Case icode
+	Case iMSG_NEXT, iERR_NEXT: Resume Next
+	Case iMSG_TRUE, iERR_TRUE: Resume EndTrue
+	Case iMSG_FALSE, iERR_FALSE: Resume EndFalse
+	Case iERR_OBJECT_ERR, iERR_OBJECT_CUR: Resume EndError 'Ziel: Nicht jeden Fehler ins Log stellen
+	Case Else: 
+		Call MSG2FileSendZZZ(Nothing, "", objKernel.Error.sString, 1, tpcall, "")
+		If tpcall.iErr > 0 Then Msgbox tpcall.sErr   'Fehler im Errorhandling sofort ans Frontend/Serverlog ausgeben
+		'Msgbox "An error happened, more in this file: " & Chr(13) & stemp
+		Resume EndError
+	End Select
+End Function

@@ -1,0 +1,597 @@
+'raus, wird in ZAPI.Basic.. eingebunden  %INCLUDE "C:\1fgl\workspace\Eclipse3FGL\LSZKernel\libkernel\ZAPI.Basic.Asset.lss"
+'raus, wird in ZAPI.Basic.. eingebunden  Use "ZAPI.Basic.Constant"
+
+
+
+
+'Leider ist es bei Verwendung von %Include nicht möglich, dass mehrere private konstanten mit dem gleichen Namen verwendet werden.
+'Private Const sLibZZZ = "ZZZAPIBasicLangMarkup"
+'Private Const sVerZZZ = "2005-09-01"
+
+
+
+
+
+
+
+Function strTagZZZ(session As notessession, sTagName As String, vTagValue As Variant, tP As TypeParamZZZ, sFlag) As String
+	Dim sReturn As String
+	On Error Goto ErrhZAPIEncoding
+	
+	If Len(sTagName) = 0 Then Goto EndFalse
+	If Isnull(vTagValue) Then Goto EndFalse
+	If Isempty(vTagValue) Then Goto EndFalse
+	
+	'#####################################
+	If Isarray(vTagValue) Then
+		Dim iCount As Integer
+		For iCount = Lbound(vTagValue) To Ubound(vTagValue)
+			sReturn = sReturn & "<" & sTagName & ">" & Cstr(vTagValue(iCount)) & "</" & sTagName & ">"
+		Next iCount
+	Else
+		sReturn = "<" & sTagName & ">" & Cstr(vTagValue) & "</" & sTagName & ">"
+	End If
+	
+	'######################################	
+EndTrue:
+	tp.ierr = 0
+	strTagZZZ = sReturn
+	Exit Function
+EndFalse:
+	tp.ierr = 0
+	strTagZZZ = ""
+	Exit Function	
+EndError:
+	strTagZZZ = ""
+	Exit Function
+errhZAPIEncoding:
+	Dim sScript As String
+	sScript = "ZAPI.Basic.Constant\"  & Getthreadinfo(LSI_THREAD_PROC)
+	tP.ierr = Err
+	If tP.ierr >= 10000 Then
+		tP.serr = |<?xml version="1.0" encoding="iso-8859-1" ?><zMessage><script>| & sScript & "</script><line>" & Erl & "</line><code>" & Cstr(Err) & "</code><err>" & Error$ & |</err></zMessage>|
+	Else
+		tP.serr = |<?xml version="1.0" encoding="iso-8859-1" ?><zMessage><script>| & sScript & "</script><line>" & Erl & "</line><code>" & Cstr(Err) & "</code><err><![CDATA[" & Error$ & |]]></err></zMessage>|
+	End If
+	Resume EndError
+End Function
+Function saMsgTagSplitZZZ(session As NotesSession, sXMLIn As String, sTagName As String, tP As TypeParamZZZ, sFlag) As Variant
+%REM
+Ein Array erzeugen mit allen Tags, die auf einer Eben sind
+%END REM
+	Dim saReturn() As String, tPCall As TypeParamZZZ
+	On Error Goto errhZAPI
+	
+	'################
+	'FRAGE: Sollten die Bedingungen nicht optimal sein, endFalse zurückgeben ????
+	Dim sXML As String
+	If Len(sXMLIn)=0 Then
+		Goto EndFalse
+	Else
+		sXML = sXMLin
+	End If
+	If Len(sTagName) = 0 Then  
+		Redim saReturn(0) As String
+		saReturn(0) = sXMLIn
+		Goto EndTrue
+	End If
+	
+	Dim btemp As Boolean
+	btemp = bTagNameIsValidZZZ(session, sTagName, tPCall, "")
+	If tPCall.ierr > 0 Then Error iERR_FUNCTION_CALL, tPCall.serr
+	If btemp = False Then Error iERR_PARAM_VALUE, "TagName='" & sTagName & "', but this is not allowed"
+	
+	'### Neue Vorgehensweise
+	
+	
+'%REM Diese Vorgehensweise ist fehlerhaft, wenn es sich um Tags handelt, die AUF DER GLEICHEN EBENE liegen !!!!!
+	'################
+	Dim sSearch As String, sSearchStart As String, stemp As String
+	sSearch = "</" & sTagName & ">"
+	sSearchStart = "<" & sTagName & ">"
+	
+	'Den Linken teil bis zu Start abschneiden
+	sXML = Right$(sXML,Len(sXML) - Instr(sXML,sSearchStart)+1)
+	
+	
+	Dim l As Integer
+	l = -1	
+	While Instr(sXML, sSearch) > 0    
+		l = l + 1
+		Redim Preserve saReturn(l) As String
+		saReturn(l) = Left$(sXML, Instr(sXML, sSearch) -1) & sSearch
+		'MsgBox sscript & Chr(13) & "Gefundener Tagstring " & Cstr(l+1) & Chr(13) & saReturn(l)
+		
+		sXML = Mid$(sXML, Instr(sXML, sSearch) + Len(sSearch))	
+		'MsgBox sscript & Chr(13) & "Gefundener Reststring " & Cstr(l+1) & Chr(13) & sXML
+		'Falls in dem übriggebliebenem String ein EndTag aber kein Anfangstag vorhanden ist, so wurde ein Bereich erfasst, der unterknoten hat.
+		'Die Unterknoten hier nicht weiter aufteilen, sondern den Rest an diesen aktuellen Knotenwert anhängen
+		If Instr(sXML, sSearch) > 0 And Instr(sXML, sSearchStart) = 0 Then
+			'DAS BEWIRKTE BEI EINFACHEN ERROR_STRINGS EINEN FEHLER stemp = Left$(sXML, Instr(sXML, sSearch) -1) & sSearch
+			'                                                                                                          saReturn(l) = saReturn(l) & stemp
+			saReturn(l) = saReturn(l) & sXML
+			'MsgBox sscript & Chr(13) & "Gefundener Tagstring " & Cstr(l+1) & " nach Korrektur" & Chr(13) & saReturn(l)
+			
+			sXML = "" 'Bewirkt schleifenabbruch
+		End If
+	Wend	
+'%ENDREM
+%REM den Rest NICHT anhängen !!! Damit unterscheidet die Function sich auch von strExplode !!!
+	l = l + 1
+	Redim Preserve saReturn(l) As String
+	saReturn(l) = sXML
+%ENDREM
+	
+	'####################
+EndTrue:
+	tp.ierr = 0
+	saMsgTagSplitZZZ = saReturn
+	Exit Function	
+endFalse:
+	tp.ierr = 0
+	saMsgTagSplitZZZ = Null
+	Exit Function
+EndError:
+	saMsgTagSplitZZZ = Null
+	Exit Function
+errhZAPI:
+	Dim sScript As String
+	sScript = "ZAPI.Basic.Lang.Markup\"  & Getthreadinfo(LSI_THREAD_PROC)
+	tP.ierr = Err
+	If tP.ierr >= 10000 Then
+		tP.serr = |<?xml version="1.0" encoding="iso-8859-1" ?><zMessage><script>| & sScript & "</script><line>" & Erl & "</line><code>" & Cstr(Err) & "</code><err>" & Error$ & |</err></zMessage>|
+	Else
+		tP.serr = |<?xml version="1.0" encoding="iso-8859-1" ?><zMessage><script>| & sScript & "</script><line>" & Erl & "</line><code>" & Cstr(Err) & "</code><err><![CDATA[" & Error$ & |]]></err></zMessage>|
+	End If
+	Msgbox tP.sErr
+	Resume EndError
+End Function
+Function strTagEncodingReplaceZZZ(session As NotesSession, sXMLIn As String, sEncodingTypeIn As String, tP As TypeParamZZZ, sFlag As String) As String
+	Dim sReturn As String, tpcall As TypeParamZZZ
+	On Error Goto errhZAPIEncoding
+	
+	'####################
+	Dim sEncodingType As String, sXML As String
+	sXML = Trim(sXMLIn)
+	If Len(sEncodingTypeIn) = 0 Then
+		sEncodingType = "iso-8859-1"
+	Else
+		sEncodingType = sEncodingTypeIn
+	End If
+	
+		'####################
+	Dim ltemp As Long, btemp As Boolean, stemp
+	Dim sleft As String, sRight As String, sEncoding As String
+	
+	'### Eigentlich müsste man nun mit regulären Ausdrücken arbeiten, aber das kann LS ja nicht
+	'<?xml version="1.0" encoding="iso-8859-1" ?>
+	'Ersetzen eines bestehenden Types
+	
+	ltemp = Instr(sXML,"<?xml version")
+	If  ltemp > 0 Then 
+		
+		'FGL:	!!! In einer CData-Section kann dieser String auch auftreten. 
+		'Ist dieser String also innerhalb einer CData-Section, dann ignorieren !!!
+		btemp = bPosition4CDataProofZZZ(session, sXML, ltemp, tPCall, "")
+		If tPCall.ierr > 0 Then Error iERR_FUNCTION_CALL, tPCall.serr		
+		If btemp = False Then 'die Position liegt also innerhalb eines CData-Abschnitts. Ergo gibt es vorne keinen echten Encoding Tag !!!
+			'+++ Fall "Encoding Bereich entfernen", also quasi drum herum die Strings ausschneiden
+			'Msgbox "ZAPI.Basic.Lang.Markup\"  & Getthreadinfo(LSI_THREAD_PROC) & Chr(13) & Chr(10)  & "'" & sXML & "'"
+			'Msgbox Cstr(ltemp)
+			
+			'Merke: Mit ltemp hat man den Anfang des gesuchten Strings. Nun noch den gesuchten String hinzuaddieren (für den Start ein Zeichen vorher anfangen)
+			Dim lStartRight As Long
+			lStartRight = ltemp -1 + Len("<?xml version")
+			
+			'Msgbox Cstr(Len(sXML)) & " ist grösser " & Cstr(lStartRight) 'Sonst gibt es einen "illegal function call"
+			sRight = Right$(sXML, Len(sXML) - lStartRight)
+			'Msgbox "Hier muss der Closing String drin sein: " & Chr(13) & Chr(10) & "'" & sRight & "'"
+			
+			'Nun in dem Rechten Rest noch dem Ende-Tag des Encodings suchen
+			ltemp = Instr(sRight, "?>")
+			If ltemp > 0 Then
+				Dim lEndRight As Long
+				lEndRight = ltemp - 1 + Len("?>")
+				sRight = Right(sRight,Len(sRight) - lEndRight)	
+				'Msgbox "'" & sRight & "'"				
+			Else
+				Error iERR_PARAM_VALUE, "XML-String missing closing for '<?xml version'"
+			End If			
+			
+		Else 'btemp = false
+			'+++ Fall: neu anlegen, gefundene encoding position liegt in cdata-abschnitt
+			sLeft=""
+			sRight = sXML
+		End If 'btemp = false
+	Else
+		'+++ Fall: neu anlegen des Encoding Bereichs
+		sLeft=""
+		sRight = sXML
+	End If
+	
+	sEncoding = |<?xml version="1.0" encoding="| & sEncodingType & |" ?>|
+	
+	sReturn = sLeft & sEncoding & sRight
+	
+	
+	'####################
+EndTrue:
+	tp.ierr = 0
+	strTagEncodingReplaceZZZ = sReturn
+	Exit Function	
+endFalse:
+	tp.ierr = 0
+	strTagEncodingReplaceZZZ = sXMLIn
+	Exit Function
+EndError:
+	strTagEncodingReplaceZZZ = ""
+	Exit Function
+errhZAPIEncoding:
+	Dim sScript As String
+	sScript = "Replace this by libraryname\"  & Getthreadinfo(LSI_THREAD_PROC)
+	tP.ierr = Err
+	If tP.ierr >= 10000 Then
+		tP.serr = |<?xml version="1.0" encoding="iso-8859-1" ?><zMessage><script>| & sScript & "</script><line>" & Erl & "</line><code>" & Cstr(Err) & "</code><err>" & Error$ & |</err></zMessage>|
+	Else
+		tP.serr = |<?xml version="1.0" encoding="iso-8859-1" ?><zMessage><script>| & sScript & "</script><line>" & Erl & "</line><code>" & Cstr(Err) & "</code><err><![CDATA[" & Error$ & |]]></err></zMessage>|
+	End If
+	Msgbox tP.sErr
+	Resume EndError
+End Function
+
+Function saCharXMLZZZ(session As notessession,  tP As TypeParamZZZ, sFlag) As Variant
+	Dim saReturn(2) As String
+	saReturn(0)="</"
+	saReturn(1)="<"
+	saReturn(2)=">"
+	
+	saCharXMLZZZ=saReturn
+End Function 
+Function bTagNameIsValidZZZ(session As notessession, sTagName As String,  tP As TypeParamZZZ, sFlag) As Boolean
+	On Error Goto errhZAPIEncoding
+	Dim tpcall As typeparamzzz
+	
+	'#####################
+	If Len(sTagName) = 0 Then Goto EndFalse
+	
+	Dim iCount As Integer, vCheck As Variant
+	vCheck=saCharXMLZZZ(session, tPcall, "")
+	For iCount = 0 To Ubound(vCheck)
+		If Instr(sTagName, vCheck(iCount)) Then Goto EndFalse
+	Next
+	
+	'####################
+EndTrue:
+	tp.ierr = 0
+	bTagNameIsValidZZZ= True
+	Exit Function	
+endFalse:
+	tp.ierr = 0
+	bTagNameIsValidZZZ=False
+	Exit Function
+EndError:
+	bTagNameIsValidZZZ=False
+	Exit Function
+errhZAPIEncoding:
+	Dim sScript As String, sinfo As String
+	sScript = "ZAPI.Basic.Lang.Markup\"  & Getthreadinfo(LSI_THREAD_PROC)
+	tP.ierr = Err
+	If tP.ierr >= 10000 Then
+		tP.serr = |<?xml version="1.0" encoding="iso-8859-1" ?><zMessage><script>| & sScript & "</script><line>" & Erl & "</line><code>" & Cstr(Err) & "</code><err>" & Error$ & |</err></zMessage>|
+	Else
+		tP.serr = |<?xml version="1.0" encoding="iso-8859-1" ?><zMessage><script>| & sScript & "</script><line>" & Erl & "</line><code>" & Cstr(Err) & "</code><err><![CDATA[" & Error$ & |]]></err></zMessage>|
+	End If
+	Msgbox tP.sErr
+	Resume EndError
+End Function
+Function strTagInfoAllZZZ(session As notessession, iPortType As Integer, sScriptIn As String, iLineIn As Integer, sInfoIn As String, iCodeIn As Integer, tP As TypeParamZZZ, sFlag) As String
+	Dim sReturn As String, tPCall As TypeParamZZZ
+	On Error Goto ErrhZAPIEncoding
+	
+	'#####################################	
+	Dim stemp As String		
+	sReturn = sReturn & strTagZZZ(session,"time", Now, tPCall, "") 
+	If tPCall.ierr > 0 Then Error iERR_FUNCTION_CALL, tPCall.serr
+	
+	'Merke: Diesen Teil nach hinten stellen, damit man die Informationen  im Debugger erkennen kann	
+	If Not session Is Nothing Then
+		sReturn = sReturn & strTagZZZ(session, "user", session.commonusername, tPCall, "")
+		If tPCall.ierr > 0 Then Error iERR_FUNCTION_CALL, tPCall.serr
+		
+		Dim dbCur As NotesDatabase
+		Set dbCur = session.CurrentDatabase
+		If Not dbCur Is Nothing Then 
+			sTemp = dbCur.Server			
+			If Len(stemp) > 0 Then sReturn = sReturn & strTagZZZ(session, "dbserver", stemp, tPCall, "")
+			If tPCall.ierr > 0 Then Error iERR_FUNCTION_CALL, tPCall.serr
+			stemp = dbCur.FilePath
+			If Len(stemp) > 0 Then sReturn = sReturn  & strTagZZZ(session, "dbpath", stemp, tPCall, "")
+			If tPCall.ierr > 0 Then Error iERR_FUNCTION_CALL, tPCall.serr
+		End If
+		
+		Dim agtCur As NotesAgent
+		Set agtCur = session.CurrentAgent
+		If Not agtCur Is Nothing Then
+			stemp = agtCur.Name
+			If Len(stemp) > 0 Then  sReturn = sReturn & strTagZZZ(session, "agtname", stemp, tPCall, "")
+			If tPCall.ierr > 0 Then Error iERR_FUNCTION_CALL, tPCall.serr
+		End If
+	End If 'not session is nothing
+	
+%REM alte Version
+	'Merke: Err oder Msg werden nach vorne gestellt, damit man im Debugger die Chance hat sich die Werte anzusehen
+	If iMSGType =  iMSG_TYPE_ERROR Then
+		sReturn = sReturn & strTagZZZ(session, "script", sScriptIn) & strTagZZZ(session, "line", iLineIn) & strTagZZZ(session, "code", iCodeIn)& strTagZZZ(session, "err", sinfoin) 
+	Elseif iMSGType =  iMSG_TYPE_INFO Then
+		sReturn = sReturn  & strTagZZZ(session, "script", sScriptIn) & strTagZZZ(session, "line", iLineIn) & strTagZZZ(session, "code", iCodeIn) & strTagZZZ(session, "msg", sinfoin)
+	Else
+		sReturn = strTagZZZ(session, "err","This MESSAGE_TYPE IS NOT SPECIFIED")
+	End If
+%ENDREM
+	'Dim iMSGTypeLevel As Integer
+	
+	'Merke: Err oder Msg werden nach vorne gestellt, damit man im Debugger die Chance hat sich die Werte anzusehen
+	If Len(sScriptIn) > 0 Then 
+		sReturn = sReturn & strTagZZZ(session, "script", sScriptIn, tpCall, "")
+		If tPCall.ierr > 0 Then Error iERR_FUNCTION_CALL, tPCall.serr
+	End If
+	If Len(Cstr(iLineIn)) > 0 And Cstr(iLineIn) <> "0" Then
+		sReturn = sReturn & strTagZZZ(session, "line", iLineIn, tpCall, "")
+		If tPCall.ierr > 0 Then Error iERR_FUNCTION_CALL, tPCall.serr
+	End If
+	If iPortType =  iPORT_MSG_ERROR Then		
+		stemp = strTagInfoCDATAZZZ(session, sInfoIn, iCodeIn, "err", tpcall, "")
+		If tpcall.ierr > 0 Then Error iERR_FUNCTION_CALL, tpcall.serr
+		sReturn = sReturn & stemp
+	Elseif iPortType =  iPORT_MSG_INFO Then
+		stemp = strTagInfoCDATAZZZ(session, sInfoIn, iCodeIn, "msg", tpcall, "")
+		If tpcall.ierr > 0 Then Error iERR_FUNCTION_CALL, tpcall.serr
+		sReturn = sReturn & stemp
+	Elseif iPORTTYPE = iPORT_MSG_NONE Then
+		stemp = strTagInfoCDATAZZZ(session, sInfoIn, iCodeIn, "none", tpcall, "")
+		If tpcall.ierr > 0 Then Error iERR_FUNCTION_CALL, tpcall.serr
+		sReturn = sReturn & stemp
+	Else
+		sReturn = strTagZZZ(session, "err","This PORT_TYPE IS NOT SPECIFIED", tpCall, "")
+		If tPCall.ierr > 0 Then Error iERR_FUNCTION_CALL, tPCall.serr
+	End If
+	
+	
+	'######################################	
+EndTrue:
+	tp.ierr = 0
+	strTagInfoAllZZZ = sReturn
+	Exit Function
+EndFalse:
+	tp.ierr = 0
+	strTagInfoAllZZZ = ""
+	Exit Function	
+EndError:
+	strTagInfoAllZZZ = ""
+	Exit Function
+errhZAPIEncoding:
+	Dim sScript As String
+	sScript = "ZAPI.Basic.Lang.Markup\"  & Getthreadinfo(LSI_THREAD_PROC)
+	tP.ierr = Err
+	If tP.ierr >= 10000 Then
+		tP.serr = |<?xml version="1.0" encoding="iso-8859-1" ?><zMessage><script>| & sScript & "</script><line>" & Erl & "</line><code>" & Cstr(Err) & "</code><err>" & Error$ & |</err></zMessage>|
+	Else
+		tP.serr = |<?xml version="1.0" encoding="iso-8859-1" ?><zMessage><script>| & sScript & "</script><line>" & Erl & "</line><code>" & Cstr(Err) & "</code><err><![CDATA[" & Error$ & |]]></err></zMessage>|
+	End If
+	Msgbox tP.sErr
+	Resume EndError
+End Function
+
+Function bPosition4CDataProofZZZ(session As NotesSession, sXMLTotalIn As String, lPositionToProofin As Long,  tP As TypeParamZZZ, sFlag) As Boolean
+	On Error Goto errhZAPIEncoding
+	Dim tPCall As TypeParamZZZ
+	
+	'####################
+	Dim lPositionToProof As Long
+	lPositionToProof = lPositionToProofIn
+	If lPositionToProof <= 1 Then Goto EndFalse
+	
+	Dim lXMLLength As Long
+	lXMLLength = Len(sXMLTotalin)
+	If lXMLLength <= lPositionToProof Then Goto EndFalse
+	
+	Dim sXMLLeft As String
+	sXMLLeft = 	Mid$(sXMLTotalIn, 1, lPositionToProof-1)
+	'Msgbox sXMLLeft
+	
+	Dim ltemp As Long
+	ltemp = Instr(sXMLLeft, "<![CDATA[")
+	If ltemp > 0 Then 
+		'Prüfen, ob dahinter ein Abschlusstag für CData liegt, falls das der Fall ist, dann kann die aktuelle Position kein Element dieses CData sein,
+		'da ein Abschlusstag nicht erlaubt ist in CData
+		
+		ltemp = Len(sXMLLeft) - (ltemp+8)  'Merke 9 ist die Länge von <![CDATA[
+		If ltemp > 3 Then 'Merke 3 ist die Länge von ]]>
+			'Prüfen, ob ein Abschlusstag (vorne) vorhanden ist !!!		
+			Dim sXMLRight As String
+			sXMLRight = Right$(sXMLLeft,ltemp) 
+			'Msgbox sXMLRight
+			
+			ltemp = Instr(sXMLRight, "]]>")
+			If ltemp > 0 Then 
+				'Dann kann im Rest (von vorne) noch ein weiterer CData-Abschnitt sein, rekursiv aufrufen
+				Dim sXMLRemain As String 'TESTEN !!!!!!!!!!!!!!!!!
+				Stop
+				Stop
+				Stop 
+				Dim itempright2 As Integer
+				itempright2 = Len(sXMLRight) - (ltemp+4)
+				If itempright2 >= 1 Then
+					sXMLRemain = Right$(sXMLRight, itempright2)  'Merke 3 ist die Länge von ]]>
+				Else
+					sXMLRemain = sXMLRight
+				End If
+				
+				ltemp = Instr(sXMLRemain, "<![CDATA[")
+				
+				Dim btemp As Boolean
+				btemp = bPosition4CDataProofZZZ(session, sXMLRemain, ltemp, tpCall, "")
+				If tPCall.ierr > 0 Then Error iERR_FUNCTION_CALL, tPCall.serr
+				If btemp = False Then Goto EndFalse
+			Else
+				Goto EndFalse
+			End If			
+		Else 'ltemp > 3
+			'Es ist überhaupt kein Reststring vorhanden, in dem das CDATA-Abschlusstag sein könnte.
+			'Ergo: CData-Abschlusstag kann nur rechts von der Position sein !!!
+			Dim sXMLRemain2 As String 
+			sXMLRemain2 = Right$(sXMLTotalIn, Len(sXMLTotalIn) - (lPositionToProof)) 
+			'Msgbox sXMLRemain2
+			
+			ltemp = Instr(sXMLRemain2, "]]>")
+			If ltemp >= 9 Then 'Merke 9 ist die Länge von <![CDATA[
+				'Dann kann vorher noch ein anderer CData-Abschnitt sein
+				Dim sXMLRemain3 As String 
+				sXMLRemain3 = Left$(sXMLRemain2,ltemp-1)  'Merke 3 ist die Länge von ]]>
+				'Msgbox sXMLRemain3
+				
+				ltemp = Instr(sXMLRemain, "<![CDATA[")
+				If ltemp > 0 Then
+					Goto EndFalse 'Die geprüfte Position liegt also zwischen zwei CData-Abschnitten 
+				Else
+					Goto EndTrue 'Die geprüfte Position liegt also innerhalb eines CData-Abschnitts
+				End If 				
+			Else 'ltemp >= 9	
+				Goto EndTrue 'Die geprüfte Position liegt also innerhalb eines CData-Abschnitts
+			End If 'ltemp >= 9	
+		End If 'ltemp > 3
+	Else
+		'Es ist überhaupt kein CData-Tag vorhanden
+		Goto EndFalse
+	End If
+	
+	'####################
+Endtrue:
+	tp.ierr = 0
+	bPosition4CDataProofZZZ = True
+	Exit Function	
+endFalse:
+	tp.ierr = 0
+	bPosition4CDataProofZZZ = False
+	Exit Function
+EndError:
+	bPosition4CDataProofZZZ = False
+	Exit Function
+errhZAPIEncoding:
+	Dim sScript As String, sinfo As String
+	sScript = "ZAPI.Basic.Lang.Markup\"  & Getthreadinfo(LSI_THREAD_PROC)
+	tP.ierr = Err
+	If tP.ierr >= 10000 Then
+		tP.serr = |<?xml version="1.0" encoding="iso-8859-1" ?><zMessage><script>| & sScript & "</script><line>" & Erl & "</line><code>" & Cstr(Err) & "</code><err>" & Error$ & |</err></zMessage>|
+	Else
+		tP.serr = |<?xml version="1.0" encoding="iso-8859-1" ?><zMessage><script>| & sScript & "</script><line>" & Erl & "</line><code>" & Cstr(Err) & "</code><err><![CDATA[" & Error$ & |]]></err></zMessage>|
+	End If
+	Msgbox tP.sErr
+	Resume EndError
+End Function
+Function strCDataZZZ(session As notessession,sStringIn As String,tp As TypeParamZZZ, sFlagControl As String) As String
+	Dim sReturn As String
+	On Error Goto errhZAPIEncoding
+	
+	'### Param
+	Dim sString As String
+	If Len(sStringIn) = 0 Then 
+		Goto EndFalse
+	Else 
+		sString = sStringIn
+	End If 
+	
+	'### Nun den String mit dem Tag und EndTag umgeben 
+	sReturn = "<![CDATA[" & sString & "]]>"
+	
+	'####################
+EndTrue:
+	tp.ierr = 0
+	strCDataZZZ = sReturn
+	Exit Function	
+endFalse:
+	tp.ierr = 0
+	strCDataZZZ = ""
+	Exit Function
+EndError:
+	strCDataZZZ = ""
+	Exit Function
+errhZAPIEncoding:
+	Dim sScript As String, sinfo As String
+	sScript = "ZAPI.Basic.Lang.Markup\"  & Getthreadinfo(LSI_THREAD_PROC)
+	tP.ierr = Err
+	If tP.ierr >= 10000 Then
+		tP.serr = |<?xml version="1.0" encoding="iso-8859-1" ?><zMessage><script>| & sScript & "</script><line>" & Erl & "</line><code>" & Cstr(Err) & "</code><err>" & Error$ & |</err></zMessage>|
+	Else
+		tP.serr = |<?xml version="1.0" encoding="iso-8859-1" ?><zMessage><script>| & sScript & "</script><line>" & Erl & "</line><code>" & Cstr(Err) & "</code><err><![CDATA[" & Error$ & |]]></err></zMessage>|
+	End If
+	Msgbox tP.sErr
+	Resume EndError
+End Function
+Function strTagInfoCDATAZZZ(session As notessession, sStringin As String, iCodeIn As Integer, sPortTagIn As String, tp As TypeParamZZZ, sFlagin As String) As String
+	Dim sReturn As String, tpcall As TypeParamZZZ
+	On Error Goto errhzapiEncoding
+	Dim stemp As String, ltemp As Long
+	
+	Dim sPortTag As String
+	sPortTag = Lcase(Trim(sPortTagIn))
+	If Len(sPortTag) = 0 Then 
+		Error iERR_PARAM_MISSING, "PortTag"
+	Else
+		If sPortTag <> "err" And sPortTag <> "msg" And sPortTag <> "none" Then Error iERR_PARAM_VALUE, "PortTag='" & sPortTagIn & "', but expected 'err', 'msg' or 'none'"		
+	End If
+	
+'###################################
+	sReturn = strTagZZZ(session, "code", iCodeIn, tpCall, "")
+	If tPCall.ierr > 0 Then Error iERR_FUNCTION_CALL, tPCall.serr
+	
+	'+++ Handelt es sich um einen Originalfehler
+	Dim iMSGTypeLevel As Integer
+	iMSGTypeLevel = MsgTypeLevelByCodeGetZZZ(session, iCodeIn, tPCall, "")
+	If tPCall.ierr > 0 Then Error iERR_FUNCTION_CALL, tPCall.serr
+	
+	If iMSGTypeLevel = iMSG_TYPELEVEL_ORIGINAL And iCodeIn <> iERR_XML_ERR Then  'ein iERR_XML_ERR ist es, wenn im String ggf. ein Fehlerhafter XML-String eingebunden worden ist
+		'+++ Originalfehler, ABER: iMSG_FALSE, iMSG_TRUE, iERR_FALSE, iMSG_NEXT, iERR_NEXT könnten trotzdem schon CDATA-Section beinhalten.
+		'       Auf Vorhandensein von CDATA-Section prüfen, es dürfen keine Verschachtelten CDATA-Sections auftreten
+		ltemp = Instr(sStringin, "<![CDATA[")
+		If ltemp = 0 Then 			
+			'+++ CDATA-Section hinzufügen
+			stemp = strCDataZZZ(session, sStringIn, tpcall, "")
+			If tPCall.ierr > 0 Then Error iERR_FUNCTION_CALL, tPCall.serr		
+		Else
+			stemp = sStringIn  'Keine Veränderung
+		End If
+		
+		sReturn= sReturn & strTagZZZ(session, sPortTag, stemp, tpCall, "")
+		If tPCall.ierr > 0 Then Error iERR_FUNCTION_CALL, tPCall.serr					
+	Else
+		'+++ Lediglich ein weitergereichter Error, eine CDATA-Section wird schon erwartet.
+		sReturn = sReturn & strTagZZZ(session, sPortTag, sStringIn, tpCall, "")
+		If tPCall.ierr > 0 Then Error iERR_FUNCTION_CALL, tPCall.serr			
+	End If
+	
+	'###################
+endtrue:
+	tp.ierr = 0
+	strTagInfoCDATAZZZ = sReturn
+	Exit Function
+endFalse:
+	tp.ierr = 0
+	strTagInfoCDATAZZZ = ""
+	Exit Function
+endError:
+	strTagInfoCDATAZZZ = ""
+	Exit Function
+	
+errhZAPIEncoding:
+	Dim sScript As String, sinfo As String
+	sScript = "ZAPI.Basic.Lang.Markup\"  & Getthreadinfo(LSI_THREAD_PROC)
+	tP.ierr = Err
+	If tP.ierr >= 10000 Then
+		tP.serr = |<?xml version="1.0" encoding="iso-8859-1" ?><zMessage><script>| & sScript & "</script><line>" & Erl & "</line><code>" & Cstr(Err) & "</code><err>" & Error$ & |</err></zMessage>|
+	Else
+		tP.serr = |<?xml version="1.0" encoding="iso-8859-1" ?><zMessage><script>| & sScript & "</script><line>" & Erl & "</line><code>" & Cstr(Err) & "</code><err><![CDATA[" & Error$ & |]]></err></zMessage>|
+	End If
+	Msgbox tP.sErr
+	Resume EndError
+End Function

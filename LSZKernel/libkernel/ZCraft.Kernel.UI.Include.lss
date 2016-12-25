@@ -1,0 +1,17 @@
+'muss rein, damit alle Funktionen global erreichbar sind. Als .lss Datei raus, wie auch alle Use-Einbindungen
+'%INCLUDE "C:\1fgl\workspace\Eclipse3FGL\LSZKernel\libkernel\ZAPI.Basic.Asset.lss"
+'Use "ZCore.Kernel.."
+'Use "ZCraft.Kernel..UI"
+'%INCLUDE "C:\1fgl\workspace\Eclipse3FGL\LSZKernel\libkernel\ZCraft.Kernel.UI.lss"
+
+'Private Const sLibZZZ = "ZZZBasicKernelUIInclude"
+
+REM Durch die globale Initalisierung des Objektes, steht es allen Agenten und Scriptbibliotheken zur Verfügung, die das Kernel-Include einbinden.
+'Public objUIZZZ As KernelUIZZZ
+Class KernelUIZZZ As KernelKernelUIZZZ
+	Public Property Get ClassName As String
+		ClassName = "KernelUIZZZ"
+	End Property 
+	Sub new(objKernel As KernelZZZ, ws As notesuiworkspace, vFlagToSet As Variant, sFlagControl As String) 		
+	End Sub
+End Class 

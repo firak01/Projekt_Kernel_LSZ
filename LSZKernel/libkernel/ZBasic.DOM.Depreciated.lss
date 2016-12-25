@@ -1,0 +1,460 @@
+'%INCLUDE "C:\1fgl\workspace\Eclipse3FGL\LSZKernel\libkernel\ZAPI.Basic.Asset.lss" 
+'Private Const sLibZZZ = "ZZZBasicDOMDepreciated"
+'Private Const sVerZZZ = "2005-06-22"
+Function ItemValueSetZZZ(doc As notesdocument, ItemName As String, ItemValues As Variant) As Integer
+	Dim ItemToSet As notesitem 	
+	Set ItemToSet = doc.GetFirstItem(ItemName)
+	
+	If Not ItemToSet Is Nothing Then
+		ItemToSet.Values = ItemValues
+		ItemValueSetZZZ = True
+	Else
+		ItemValueSetZZZ = False
+	End If
+End Function
+Function SetItemValuesZZZ(doc As notesdocument, ItemName As String, ItemValues As Variant) As Integer
+	Dim ItemToSet As notesitem 	
+	Set ItemToSet = doc.GetFirstItem(ItemName)
+	
+	If Not ItemToSet Is Nothing Then
+		ItemToSet.Values = ItemValues
+		SetItemValuesZZZ = True
+	Else
+		SetItemValuesZZZ = False
+	End If
+End Function
+Function docItemValuesDeleteSpecialZZZ(session As notessession, doc As notesdocument, arrItemNames() As String, arrSelectedPositions() As String, itemNamePart As String)
+%REM
+	
+' Created: 23.08.2003
+' Creator: Steffen Gruner	
+	
+' Last editing: 24.08.2003
+' Last Editor: Steffen Gruner	
+	
+' Description: delete values in other fields in application document
+'                     for instance: append product values of application
+	
+' ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++	
+	
+	Dim itemSelect As notesitem
+	Dim arrSelect() As String
+	Dim Position As Integer
+	Dim i As Integer
+	
+	For i = Ubound(arrSelectedPositions) To i = 0 Step -1 ' numbers of positions
+		If i >= 0 Then
+			Position = Cint(arrSelectedPositions(i))
+			
+			Forall f In arrItemNames
+				' get item
+				Set itemSelect = doc.getfirstitem(itemNamePart & f)			
+				Call ArrayStringFromVariantZZZ(session, itemSelect.values, arrSelect)			
+				
+				 ' delete values
+				Call ArrayStringValueDeleteZZZ(session, arrSelect, Position)						
+				itemSelect.values = arrSelect					
+			End Forall
+		End If
+	Next
+%ENDREM	
+End Function
+Function DocGetByIDZZZ(session As notessession, sIDString As String) As Notesdocument
+%REM
+FGL 2005-03-01
+Wird nun von DocGetByIDDBZZZ übernommen, 
+es wird dort in der aktuellen Datenbank nachgesehen, wenn der Datenbankparameter nothing ist.	
+%END REM
+%REM
+'Erstellt am 08.11.2002, Fritz Lindhauer	
+'Diese Funktion gibt ein Handle auf ein Dokument zurück.
+'Durch die Verwendung einer indizierten Ansicht soll die Performance gesteigert werden.
+	
+	'### Voraussetzungen für die Protokollierung
+	On Error Goto ErrorHandlerScript
+	
+	'### Variablen ###
+	Dim dbcur As notesdatabase
+	Dim view As notesview	
+	Dim docToFind As notesdocument
+	Dim itemtemp As notesitem
+	'###############
+	
+	Set dbcur = session.currentdatabase
+	Set view = dbcur.getview("viwDocIDZZZ")
+	If view Is Nothing Then
+		Msgbox "Interne Ansicht nicht gefunden: " & "viwDocIDZZZ"
+		Goto DocGetByIDNotFound
+	End If
+	
+	view.refresh
+	Set docToFind = view.getdocumentbykey(sIDString, True)
+	If docToFind Is Nothing Then		
+		Goto DocGetByIDNotFound		
+	End If
+	
+	'#################
+DocGetByIDSuccess :	
+	Set DocGetByIDZZZ = docToFind
+	Exit Function	
+DocGetByIDNotFound :
+	Set DocGetByIDZZZ = Nothing
+	Exit Function	
+ErrorHandlerScript:	
+	Resume DocGetByIDNotFound
+%ENDREM
+End Function
+Function ItemArrayValueProofAllTheSameZZZ(session As notessession, doc As notesdocument, arrItemName() As String, _
+valueproof As Variant, position As String) As Integer
+%REM
+	
+' ItemArrayValueProofZZZ = True -> Alle Wert entsprechen dem zu überprüfenden Wert.
+' ItemArrayValueProofZZZ = False -> Nicht alle Wert entsprechen dem zu überprüfenden Wert.
+	
+' doc = Dokument
+' arrItemName = Liste mit den Item Namen, deren Werte durchsucht werden sollen
+' valueproof = der zu überprüfende Wert (z.B. "")
+' position = "frist", "last" (Vorgabe, wenn "" -> "last")	
+	
+' Beschreibung: Duchsucht die Items danach, ob ein Wert am Anfang oder am Ende mit dem Wert gefüllt ist.
+'                         Dies ist sinnvoll, wenn man mehrere Mehrfachwertefelder in einer Tabelle nutzt und sicherstellen will,
+'                         daß z.B. keine "Leerzeile" enthalten ist.	
+' ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++	
+	
+	Dim itemdoc As notesitem
+	Dim arrValues() As Variant
+	Dim theValue As String
+	
+	ItemArrayValueProofAllTheSameZZZ = True
+	
+	'### Voraussetzungen für die Protokollierung
+	Dim sScriptPosition As String
+	sScriptPosition = sLibZZZ & "\ItemArrayValueProofAllTheSameZZZ"
+	On Error Goto ErrorHandler
+	
+	' Überprüfungen
+	If doc Is Nothing Then
+		Goto ErrorHandler
+	End If
+	
+	If arrItemName(0) = "" Then
+		Goto ErrorHandler		
+	End If
+	
+	' Überprüfung
+	Forall i In arrItemName 
+		Set itemdoc = doc.getfirstitem(i)
+		
+		Call ArrayStringFromVariantZZZ(session, itemdoc.Values, arrValues)
+		
+		' Wert ermitteln 
+		If position = "first" Then
+			theValue = arrValues(0)
+		Elseif position = "last" Then
+			theValue = arrValues(Ubound(arrValues))
+		Else
+			theValue = arrValues(Ubound(arrValues))
+		End If
+		
+		' Abbruch, falls ein Wert aus der Liste nicht dem zu überprüfendem Wert entspricht
+		If theValue <> valueproof Then
+			Goto EndeError
+		End If
+	End Forall
+	
+	Exit Function
+	
+	'############################
+EndeSuccess:
+	ItemArrayValueProofAllTheSameZZZ = True
+	Exit Function	
+EndeError:
+	ItemArrayValueProofAllTheSameZZZ = False
+	Exit Function
+ErrorHandler:
+	Msgbox "Es ist ein Fehler aufgetreten: " & Error$ & " " & sScriptposition & " ( Zeile: " & Cstr(Erl) & " )"	
+	Resume EndeError	
+%ENDREM
+End Function
+Function ItemArrayValueProofZZZ(session As notessession, doc As notesdocument, arrItemName() As String, valueproof As Variant, position As String) As Integer
+%REM
+	
+' ItemArrayValueProofZZZ = True -> Der zu überprüfende Wert ist enthalten.
+' ItemArrayValueProofZZZ = False -> Der zu überprüfende Wert ist nicht enthalten.
+	
+' doc = Dokument 
+' arrItemName = Liste mit den Item Namen, deren Werte durchsucht werden sollen
+' valueproof = der zu überprüfende Wert
+' position = "frist", "last" (Vorgabe, wenn "" -> "last")	
+	
+' Beschreibung: Duchsucht die Items danach, ob ein Wert am Anfang oder am Ende mit dem Wert gefüllt ist.
+'                         Dies ist sinnvoll, wenn man mehrere Mehrfachwertefelder in einer Tabelle nutzt und sicherstellen will,
+'                         daß z.B. keine unerlaubten Zeichen enthalten sind.	
+' ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++	
+	
+	Dim itemdoc As notesitem
+	Dim arrValues() As Variant
+	Dim theValue As String
+	
+	ItemArrayValueProofZZZ = False
+	
+	'### Voraussetzungen für die Protokollierung
+	Dim sScriptPosition As String
+	sScriptPosition = sLibZZZ & "\ItemArrayValueProofZZZ"
+	On Error Goto ErrorHandler
+	
+	' Überprüfungen
+	If doc Is Nothing Then
+		Goto ErrorHandler
+	End If
+	
+	If arrItemName(0) = "" Then
+		Goto ErrorHandler		
+	End If
+	
+	' Überprüfung
+	Forall i In arrItemName 
+		Set itemdoc = doc.getfirstitem(i)
+		
+		Call ArrayStringFromVariantZZZ(session, itemdoc.Values, arrValues)
+		
+		' Wert ermitteln 
+		If position = "first" Then
+			theValue = arrValues(0)
+		Elseif position = "last" Then
+			theValue = arrValues(Ubound(arrValues))
+		Else
+			theValue = arrValues(Ubound(arrValues))
+		End If
+		
+		' Abbruch, falls ein Wert aus der Liste dem zu überprüfenden Wert entspricht
+		If theValue = valueproof Then
+			Goto EndeSuccess
+		End If
+	End Forall
+	
+	Exit Function
+	
+	'############################
+EndeSuccess:
+	ItemArrayValueProofZZZ = True
+	Exit Function	
+EndeError:
+	ItemArrayValueProofZZZ = False
+	Exit Function
+ErrorHandler:
+	Msgbox "Es ist ein Fehler aufgetreten: " & Error$ & " " & sScriptposition & " ( Zeile: " & Cstr(Erl) & " )"	
+	Resume EndeError	
+%ENDREM
+End Function
+Function docItemItemIndexStringAppendZZZ(session As notessession, doc As notesdocument, sFieldToSet As String, sFieldSource As String, iLineNumber, sMessage As String, ierrcode As Integer, sflagcontrol As String) As Integer
+%REM
+An das mit dem itemnamen bestimmte item wird 
+ein weiterer Wert angehängt, aus einem Item, mit einem bestimmten index
+%END REM
+%REM
+	'### Protocolling
+	Dim sScriptposition As String, sError As String
+	sScriptposition = sLibZZZ & "\DocItemItemIndexStringAppendZZZ"
+	On Error Goto Errorhandler
+	
+	'### Parametercheck
+	
+	'### Variable 
+	Dim vtemp As Variant, stemp As String, itemp As Integer
+	
+	'### Main
+	
+	'+++ get the value
+	vtemp = doc.getitemvalue(sFieldSource)
+	stemp = vtemp(iLineNumber)
+	
+	'+++ set the item	
+	itemp = docItemStringAppendZZZ(session, doc, sFieldToSet, stemp, sMessage, iErrCode, "")
+	
+	'#######################################
+EndSuccess:
+	iErrCode = 0
+	sMessage = ""
+	docItemItemIndexStringAppendZZZ = True
+	Exit Function
+EndFalse:
+	iErrCode = 0
+	sMessage = ""
+	docItemItemIndexStringAppendZZZ = False
+	Exit Function
+endnothingtodo:
+	iErrCode = 0
+	sMessage = ""
+	docItemItemIndexStringAppendZZZ = False
+	Exit Function
+EndError:
+	sMessage = sError
+	docItemItemIndexStringAppendZZZ = False
+	Exit Function
+ErrorHandler:
+	iErrCode = Err
+	sError = Error$ & " " & sScriptposition & " ( Zeile: " & Cstr(Erl) & " )"
+	Resume EndError	
+%ENDREM
+End Function
+
+Function docItemStringAppendZZZ(session As notessession, docIn As notesdocument, sFieldToSetIn As String, sValue As String, sinfo As String, icode As Integer, sflagcontrolin As String) As Integer	
+%REM
+An das mit dem itemnamen bestimmte item wird 
+ein weiterer Wert angehängt.
+Ggf. kann das Item in Reader/Name/Author - Feld umgeändert werden
+Wird sFlagControl leer gelassen, so wird der alte Typ verwendet
+%END REM
+%REM
+	'### Protocolling
+	Dim vtemp As Variant, stemp As String, itemp As Integer
+	Dim sScript As String
+	sScript = sLibZZZ & "\DocItemStringAppendZZZ"
+	On Error Goto Errorhandler
+	 
+	'### Parametercheck
+	Dim doc As notesdocument
+	Dim item As notesitem
+	Dim sFieldToSet As String	
+	Dim sFlagControl As String
+	
+	If docIn Is Nothing Then
+		sinfo = "Missing parameter: Notesdocument"
+		iCode = 101
+		Goto EndError		
+	Else
+		Set doc = docIn
+	End If
+	
+	If Len(sFieldToSetIn) = 0 Then
+		sinfo = "Missing parameter: Fieldname"
+		iCode = 101
+		Goto EndError
+	Else
+		sFieldToSet = sFieldToSetIn
+	End If
+	
+	sFlagControl = Ucase(sFlagControlIn) 
+	If Len(sFlagControl) > 0 Then
+		If sFlagControl <> "TEXT" And sFlagControl <> "NAME" And sFlagControl <> "AUTHOR" And sFlagControl <> "READER" Then
+			sinfo = "Wrong parameter value FlagControl = '" & sFlagControlIn & "', expected TEXT, NAME, AUTHOR, READER."
+			iCode = 101
+			Goto EndError
+		End If		
+	Else
+		Set item = doc.getfirstitem(sFieldToSet)
+		If Not item Is Nothing Then
+			If item.IsAuthors = True Then
+				sFlagControl = "AUTHOR"
+			Elseif item.isreaders = True Then
+				sFlagControl = "READER"
+			Elseif item.isnames = True Then
+				sFlagControl = "NAME"
+			Else
+				sFlagControl = "TEXT"
+			End If
+		End If 'not item is nothing						
+	End If
+	
+	
+	'### Main
+	Dim iLineNumberNew As Integer
+	Dim saTemp() As String
+	
+	vtemp = doc.getitemvalue(sFieldToSet)						
+	If vtemp(0) = "" Then
+		Redim saTemp(0) As String											
+		iLineNumberNew = 0
+	Else
+		itemp = ArrayStringFromVariantZZZ(Nothing, vtemp, saTemp)
+		iLineNumberNew = Ubound(vtemp) + 1
+		Redim Preserve saTemp(iLineNumberNew) As String		
+	End If
+	
+	'+++ add the value
+	saTemp(iLineNumberNew) = sValue
+	
+	'+++ set the item				
+	If sFlagControl = "NAME" Then
+		Call doc.removeitem(sFieldToSet)
+		Set item = New notesitem(doc, sFieldToSet, saTemp, NAMES)		
+	Elseif sFlagControl = "READER" Then
+		Call doc.removeitem(sFieldToSet)
+		Set item = New notesitem(doc, sFieldToSet, saTemp, READERS)		
+	Elseif sFlagControl = "AUTHOR" Then
+		Call doc.removeitem(sFieldToSet)		
+		Set item = New notesitem(doc, sFieldToSet, saTemp, AUTHORS)
+	Elseif sFlagControl = "TEXT" Then
+		Call doc.removeitem(sFieldToSet)		
+		Set item = New notesitem(doc, sFieldToSet, saTemp)	
+	Elseif sFlagControl = "" Then
+		Set item = New notesitem(doc, sFieldToSet, saTemp)
+	End If
+	
+	'#######################################
+EndSuccess:
+	iCode = 0
+	docItemStringAppendZZZ = True
+	Exit Function
+EndFalse:
+	iCode = 0
+	docItemStringAppendZZZ = False
+	Exit Function
+EndError:
+	docItemStringAppendZZZ = False
+	Exit Function
+ErrorHandler:
+	iCode = Err
+	sInfo = Error$ & " " & sScript & " ( Line: " & Cstr(Erl) & " )"
+	Resume EndError	
+%ENDREM
+End Function
+Function docItemIndexReplaceZZZ(session As notessession, doc As notesdocument, saFieldName As Variant, iIndex As Integer,sValue As String, sMessage As String, iErrCode As Integer, sFlagControl As String) As Integer
+%REM
+	Dim item As notesitem	
+	Dim iCounter As Integer
+	Dim itemp As Integer
+	
+	Dim sScriptposition As String, sError As String
+	sScriptposition = sLibZZZ & "\docItemIndexReplaceZZZ"
+	On Error Goto ErrorHandler
+	
+	'### Übergabeparameter prüfen
+	If doc Is Nothing Then Goto endeFalse
+	
+	'#######################################
+	If Isarray(saFieldName) Then
+		For iCounter = 0 To Ubound(saFieldName)
+			Set item = doc.getfirstitem(saFieldName(iCounter))
+			itemp = ItemIndexReplaceZZZ(session, item, iIndex, sValue, sMessage, iErrCode, "")
+		Next iCounter
+	Else
+		Set item = doc.getfirstitem(saFieldName)
+		Stop
+		Stop
+		'ItemIndexReplaceZZZ(session As notessession, item As notesitem, iPosition As Integer,sValue As String, sInfo As String, iCode As Integer, sFlagControlin As String) As Integer
+		itemp = ItemIndexReplaceZZZ(session, item, iIndex, sValue, sMessage, iErrCode, "")
+	End If
+	
+	'#######################################
+EndeSuccess:
+	iErrCode = 0
+	sMessage = ""
+	docItemIndexReplaceZZZ = True
+	Exit Function
+EndeFalse:
+	iErrCode = 0
+	sMessage = ""
+	docItemIndexReplaceZZZ = False
+	Exit Function
+EndeError:
+	sMessage = sScriptposition & " - Fehler: "  & sError
+	docItemIndexReplaceZZZ = False
+	Exit Function
+ErrorHandler:
+	iErrCode = Err
+	sError = Error$ & " " & sScriptposition & " ( Zeile: " & Cstr(Erl) & " )"
+	Resume EndeError	
+%ENDREM
+End Function

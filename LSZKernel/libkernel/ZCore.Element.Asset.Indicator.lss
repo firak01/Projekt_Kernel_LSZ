@@ -1,0 +1,593 @@
+'%INCLUDE "C:\1fgl\workspace\Eclipse3FGL\LSZKernel\libkernel\ZAPI.Basic.Asset.lss" 
+'Use "ZCore.Element.Asset.Include" 
+
+'Private Const sLibZZZ = "ZZZBasicInheritAssetInductUI" 
+Private Class LibZZZ
+	Public Property Get sLibZZZ As String
+		sLibZZZ = "Meine neue Scriptbibliothkek1"
+	End Property	
+End Class 
+Class TestObjectZZZ As ObjectZZZ
+	Public Property Get VersionText As String
+		VersionText = ""
+	End Property
+	Public Property Get Version As String
+		Version = "1.0"
+	End Property
+	Public Property Get VersionDate As String
+		VersionDate = "25.04.2005"
+	End Property
+	Public Property Get ClassName As String
+		ClassName = "TestObjectZZZ"
+	End Property
+	Public Property Get ClassNameParent As String
+		ClassNameParent = ObjectZZZ..ClassName
+	End Property
+	Public Property Get ClassLibrary As String
+		ClassLibrary = "ZBasic.Element.Asset.Indicator"
+	End Property
+	Sub new(session As notessession)	
+		Set Me.Session = session
+	End Sub
+	Function FunctionErrorCall(sFlagControl As String) As Boolean
+		FunctionErrorCall = testFunctionErrorCall_(Me, sFlagControl)
+	End Function
+	Function FunctionErrorSubCall(sFlagControl As String) As Boolean
+		FunctionErrorSubCall = testFunctionErrorSubCall_(Me, sFlagControl)
+	End Function
+	Function FunctionErrorParamCall(sParam As String, sFlagControl As String) As Boolean
+		FunctionErrorParamCall = testFunctionErrorParamCall_(Me, sParam, sFlagControl)
+	End Function
+	Function FunctionErrorObjectCall(sParam As String, sFlagControl As String) As Boolean
+		FunctionErrorObjectCall = testFunctionErrorObjectCall_(Me,sParam,  sFlagControl)
+	End Function
+End Class
+
+'Dieses Object wird von der Function FunctionErrorObjectCall des TestObjectZZZ verwendet
+Class TestObjectCalledZZZ As ObjectZZZ
+	Private objSession As NotesSession
+	Public Property Get session As NotesSession
+		Set session = Me.objSession
+	End Property
+	Public Property Set session As NotesSession
+		Set Me.objSession = session
+	End Property
+	
+	Public Property Get VersionText As String
+		VersionText = ""
+	End Property
+	Public Property Get Version As String
+		Version = "1.0"
+	End Property
+	Public Property Get VersionDate As String
+		VersionDate = "25.04.2005"
+	End Property
+	Public Property Get ClassName As String
+		ClassName = "TestObjectCalledZZZ"
+	End Property
+	Public Property Get ClassNameParent As String
+		ClassNameParent = ObjectZZZ..ClassName
+	End Property
+	Sub new(session As notessession)		
+		Set Me.session = session
+	End Sub
+	Function FunctionErrorSubCall(sFlagControl As String) As Boolean
+		FunctionErrorSubCall = testFunctionErrorSubCall_(Me, sFlagControl)
+	End Function
+	Function FunctionErrorParamCall(sParam As String, sFlagControl As String) As Boolean
+		FunctionErrorParamCall = testFunctionErrorParamCall_(Me, sParam, sFlagControl)
+	End Function
+	Function FunctionErrorCall(sFlagControl As String) As Boolean
+		FunctionErrorCall = testFunctionErrorCall_(Me, sFlagControl)
+	End Function
+End Class
+Private Function testFunctionErrorCall_(objTest As Variant, sFlagControlin As String) As Boolean
+%REM
+diese funktion wird einen Fehler produzieren:
+Es werden "Einfache Funktionen aufgerufen"
+%ENDREM	
+	Dim tpcall As TypeParamZZZ
+	On Error Goto errobj
+	'###
+	
+	'1. einfach mal eine message loswerden
+	Dim ilengthmax As Integer,  iCount As Integer
+	Dim vtemp As Variant, stemp As String, icodetemp As Integer, bTemp As Boolean
+	
+	Stop
+	Error iERR_NEXT, "Dös ist eine Meldung, die nicht verloren gehen darf (2)"
+	
+	'#######
+	Dim sFlagcontrol As String
+	If Len(sFlagControlIn) > 0 Then
+		sFlagControl = Ucase(sFlagControlIn)
+		If sFlagControl <> "DIRECT" And sFlagControl <> "INDIRECT" And sFlagControl <> "INDIRECTMSG" And sFlagControl <> "INDIRECTERR" Then 
+			Error iERR_PARAM_VALUE, "sFlagControl = '" & sFlagControl & "', but expected 'DIRECT', 'INDIRECT', 'INDIRECTMSG' or 'INDIRECTERR'"
+		End If
+	Else
+		sFlagControl = "DIRECT"
+	End If
+	
+	'#######
+	If sFlagControl = "DIRECT" Then 
+		'Direkt in dieser Funktion einen Fehler machen
+		Dim i As Integer
+		Dim j As Integer
+		j = 100/i				
+	Elseif sFlagControl = "INDIRECT" Then
+		'Für einen indirekten Fehler
+		btemp = testFunction2ZZZ(tpcall, "")
+		If tpcall.ierr > 0 Then
+			Error iERR_NEXT, "Da ist nen Fehler inner Test Funktion aufgetreten (1)."
+			Error iERR_NEXT, "und das ist der weitere Kommentar (1)."
+			Error iERR_FUNCTION_CALL, tpcall.serr
+		End If
+	Elseif sFlagControl = "INDIRECTMSG" Then
+		'Für einen indirekten Fehler, dem eine Meldung vorangestellt werden soll
+		btemp = testFunction2ZZZ(tpcall, "MSG")
+		If tpcall.ierr > 0 Then 
+			Error iERR_NEXT, "Da ist nen Fehler inner TestFunktion aufgetreten (2)."
+			Error iERR_NEXT , "und das ist der weitere Kommentar (2)."
+			Error iERR_FUNCTION_CALL, tpcall.serr
+		End If
+	Elseif sFlagControl = "INDIRECTERR" Then
+		'Für einen indirekten Fehler, dem eine Meldung vorangestellt werden soll
+		btemp = testFunction2ZZZ(tpcall, "ERR")
+		If tpcall.ierr > 0 Then 
+			Error iERR_NEXT, "Da ist nen Fehler inner TestFunktion aufgetreten (3)."
+			Error iERR_NEXT, "und das ist der weitere Kommentar (3)."
+			Error iERR_FUNCTION_CALL, tpcall.sErr
+		End If
+	End If
+	
+	'######################################	
+EndTrue:
+	objTest.Error.iCode = 0
+	testFunctionErrorCall_ = True
+	Exit Function
+EndFalse:
+	objTest.Error.iCode = 0
+	testFunctionErrorCall_ = False
+	Exit Function	
+EndError:
+	testFunctionErrorCall_ = False
+	Exit Function
+Errobj:
+	Dim sScript, icode As Integer
+	sScript = objTest.ClassLibrary & "\" & Getthreadinfo(LSI_THREAD_PROC)
+	icode = Err   'Beim wiederholten Aufruf (d.h. zwei Zeilen hintereinanger ' Error iERR_NEXT, "das ist ein text" ' aufrufen) verliert Err zwei Stellen von rechts nach dem Aufruf der MEthode objMe.MessageAppend(..) !!!! 
+	Call objTest.MessageAppend("",sScript,Erl,Error$, Err, "")
+	Select Case icode
+	Case iMSG_NEXT, iERR_NEXT: Resume Next
+	Case iMSG_TRUE, iERR_TRUE: Resume EndTrue
+	Case iMSG_FALSE, iERR_FALSE: Resume EndFalse
+	Case Else: 
+		stemp = MSG2FileSendZZZ(Nothing, "", objTest.Error.sString, 1, tpcall, "")
+		If tpcall.iErr > 0 Then Msgbox tpcall.sErr   'Fehler im Errorhandling sofort ans Frontend/Serverlog ausgeben
+		'Msgbox "An error happened, more in this file: " & Chr(13) & stemp
+		Resume EndError
+	End Select
+End Function
+
+Private Function testFunctionErrorSubCall_(objTest As Variant, sFlagControl As String) As Boolean
+%REM
+diese funktion wird einen Fehler produzieren
+%ENDREM
+	On Error Goto errobj
+	
+	'###
+	'1. einfach mal eine message loswerden
+	Dim vtemp As Variant, stemp As String, icodetemp As Integer
+	
+	Error iERR_NEXT, "Dös ist eine Meldung, die nicht verloren gehen darf (3a)"	
+	Error iERR_NEXT, "Dös ist eine Meldung, die nicht verloren gehen darf (3b)"	
+	
+	
+	Dim bTemp
+	
+%REM Für den direkten Fehler
+	Dim i As Integer
+	Dim j As Integer
+	j = 100/i
+%ENDREM
+%REM
+	'Für einen indirekten Fehler
+	btemp = testFunction2ZZZ(sinfo, icode, "")
+	If iCode > 0 Then
+		Error iERR_Z, "Da ist nen Fehler inner Test Funktion aufgetreten."
+		Error iERR_Z, "und das ist der weitere Kommentar."
+		Error iCode, sinfo
+	End If
+%ENDREM
+	'%REM
+	'Für einen indirekten Parameter - Fehler
+	Stop
+	btemp = objTest.FunctionErrorParamCall("","")
+	
+	Stop
+	''Den Zwischenstring mal ausgeben
+	'stemp = MSG2FileSendZZZ(Nothing, "", objTest.Error.sString, sErr, iErr, "")
+	
+	'Alle Teilstrings vor dem Zusammenrechnen mal ausgeben
+	'Dim icount
+	'For icount = 0 To Ubound(objTest.Error.vString)
+	'	stemp = MSG2FileSendZZZ(Nothing, "", objTest.Error.vString(iCount), sErr, iErr, "")
+	'	Stop	
+	'Next icount
+	
+	If objTest.Error.iCode > 0 Then Error iERR_OBJECT_CUR, objTest.Error.sString
+	
+	'%ENDREM
+	'######################################	
+EndTrue:
+	objTest.Error.iCode = 0
+	testFunctionErrorSubCall_ = True
+	Exit Function
+EndFalse:
+	objTest.Error.iCode = 0
+	testFunctionErrorSubCall_ = False
+	Exit Function	
+EndError:
+	testFunctionErrorSubCall_ = False
+	Exit Function
+Errobj:
+	Dim sScript, icode As Integer, tpcall As TypeParamZZZ
+	sScript = objTest.ClassLibrary & "\" & Getthreadinfo(LSI_THREAD_PROC)
+	icode = Err   'Beim wiederholten Aufruf (d.h. zwei Zeilen hintereinanger ' Error iERR_NEXT, "das ist ein text" ' aufrufen) verliert Err zwei Stellen von rechts nach dem Aufruf der MEthode objMe.MessageAppend(..) !!!! 
+	Call objTest.MessageAppend("",sScript,Erl,Error$, Err, "")
+	Select Case icode
+	Case iMSG_NEXT, iERR_NEXT: Resume Next
+	Case iMSG_TRUE, iERR_TRUE: Resume EndTrue
+	Case iMSG_FALSE, iERR_FALSE: Resume EndFalse
+	Case Else: 
+		stemp = MSG2FileSendZZZ(Nothing, "", objTest.Error.sString, 1, tpcall, "")
+		If tpcall.iErr > 0 Then Msgbox tpcall.sErr   'Fehler im Errorhandling sofort ans Frontend/Serverlog ausgeben
+		'Msgbox "An error happened, more in this file: " & Chr(13) & stemp
+		Resume EndError
+	End Select
+End Function
+
+Private Function testFunctionErrorParamCall_(objTest As Variant, sParam2Test As String, sFlagControl As String) As Boolean
+%REM
+diese funktion kann einen Fehler produzieren
+%ENDREM
+	Dim btemp As Boolean, stemp As String
+	On Error Goto errobj
+	
+	'### Parameter-Check
+	If Len(sParam2Test)=0 Then Error iERR_PARAM_MISSING, "Param2Test"
+	
+	sParam2Test = Ucase(sParam2Test)
+	If sParam2Test <> "DIRECT" And sParam2Test <> "INDIRECT" Then Error iERR_PARAM_VALUE, "Parameter = '" & sParam2Test & "' , but expected 'Direct', 'Indirect'"
+	
+	'######################################	
+EndTrue:
+	objTest.Error.iCode = 0
+	testFunctionErrorParamCall_ = True
+	Exit Function
+EndFalse:
+	objTest.Error.iCode = 0
+	testFunctionErrorParamCall_ = False
+	Exit Function	
+EndError:
+	testFunctionErrorParamCall_ = False
+	Exit Function
+Errobj:
+	Dim sScript, icode As Integer, tpcall As TypeParamZZZ
+	sScript = objTest.ClassLibrary & "\" & Getthreadinfo(LSI_THREAD_PROC)
+	icode = Err   'Beim wiederholten Aufruf (d.h. zwei Zeilen hintereinanger ' Error iERR_NEXT, "das ist ein text" ' aufrufen) verliert Err zwei Stellen von rechts nach dem Aufruf der MEthode objMe.MessageAppend(..) !!!! 
+	Call objTest.MessageAppend("",sScript,Erl,Error$, Err, "")
+	Select Case icode
+	Case iMSG_NEXT, iERR_NEXT: Resume Next
+	Case iMSG_TRUE, iERR_TRUE: Resume EndTrue
+	Case iMSG_FALSE, iERR_FALSE: Resume EndFalse
+	Case Else: 
+		stemp = MSG2FileSendZZZ(Nothing, "", objTest.Error.sString, 1, tpcall, "")
+		If tpcall.iErr > 0 Then Msgbox tpcall.sErr   'Fehler im Errorhandling sofort ans Frontend/Serverlog ausgeben
+		'Msgbox "An error happened, more in this file: " & Chr(13) & stemp
+		Resume EndError
+	End Select
+End Function
+Private Function testFunctionErrorObjectCall_(objTest As Variant, sParam2Test As String, sFlagControl As String) As Boolean
+%REM 
+diese funktion ruft eine Methode eines Objects auf, die einen Fehler produziert.
+Dieser Fehler muss als Fehlermeldung übernommen werden.
+%ENDREM
+	Dim btemp As Boolean, stemp As String
+	On Error Goto errobj
+	
+	'### Das zu testende Object	 
+	Error iERR_Next, "Dös ist eine Meldung, die nicht verloren gehen darf (test6, MeldungsNr insgesam 4)"	
+	
+	
+	Dim session As NotesSession
+	Dim objTestCalled As TestObjectCalledZZZ
+	Set session = objTest.session
+	Set objTestCalled = New TestObjectCalledZZZ(session)
+	
+	'### Parameter-Check
+	If Len(sParam2Test)=0 Then 
+		Stop
+		btemp = objTestCalled.FunctionErrorSubCall("")		
+		If objTestCalled.Error.iCode > 0 Then Error iERR_OBJECT_ERR, objTest.MessageAllReceive(objTestCalled,  iMSG_TYPE_ERROR, "")		
+	Else
+		Stop
+		btemp = objTestCalled.FunctionErrorParamCall(sParam2Test, sFlagControl)
+		If objTestCalled.Error.iCode > 0 Then Error iERR_OBJECT_ERR, objTest.MessageAllReceive(objTestCalled,  iMSG_TYPE_ERROR, "")					
+	End If
+	
+	
+	'+++ Nun mal eine Funktion aufrufen
+	Call objTestCalled.FunctionErrorCall(sParam2Test)
+	If objTestCalled.Error.iCode > 0 Then Error iERR_OBJECT_ERR, objTest.MessageAllReceive(objTestCalled,  iMSG_TYPE_ERROR, "")	
+	
+	
+	'######################################	
+EndTrue:
+	objTest.Error.iCode = 0
+	testFunctionErrorObjectCall_ = True
+	Exit Function
+EndFalse:
+	objTest.Error.iCode = 0
+	testFunctionErrorObjectCall_ = False
+	Exit Function	
+EndError:
+	testFunctionErrorObjectCall_ = False
+	Exit Function
+Errobj:
+	Dim sScript, icode As Integer, tpcall As TypeParamZZZ
+	sScript = objTest.ClassLibrary & "\" & Getthreadinfo(LSI_THREAD_PROC)
+	icode = Err   'Beim wiederholten Aufruf (d.h. zwei Zeilen hintereinanger ' Error iERR_NEXT, "das ist ein text" ' aufrufen) verliert Err zwei Stellen von rechts nach dem Aufruf der MEthode objMe.MessageAppend(..) !!!! 
+	Call objTest.MessageAppend("",sScript,Erl,Error$, Err, "")
+	Select Case icode
+	Case iMSG_NEXT, iERR_NEXT: Resume Next
+	Case iMSG_TRUE, iERR_TRUE: Resume EndTrue
+	Case iMSG_FALSE, iERR_FALSE: Resume EndFalse
+	Case Else: 
+		stemp = MSG2FileSendZZZ(Nothing, "", objTest.Error.sString, 1, tpcall, "")
+		If tpcall.iErr > 0 Then Msgbox tpcall.sErr   'Fehler im Errorhandling sofort ans Frontend/Serverlog ausgeben
+		'Msgbox "An error happened, more in this file: " & Chr(13) & stemp
+		Resume EndError
+	End Select
+End Function
+Function testFunctionZZZ(tp As TypeParamZZZ, sFlagControl As String) As Boolean
+%REM
+diese funktion wird einen Fehler produzieren
+%END REM
+	Dim tpcall As TypeParamZZZ
+	On Error Goto errh
+	Dim stemp As String
+	
+	'###
+	Stop
+	'Erst einmal eine Msg schicken, aufgrund des dt. Umlautes ist der richtige Encoding Type wichtig !!!
+	Error iERR_NEXT, "dös ist ein TEST"
+	
+	Stop 
+	Dim btemp As Boolean
+	btemp = testFunction2ZZZ(tpcall,"")
+	If tpcall.ierr > 0 Then Error iERR_FUNCTION_CALL, tpcall.serr
+	
+	'######################################	
+EndTrue:
+	tp.ierr = 0
+	testFunctionZZZ = True
+	Exit Function
+EndFalse:
+	tp.ierr = 0
+	testFunctionZZZ = False
+	Exit Function	
+EndError:
+	testFunctionZZZ = False
+	Exit Function
+ErrH:
+	Dim sScript, sinfo As String, tpcall2 As TypeParamZZZ
+	sScript = "ZBasic.Element.Asset.InductUI\" & Getthreadinfo(LSI_THREAD_PROC)
+	tp.iErr = Err 'Beim wiederholten Aufruf (d.h. zwei Zeilen hintereinanger ' Error iERR_NEXT, "das ist ein text" ' aufrufen) verliert Err zwei Stellen von rechts nach dem Aufruf der MEthode objMe.MessageAppend(..) !!!! 
+	
+	Select Case tp.iErr
+	Case iASSERT_FALSE, iASSERT_TRUE: Resume Next  'd.h. es soll keine Information über den Message oder den Error Kanals ausgegeben werden.
+	Case iASSERT_FALSE_CRITICAL: Resume EndFalse
+	End Select
+	
+	If tp.iErr = iMSG_ASSERT_TRUE Or tp.iErr = iERR_ASSERT_TRUE Then 'Or tp.iErr = iERR_ASSERT_TRUE_CRITICAL Then 
+		sinfo = "Assertion negative: '" & Error$ & "'"
+	Else
+		sinfo = Error$
+	End If
+	
+	tp.serr = strMsgZZZ(Nothing,  tp.sErr, sScript, Erl, sinfo, tp.iErr, tpcall2, "")
+	If tpcall2.iErr > 0 Then
+		Msgbox tpcall2.serr
+		Resume EndError
+	End If
+	Select Case tp.ierr
+	Case iMSG_NEXT, iERR_NEXT, iMSG_AGENT_NEXT, iERR_AGENT_NEXT, iMSG_ASSERT_TRUE, iERR_ASSERT_TRUE, iMSG_ASSERT_FALSE, iERR_ASSERT_FALSE: Resume Next
+	Case iMSG_TRUE, iERR_TRUE, iMSG_AGENT_TRUE, iERR_AGENT_TRUE: Resume EndTrue  ', iMSG_ASSERT_TRUE_CRITICAL, iERR_ASSERT_TRUE_CRITICAL: Resume EndTrue
+	Case iMSG_FALSE, iERR_FALSE, iMSG_AGENT_FALSE, iERR_AGENT_FALSE, iMSG_ASSERT_FALSE_CRITICAL, iERR_ASSERT_FALSE_CRITICAL: Resume EndFalse
+	Case iERR_OBJECT_ERR, iERR_OBJECT_CUR, iERR_AGENT_CALL, iERR_FUNCTION_CALL, iERR_PARAM_VALUE, iERR_PARAM_MISSING, iERR_PROPERTY_VALUE, iERR_PROPERTY_MISSING, iERR_DESIGN_MISSING: Resume EndError 'Ziel: Nicht jeden Fehler ins Log stellen
+	Case Else: 
+		If tpcall2.iErr > 0 Then Msgbox tpcall2.sErr   'Fehler im Errorhandling sofort ans Frontend/Serverlog ausgeben		
+		Resume EndError
+	End Select
+%REM
+	Dim sScript As String
+	sScript = "ZBasic.Element.Asset.InductUI\" & Getthreadinfo(LSI_THREAD_PROC)
+	tp.iErr = Err 'Beim wiederholten Aufruf (d.h. zwei Zeilen hintereinanger ' Error iERR_NEXT, "das ist ein text" ' aufrufen) verliert Err zwei Stellen von rechts nach dem Aufruf der MEthode objMe.MessageAppend(..) !!!! 
+	tp.serr = strMsgZZZ(Nothing,  tp.sErr, sScript, Erl, Error$, Err, tpcall, "")
+	If tpcall.iErr > 0 Then
+		Msgbox tpcall.serr
+		Resume EndError
+	End If
+	Select Case tp.ierr
+	Case iMSG_NEXT, iERR_NEXT: Resume Next
+	Case iMSG_FALSE, iERR_FALSE: Resume EndFalse
+	Case iMSG_TRUE, iERR_TRUE: Resume EndTrue
+	Case Else: Resume EndError		
+	End Select
+%ENDREM
+End Function
+
+Private Function testFunction2ZZZ(tp As TypeParamZZZ, sFlagControlIn As String) As Boolean
+%REM 
+diese funktion wird einen Fehler produzieren:
+Falls sFlagControl = "MSG" dann wird noch eine Message, die nicht zum Abbruch führt vorher generiert
+Falls sFlagControl <> MSG aber kein Leerwert ist, wird ein Parameterfehler generiert
+%END REM
+	Dim tpCall As TypeParamZZZ
+	Dim stemp As String
+	On Error Goto errh
+	
+	'###
+	Dim sFlagControl As String
+	If Len(sFlagControlIn) > 0 Then
+		sFlagControl = Ucase(sFlagControlIn)
+		If sFlagControl <> "MSG" And sFlagControl <> "ERR" Then
+			Error iERR_PARAM_VALUE, "sFlagControl = '" & sFlagControlin & "', but expected 'MSG' or 'ERR'"
+		Elseif sFlagControl = "ERR" Then
+			Error iERR_NEXT, "Dieser Fehler ist durch das FlagControl erzeugt worden."
+		Elseif sFlagControl = "MSG" Then
+			Error iMSG_NEXT, "Diese Meldung ist duch das FlagControl erzeugt worden."			
+		End If		
+	End If
+	
+	'###
+	Stop
+	Dim i As Integer
+	Dim j As Integer
+	j = 100/i
+	
+	
+	'######################################	
+EndTrue:
+	tp.ierr = 0
+	testFunction2ZZZ = True
+	Exit Function 
+EndFalse:
+	tp.ierr = 0
+	testFunction2ZZZ = False
+	Exit Function	
+EndError:
+	testFunction2ZZZ = False
+	Exit Function
+ErrH:
+	Dim sScript, sinfo As String, tpcall2 As TypeParamZZZ
+	sScript = "ZBasic.Element.Asset.InductUI\" & Getthreadinfo(LSI_THREAD_PROC)
+	tp.iErr = Err 'Beim wiederholten Aufruf (d.h. zwei Zeilen hintereinanger ' Error iERR_NEXT, "das ist ein text" ' aufrufen) verliert Err zwei Stellen von rechts nach dem Aufruf der MEthode objMe.MessageAppend(..) !!!! 
+	
+	Select Case tp.iErr
+	Case iASSERT_FALSE, iASSERT_TRUE: Resume Next  'd.h. es soll keine Information über den Message oder den Error Kanals ausgegeben werden.
+	Case iASSERT_FALSE_CRITICAL: Resume EndFalse
+	End Select
+	
+	If tp.iErr = iMSG_ASSERT_TRUE Or tp.iErr = iERR_ASSERT_TRUE Then 'Or tp.iErr = iERR_ASSERT_TRUE_CRITICAL Then 
+		sinfo = "Assertion negative: '" & Error$ & "'"
+	Else
+		sinfo = Error$
+	End If
+	
+	tp.serr = strMsgZZZ(Nothing,  tp.sErr, sScript, Erl, sinfo, tp.iErr, tpcall2, "")
+	If tpcall2.iErr > 0 Then
+		Msgbox tpcall2.serr
+		Resume EndError
+	End If
+	Select Case tp.ierr
+	Case iMSG_NEXT, iERR_NEXT, iMSG_AGENT_NEXT, iERR_AGENT_NEXT, iMSG_ASSERT_TRUE, iERR_ASSERT_TRUE, iMSG_ASSERT_FALSE, iERR_ASSERT_FALSE: Resume Next
+	Case iMSG_TRUE, iERR_TRUE, iMSG_AGENT_TRUE, iERR_AGENT_TRUE: Resume EndTrue  ', iMSG_ASSERT_TRUE_CRITICAL, iERR_ASSERT_TRUE_CRITICAL: Resume EndTrue
+	Case iMSG_FALSE, iERR_FALSE, iMSG_AGENT_FALSE, iERR_AGENT_FALSE, iMSG_ASSERT_FALSE_CRITICAL, iERR_ASSERT_FALSE_CRITICAL: Resume EndFalse
+	Case iERR_OBJECT_ERR, iERR_OBJECT_CUR, iERR_AGENT_CALL, iERR_FUNCTION_CALL, iERR_PARAM_VALUE, iERR_PARAM_MISSING, iERR_PROPERTY_VALUE, iERR_PROPERTY_MISSING, iERR_DESIGN_MISSING: Resume EndError 'Ziel: Nicht jeden Fehler ins Log stellen
+	Case Else: 
+		If tpcall2.iErr > 0 Then Msgbox tpcall2.sErr   'Fehler im Errorhandling sofort ans Frontend/Serverlog ausgeben		
+		Resume EndError
+	End Select
+%REM
+	Dim sScript
+	sScript = "ZBasic.Element.Asset.InductUI\" & Getthreadinfo(LSI_THREAD_PROC)
+	tp.iErr = Err 'Beim wiederholten Aufruf (d.h. zwei Zeilen hintereinanger ' Error iERR_NEXT, "das ist ein text" ' aufrufen) verliert Err zwei Stellen von rechts nach dem Aufruf der MEthode objMe.MessageAppend(..) !!!! 
+	tp.serr = strMsgZZZ(Nothing,  tp.sErr, sScript, Erl, Error$, Err, tpcall, "")
+	If tpcall.iErr > 0 Then
+		Msgbox tpcall.serr
+		Resume EndError
+	End If
+	Select Case tp.ierr
+	Case iMSG_NEXT, iERR_NEXT: Resume Next
+	Case iMSG_FALSE, iERR_FALSE: Resume EndFalse
+	Case iMSG_TRUE, iERR_TRUE: Resume EndTrue
+	Case Else: Resume EndError		
+	End Select
+%ENDREM
+End Function
+
+Function testFunctionAssertZZZ(sToBeAssertProofed As String, bAssertionAsCritical As Boolean, sPortIn As String, tp As TypeParamZZZ, sFlagControlIn As String) As Boolean
+%REM 
+diese funktion wird einen Fehler produzieren:
+Falls sFlagControl = "MSG" dann wird noch eine Message, die nicht zum Abbruch führt vorher generiert
+Falls sFlagControl <> MSG aber kein Leerwert ist, wird ein Parameterfehler generiert
+%END REM
+	Dim tpCall As TypeParamZZZ
+	Dim stemp As String
+	On Error Goto errh
+	
+	'###
+	Dim sPort As String
+	sPort = Ucase(sPortIn)
+	If sPort <> "MSG" And sPort <> "ERR"  And sPort <> "NONE" Then
+		Error iERR_PARAM_VALUE, "sPort = '" & sPortin & "', but expected 'MSG' or 'ERR' or 'NONE'"
+	End If 
+	
+	If sPort = "ERR" Then
+		Error iAssertZZZ(bAssertionAsCritical, iPORT_MSG_ERROR, Len(sToBeAssertProofed) > 0), "The String 'sToBeAssertProofed' is not filled"
+	Elseif sPort = "MSG" Then
+		Error iAssertZZZ(bAssertionAsCritical, iPORT_MSG_INFO, Len(sToBeAssertProofed) > 0), "The String 'sToBeAssertProofed' is not filled"
+	Else
+		Error iAssertZZZ(bAssertionAsCritical, iPORT_MSG_NONE, Len(sToBeAssertProofed) > 0), "The String 'sToBeAssertProofed' is not filled"
+	End If
+	
+	'###
+	Stop
+	Dim i As Integer
+	Dim j As Integer
+	j = 100/i
+	
+	
+	'######################################	
+EndTrue:
+	tp.ierr = 0
+	testFunctionAssertZZZ = True
+	Exit Function 
+EndFalse:
+	tp.ierr = 0
+	testFunctionAssertZZZ = False
+	Exit Function	
+EndError:
+	testFunctionAssertZZZ = False
+	Exit Function
+ErrH:
+	tp.iErr = Err 'Beim wiederholten Aufruf (d.h. zwei Zeilen hintereinanger ' Error iERR_NEXT, "das ist ein text" ' aufrufen) verliert Err zwei Stellen von rechts nach dem Aufruf der MEthode objMe.MessageAppend(..) !!!! 	
+	Select Case tp.iErr
+	Case iASSERT_FALSE, iASSERT_TRUE: Resume Next  'd.h. es soll keine Information über den Message oder den Error Kanals ausgegeben werden.
+	Case iASSERT_FALSE_CRITICAL: Resume EndFalse
+	End Select
+	
+	Dim sinfo As String
+	If tp.iErr = iMSG_ASSERT_TRUE Or tp.iErr = iERR_ASSERT_TRUE Then 'Or tp.iErr = iERR_ASSERT_TRUE_CRITICAL Then 
+		sinfo = "Assertion negative: '" & Error$ & "'"
+	Else
+		sinfo = Error$
+	End If
+	
+	Dim sScript, tpcall2 As TypeParamZZZ
+	sScript = "ZBasic.Element.Asset.InductUI\" & Getthreadinfo(LSI_THREAD_PROC)
+	tp.serr = strMsgZZZ(Nothing,  tp.sErr, sScript, Erl, sinfo, tp.iErr, tpcall2, "")
+	If tpcall2.iErr > 0 Then
+		Msgbox tpcall2.serr
+		Resume EndError
+	End If
+	Select Case tp.ierr
+	Case iMSG_NEXT, iERR_NEXT, iMSG_AGENT_NEXT, iERR_AGENT_NEXT, iMSG_ASSERT_TRUE, iERR_ASSERT_TRUE, iMSG_ASSERT_FALSE, iERR_ASSERT_FALSE: Resume Next
+	Case iMSG_TRUE, iERR_TRUE, iMSG_AGENT_TRUE, iERR_AGENT_TRUE: Resume EndTrue  ', iMSG_ASSERT_TRUE_CRITICAL, iERR_ASSERT_TRUE_CRITICAL: Resume EndTrue
+	Case iMSG_FALSE, iERR_FALSE, iMSG_AGENT_FALSE, iERR_AGENT_FALSE, iMSG_ASSERT_FALSE_CRITICAL, iERR_ASSERT_FALSE_CRITICAL: Resume EndFalse
+	Case iERR_OBJECT_ERR, iERR_OBJECT_CUR, iERR_AGENT_CALL, iERR_FUNCTION_CALL, iERR_PARAM_VALUE, iERR_PARAM_MISSING, iERR_PROPERTY_VALUE, iERR_PROPERTY_MISSING, iERR_DESIGN_MISSING: Resume EndError 'Ziel: Nicht jeden Fehler ins Log stellen
+	Case Else: Resume EndError
+	End Select
+End Function

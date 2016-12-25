@@ -1,0 +1,214 @@
+'%INCLUDE "C:\1fgl\workspace\Eclipse3FGL\LSZKernel\libkernel\ZAPI.Basic.Asset.lss" 
+'Use "ZBasic.DataType.."  
+'Use "ZBasic.DataURL.."
+
+Function naclEntryGetByUsernameZZZ(session As notessession, dbin As NotesDatabase, sUsernamein As String, tp As TypeParamZZZ, sFlagin As String) As NotesACLEntry
+	Dim naclEntryReturn As NotesACLEntry, tpcall As TypeParamZZZ
+	Dim btemp As Boolean, vtemp As Variant, stemp As String, itemp As Integer
+	On Error Goto errh
+	
+	Dim db As NotesDatabase
+	If dbin Is Nothing Then
+		Error iERR_PARAM_MISSING, "Notesdatabase"
+	Else
+		Set db = dbin
+	End If	
+	If db.IsOpen = False Then Error iERR_PARAM_VALUE, "Database '" & db.Title & "' is not open. Access ?"
+	
+	Dim susername As String
+	If Len(susernamein) = 0 Then
+		Error iERR_PARAM_MISSING, "Username"
+	Else
+		sUsername = sUsernameIn
+	End If
+	
+	'Normierung der Namenseingabe
+	Dim nname As New notesname(susername)
+	Dim sScan As String
+	sScan = nname.canonical
+	
+	Dim nacl As NotesACL
+	Set nacl = db.ACL
+	
+	'+++ Es gibt keine Property, mit der man alle Einträge bekommt. Ergo der Reihe nach durchgehen.
+	Set naclentryReturn = nacl.GetFirstEntry
+	Do
+		If naclentryReturn.Name = sScan Then Goto EndTrue
+		Set naclentryReturn = nacl.GetNextEntry(naclentryreturn)
+	Loop Until naclentryreturn Is Nothing
+	
+	
+	'#####################
+EndTrue:
+	tp.ierr = 0
+	Set naclEntryGetByUsernameZZZ = naclentryReturn
+	Exit Function
+EndFalse:
+	tp.ierr = 0
+	Set naclEntryGetByUsernameZZZ = Nothing
+	Exit Function
+EndError: 
+	Set naclEntryGetByUsernameZZZ = Nothing
+	Exit Function
+errhNextNoInfo:
+	Resume Next
+ErrhNext:
+	On Error Goto Errh
+	tp.iErr = Err 'Beim wiederholten Aufruf (d.h. zwei Zeilen hintereinanger ' Error iERR_NEXT, "das ist ein text" ' aufrufen) verliert Err zwei Stellen von rechts nach dem Aufruf der MEthode objMe.MessageAppend(..) !!!! 	
+	Dim sScripterrhnext As String, tperrhnext As TypeParamZZZ, sessionerrhnext As New notessession
+	sScripterrhnext = "ZBasic.Notes.Database\" & Getthreadinfo(LSI_THREAD_PROC)
+	
+	Dim sinfoerrhnext As String
+	sinfoerrhnext = Error$
+	tp.serr = strMsgZZZ(sessionerrhnext,  tp.sErr, sScripterrhnext, Erl, sinfoerrhnext, tp.iErr, tperrhnext, "")
+	If tperrhnext.iErr > 0 Then Error iERR_FUNCTION_CALL, tperrhnext.serr
+	
+	On Error Goto Errhnext
+	Resume Next
+ErrH:
+	tp.iErr = Err 'Beim wiederholten Aufruf (d.h. zwei Zeilen hintereinanger ' Error iERR_NEXT, "das ist ein text" ' aufrufen) verliert Err zwei Stellen von rechts nach dem Aufruf der MEthode objMe.MessageAppend(..) !!!! 	
+	Select Case tp.iErr
+	Case iASSERT_FALSE, iASSERT_TRUE: Resume Next  'd.h. es soll keine Information über den Message oder den Error Kanals ausgegeben werden.
+	Case iASSERT_FALSE_CRITICAL: Resume EndFalse
+	End Select
+	
+	Dim sinfoerrh
+	If tp.iErr = iMSG_ASSERT_TRUE Or tp.iErr = iERR_ASSERT_TRUE Then 'Or tp.iErr = iERR_ASSERT_TRUE_CRITICAL Then 
+		sinfoerrh = "Assertion negative: '" & Error$ & "'"
+	Else
+		sinfoerrh = Error$
+	End If
+	
+	Dim sScripterrh As String, tperrh As TypeParamZZZ, sessionerrh As New notessession
+	sScripterrh = "ZBasic.Notes.Database\" & Getthreadinfo(LSI_THREAD_PROC)
+	
+	'ZUM TEST, ERRORMESSAGE VORHER
+	'Call MSG2SinkSendZZZ(sessionerrh, "FILE", Nothing, "", "", tp.sErr, 1, tPerrh, "")
+	'If tperrh.iErr > 0 Then
+	'	Msgbox sScripterrh & "#" & tperrh.serr
+	'	Resume EndError
+	'End If
+	
+	tp.serr = strMsgZZZ(sessionerrh,  tp.sErr, sScripterrh, Erl, sinfoerrh, tp.iErr, tperrh, "")	
+	If tperrh.iErr > 0 Then
+		Msgbox sScripterrh & "#" & tperrh.serr
+		Resume EndError
+	End If
+	
+	
+	'ZUM TEST, ERRORMESSAGE NACHHER
+	'Call MSG2SinkSendZZZ(sessionerrh, "FILE", Nothing, "", "", tp.sErr, 1, tPerrh, "")
+	'If tperrh.iErr > 0 Then
+	'	Msgbox sScripterrh & "#" & tperrh.serr
+	'	Resume EndError
+	'End If
+	
+	Select Case tp.ierr
+	Case iMSG_NEXT, iERR_NEXT, iMSG_AGENT_NEXT, iERR_AGENT_NEXT, iMSG_ASSERT_TRUE, iERR_ASSERT_TRUE, iMSG_ASSERT_FALSE, iERR_ASSERT_FALSE: Resume Next
+	Case iMSG_TRUE, iERR_TRUE, iMSG_AGENT_TRUE, iERR_AGENT_TRUE: Resume EndTrue  ', iMSG_ASSERT_TRUE_CRITICAL, iERR_ASSERT_TRUE_CRITICAL: Resume EndTrue
+	Case iMSG_FALSE, iERR_FALSE, iMSG_AGENT_FALSE, iERR_AGENT_FALSE, iMSG_ASSERT_FALSE_CRITICAL, iERR_ASSERT_FALSE_CRITICAL: Resume EndFalse
+	Case iERR_OBJECT_ERR, iERR_OBJECT_CUR, iERR_AGENT_CALL, iERR_FUNCTION_CALL, iERR_PARAM_VALUE, iERR_PARAM_MISSING, iERR_PROPERTY_VALUE, iERR_PROPERTY_MISSING, iERR_DESIGN_MISSING: Resume EndError 'Ziel: Nicht jeden Fehler ins Log stellen
+	Case Else: Resume EndError
+	End Select
+End Function
+
+Function naclEntryGetDefaultZZZ(session As notessession, dbin As NotesDatabase, tp As TypeParamZZZ, sFlagin As String) As NotesACLEntry
+	Dim naclEntryReturn As NotesACLEntry, tpcall As TypeParamZZZ
+	Dim btemp As Boolean, vtemp As Variant, stemp As String, itemp As Integer
+	On Error Goto errh
+	
+	Dim db As NotesDatabase
+	If dbin Is Nothing Then
+		Error iERR_PARAM_MISSING, "Notesdatabase"
+	Else
+		Set db = dbin
+	End If	
+	If db.IsOpen = False Then Error iERR_PARAM_VALUE, "Database '" & db.Title & "' is not open. Access ?"
+	
+	Dim sScan As String
+	sScan = "-Default-"
+	
+	Dim nacl As NotesACL
+	Set nacl = db.ACL
+	
+	'+++ Es gibt keine Property, mit der man alle Einträge bekommt. Ergo der Reihe nach durchgehen.
+	Set naclentryReturn = nacl.GetFirstEntry
+	Do
+		If naclentryReturn.Name = sScan Then Goto EndTrue
+		Set naclentryReturn = nacl.GetNextEntry(naclentryreturn)
+	Loop Until naclentryreturn Is Nothing
+	
+	
+	'#####################
+EndTrue:
+	tp.ierr = 0
+	Set naclEntryGetDefaultZZZ = naclentryReturn
+	Exit Function
+EndFalse:
+	tp.ierr = 0
+	Set naclEntryGetDefaultZZZ = Nothing
+	Exit Function
+EndError: 
+	Set naclEntryGetDefaultZZZ = Nothing
+	Exit Function
+errhNextNoInfo:
+	Resume Next
+ErrhNext:
+	On Error Goto Errh
+	tp.iErr = Err 'Beim wiederholten Aufruf (d.h. zwei Zeilen hintereinanger ' Error iERR_NEXT, "das ist ein text" ' aufrufen) verliert Err zwei Stellen von rechts nach dem Aufruf der MEthode objMe.MessageAppend(..) !!!! 	
+	Dim sScripterrhnext As String, tperrhnext As TypeParamZZZ, sessionerrhnext As New notessession
+	sScripterrhnext = "ZBasic.Notes.Database\" & Getthreadinfo(LSI_THREAD_PROC)
+	
+	Dim sinfoerrhnext As String
+	sinfoerrhnext = Error$
+	tp.serr = strMsgZZZ(sessionerrhnext,  tp.sErr, sScripterrhnext, Erl, sinfoerrhnext, tp.iErr, tperrhnext, "")
+	If tperrhnext.iErr > 0 Then Error iERR_FUNCTION_CALL, tperrhnext.serr
+	
+	On Error Goto Errhnext
+	Resume Next
+ErrH:
+	tp.iErr = Err 'Beim wiederholten Aufruf (d.h. zwei Zeilen hintereinanger ' Error iERR_NEXT, "das ist ein text" ' aufrufen) verliert Err zwei Stellen von rechts nach dem Aufruf der MEthode objMe.MessageAppend(..) !!!! 	
+	Select Case tp.iErr
+	Case iASSERT_FALSE, iASSERT_TRUE: Resume Next  'd.h. es soll keine Information über den Message oder den Error Kanals ausgegeben werden.
+	Case iASSERT_FALSE_CRITICAL: Resume EndFalse
+	End Select
+	
+	Dim sinfoerrh
+	If tp.iErr = iMSG_ASSERT_TRUE Or tp.iErr = iERR_ASSERT_TRUE Then 'Or tp.iErr = iERR_ASSERT_TRUE_CRITICAL Then 
+		sinfoerrh = "Assertion negative: '" & Error$ & "'"
+	Else
+		sinfoerrh = Error$
+	End If
+	
+	Dim sScripterrh As String, tperrh As TypeParamZZZ, sessionerrh As New notessession
+	sScripterrh = "ZBasic.Notes.Database\" & Getthreadinfo(LSI_THREAD_PROC)
+	
+	'ZUM TEST, ERRORMESSAGE VORHER
+	'Call MSG2SinkSendZZZ(sessionerrh, "FILE", Nothing, "", "", tp.sErr, 1, tPerrh, "")
+	'If tperrh.iErr > 0 Then
+	'	Msgbox sScripterrh & "#" & tperrh.serr
+	'	Resume EndError
+	'End If
+	
+	tp.serr = strMsgZZZ(sessionerrh,  tp.sErr, sScripterrh, Erl, sinfoerrh, tp.iErr, tperrh, "")	
+	If tperrh.iErr > 0 Then
+		Msgbox sScripterrh & "#" & tperrh.serr
+		Resume EndError
+	End If
+	
+	
+	'ZUM TEST, ERRORMESSAGE NACHHER
+	'Call MSG2SinkSendZZZ(sessionerrh, "FILE", Nothing, "", "", tp.sErr, 1, tPerrh, "")
+	'If tperrh.iErr > 0 Then
+	'	Msgbox sScripterrh & "#" & tperrh.serr
+	'	Resume EndError
+	'End If
+	
+	Select Case tp.ierr
+	Case iMSG_NEXT, iERR_NEXT, iMSG_AGENT_NEXT, iERR_AGENT_NEXT, iMSG_ASSERT_TRUE, iERR_ASSERT_TRUE, iMSG_ASSERT_FALSE, iERR_ASSERT_FALSE: Resume Next
+	Case iMSG_TRUE, iERR_TRUE, iMSG_AGENT_TRUE, iERR_AGENT_TRUE: Resume EndTrue  ', iMSG_ASSERT_TRUE_CRITICAL, iERR_ASSERT_TRUE_CRITICAL: Resume EndTrue
+	Case iMSG_FALSE, iERR_FALSE, iMSG_AGENT_FALSE, iERR_AGENT_FALSE, iMSG_ASSERT_FALSE_CRITICAL, iERR_ASSERT_FALSE_CRITICAL: Resume EndFalse
+	Case iERR_OBJECT_ERR, iERR_OBJECT_CUR, iERR_AGENT_CALL, iERR_FUNCTION_CALL, iERR_PARAM_VALUE, iERR_PARAM_MISSING, iERR_PROPERTY_VALUE, iERR_PROPERTY_MISSING, iERR_DESIGN_MISSING: Resume EndError 'Ziel: Nicht jeden Fehler ins Log stellen
+	Case Else: Resume EndError
+	End Select
+End Function

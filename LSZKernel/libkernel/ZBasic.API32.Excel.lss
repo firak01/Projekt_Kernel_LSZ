@@ -1,0 +1,80 @@
+'raus, wird in ZBasic.API32.. eingebunden  %INCLUDE "C:\1fgl\workspace\Eclipse3FGL\LSZKernel\libkernel\ZAPI.Basic.Asset.lss" 
+'raus, wird in ZBasic.API32.. eingebunden  Use "ZAPI.Basic.."    
+Public Function ExcelSeekCell (strSource As String, iDeltaX As Integer, iDeltaY As Integer) As String
+'================================================================================
+' [DESCRIPTION]
+' Determines a new Excel cell position
+' [INPUT]
+' strSource  : starting cell coordinates
+' iDeltaX    : number of additional columns
+' iDeltaY    : number of additional rows
+' [RETURN]
+' New cell coordinates (e.g. D13)
+' [HISTORY]
+' 2001-08-23, DSa (MBS), Creation
+' 2002-10-07, KGu (MBS), Changed for Rehau
+	
+	'TODO FGL 20080313
+	'Methode in den ZKernel integrieren
+'================================================================================
+	Const cChar = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+	Const cDIGIT = "0123456789"
+	
+	' Ignore exception handling
+	On Error Resume Next
+	
+	' Declaration local variables
+	Dim iLenChar, iLenDigit As Integer
+	Dim iCountX, iCountY As Integer
+	Dim iPosition As Integer
+	Dim sDummy As String
+	
+	' Initialize temp string
+	iLenChar  = Len(cChar)
+	iLenDigit = Len(cDigit)
+	sDummy    = Ucase(strSource)
+	
+	' Get column number 
+	iPosition = -1
+	While Not ((iPosition = 0) Or (sDummy = ""))
+		iPosition = Instr(cChar,Left(sDummy,1))
+		If (iPosition <> 0) Then 
+			sDummy  = Mid(sDummy,2)
+			iCountX = iCountX * iLenChar + iPosition
+		End If
+	Wend
+	
+	' Get row number
+	iPosition = -1
+	While Not ((iPosition = 0) Or (sDummy = ""))
+		iPosition = Instr(cDigit,Left(sDummy,1))
+		If (iPosition <> 0) Then 
+			sDummy  = Mid(sDummy,2)
+			iCountY = iCountY * iLenDigit + (iPosition-1)
+		End If
+	Wend
+	
+	' Calculate new position
+	sDummy  = ""
+	iCountX = iCountX + iDeltaX
+	iCountY = iCountY + iDeltaY
+	If (iCountX < 1) Then iCountX = 1
+	If (iCountY < 1) Then iCountY = 1
+	
+	' Set new row number
+	Do
+		sDummy  = Mid(cDigit,(iCountY Mod iLenDigit)+1,1) & sDummy 
+		iCountY = iCountY \ iLenDigit
+	Loop While (iCountY > 0)
+	
+	' Set new row number
+	Do
+		iCountX = iCountX - 1
+		sDummy  = Mid(cChar,(iCountX Mod iLenChar)+1,1) & sDummy
+		iCountX = iCountX \ iLenChar
+	Loop While (iCountX > 0)
+	
+	' Set return value
+	ExcelSeekCell = sDummy
+	
+End Function ' ExcelSeekCell

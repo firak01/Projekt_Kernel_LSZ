@@ -1,0 +1,167 @@
+'raus, wird in ZBasic.DataType.. eingebunden %INCLUDE "C:\1fgl\workspace\Eclipse3FGL\LSZKernel\libkernel\ZAPI.Basic.Asset.lss" 
+'raus, wird in ZBasic.DataType.. eingebunden Use "ZAPI.Basic.."   
+'raus, wird in ZBasic.DataType.. eingebunden Use "ZBasic.DataType.Array.String"
+
+'Leider ist es bei Verwendung von %Include nicht möglich, dass mehrere private konstanten mit dem gleichen Namen verwendet werden.
+'Private Const sLibZZZ = "ZZZBasicDatatypeAllPrimitive"
+'Private Const sVerZZZ = "2005-06-22"
+
+Function ArrayNameByStringZZZ(session As notessession, nname() As notesname, vString As Variant, tp As TypeParamZZZ, sFlag As String) As Integer
+'%REM
+	Dim iReturn As Integer, tpcall As TypeParamZZZ
+	Dim btemp, itemp, stemp
+	On Error Goto errh
+	
+	'### Übergabeparameter prüfen				
+	Dim iNrOfString As Integer, saString() As String
+	iNrOfString = ArrayStringFromVariantZZZ( session, vString, saString, tpcall, "" )
+	If tpcall.ierr > 0 Then Error iERR_FUNCTION_CALL, tpcall.serr
+	If iNrOfString <= -1 Then Goto EndFalse
+	
+	Stop
+	Redim nname(iNrOfString) As NotesName 'erst einmal komplett initialisieren
+	Dim icount As Integer, iNrOfName As Integer
+	iNrOfName = 0
+	For icount = 0 To iNrOfString
+		On Error Goto NameNext
+		Set nname(iNrOfName) = New NotesName(saString(icount))
+		btemp = bNameIsHierarchicalZZZ(session, nname(iNrOfName), tpcall, "")
+		If tpcall.ierr > 0 Then Error iERR_FUNCTION_CALL, tpcall.serr		
+		If btemp = True Then iNrOfName = iNrOfName + 1  'Nur dann ist es ein echter hierarchischer Name
+NameNext:
+	Next icount
+	If iNrOfName <> iNrOfString And iNrOfName > 0 Then
+		iReturn = iNrOfName - 1
+		Redim Preserve nname(iReturn) As NotesName  '-1 weil wir mit 0 starten statt wie sonst mit -1 den Zähler anzufangen. Wenn also ein Fehler auftrat, dann ist der Zähler um 1 zu hoch !!!		
+	Elseif iNrOfName = 0 Then
+		Goto EndFalse
+	Else
+		iReturn = iNrOfName - 1 'Redimen ist unnötig
+	End If
+	
+	
+'######################################	
+EndTrue:
+	tp.ierr = 0
+	ArrayNameByStringZZZ =iReturn
+	Exit Function
+EndFalse:
+	tp.ierr = 0
+	ArrayNameByStringZZZ = -1
+	Exit Function	 
+EndError:
+	ArrayNameByStringZZZ = -99
+	Exit Function
+ErrH:
+	Dim sScript As String
+	sScript = "ZBasic.DataType.Name\" & Getthreadinfo(LSI_THREAD_PROC)
+	tp.iErr = Err 'Beim wiederholten Aufruf (d.h. zwei Zeilen hintereinanger ' Error iERR_NEXT, "das ist ein text" ' aufrufen) verliert Err zwei Stellen von rechts nach dem Aufruf der MEthode objMe.MessageAppend(..) !!!! 
+	tp.serr = strMsgZZZ(Nothing,  tp.sErr, sScript, Erl, Error$, Err, tpCall, "")
+	If tpcall.iErr > 0 Then
+		Msgbox tpcall.serr
+		Resume EndError
+	End If
+	Select Case tp.ierr
+	Case iMSG_NEXT, iERR_NEXT: Resume Next
+	Case iMSG_FALSE, iERR_FALSE: Resume EndFalse
+	Case iMSG_TRUE, iERR_TRUE: Resume EndTrue
+	Case Else: Resume EndError		
+	End Select
+'%ENDREM
+End Function
+
+Function bNameIsHierarchicalZZZ(session As notessession, nname As notesname, tp As TypeParamZZZ, sFlag As String) As Boolean
+'%REM
+	On Error Goto errhNoCall
+	
+	'### Übergabeparameter prüfen				
+	If nname Is Nothing Then Error iERR_PARAM_MISSING, "Notesname"
+	
+	'#######################
+	
+	If nname.Abbreviated = nname.Canonical Then Goto endFalse
+	
+'######################################	
+EndTrue:
+	tp.ierr = 0
+	bNameIsHierarchicalZZZ = True
+	Exit Function
+EndFalse:
+	tp.ierr = 0
+	bNameIsHierarchicalZZZ = False
+	Exit Function	 
+EndError:
+	bNameIsHierarchicalZZZ = False
+	Exit Function
+ErrHNoCall:
+	Dim sScript As String, tpcall As TypeParamZZZ
+	sScript = "ZBasic.DataType.Name\" & Getthreadinfo(LSI_THREAD_PROC)
+	tp.iErr = Err 'Beim wiederholten Aufruf (d.h. zwei Zeilen hintereinanger ' Error iERR_NEXT, "das ist ein text" ' aufrufen) verliert Err zwei Stellen von rechts nach dem Aufruf der MEthode objMe.MessageAppend(..) !!!! 
+	tp.serr = strMsgZZZ(Nothing,  tp.sErr, sScript, Erl, Error$, Err, tpCall, "")
+	If tpcall.iErr > 0 Then
+		Msgbox tpcall.serr
+		Resume EndError
+	End If
+	Select Case tp.ierr
+	Case iMSG_NEXT, iERR_NEXT: Resume Next
+	Case iMSG_FALSE, iERR_FALSE: Resume EndFalse
+	Case iMSG_TRUE, iERR_TRUE: Resume EndTrue
+	Case Else: Resume EndError		
+	End Select
+'%ENDREM
+End Function
+
+Function saNameZZZ(session As notessession, nname() As Notesname, sTypeIn As String, tp As TypeParamZZZ, sFlag As String) As Variant
+'%REM
+	On Error Goto errhNoCall
+	
+	'### Übergabeparameter prüfen				
+	Dim sType As String
+	If Len(sTypeIn) = 0 Then
+		sType = "CANONICAL"
+	Else
+		sType = Ucase(sTypeIn)
+		If sType <> "CANONICAL" Or sType <> "ABBREVIATED" Then Error iERR_PARAM_VALUE, "Name type='" & sTypeIn & "', but expected 'CANONICAL', 'ABBREVIATE'"
+	End If
+	
+	'#######################
+	
+	Dim iCount As Integer, iNrOfName As Integer
+	iNrOfName = Ubound(nname)
+	Redim saReturn(iNrOfName) As String
+	For iCount = 0 To iNrOfName
+		Select Case sType
+		Case "CANONICAL": 			saReturn(iCount) = nname(icount).Canonical
+		Case "ABBREVIATED":          saReturn(iCount) = nname(icount).Abbreviated
+		End Select
+	Next
+	
+'######################################	
+EndTrue:
+	tp.ierr = 0
+	saNameZZZ = saReturn
+	Exit Function
+EndFalse:
+	tp.ierr = 0
+	saNameZZZ = Null
+	Exit Function	 
+EndError:
+	saNameZZZ = Null
+	Exit Function
+ErrHNoCall:
+	Dim sScript As String, tpcall As TypeParamZZZ
+	sScript = "ZBasic.DataType.Name\" & Getthreadinfo(LSI_THREAD_PROC)
+	tp.iErr = Err 'Beim wiederholten Aufruf (d.h. zwei Zeilen hintereinanger ' Error iERR_NEXT, "das ist ein text" ' aufrufen) verliert Err zwei Stellen von rechts nach dem Aufruf der MEthode objMe.MessageAppend(..) !!!! 
+	tp.serr = strMsgZZZ(Nothing,  tp.sErr, sScript, Erl, Error$, Err, tpCall, "")
+	If tpcall.iErr > 0 Then
+		Msgbox tpcall.serr
+		Resume EndError
+	End If
+	Select Case tp.ierr
+	Case iMSG_NEXT, iERR_NEXT: Resume Next
+	Case iMSG_FALSE, iERR_FALSE: Resume EndFalse
+	Case iMSG_TRUE, iERR_TRUE: Resume EndTrue
+	Case Else: Resume EndError		
+	End Select
+'%ENDREM
+End Function

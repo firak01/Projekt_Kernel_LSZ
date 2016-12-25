@@ -1,0 +1,2152 @@
+'raus %INCLUDE "C:\1fgl\workspace\Eclipse3FGL\LSZKernel\libkernel\ZAPI.Basic.Asset.lss" 
+'raus Use "ZAPI.Basic.."
+'raus Use "ZBasic.DataType.AllPrimitive"       
+'Private Const sLibZZZ = "ZZZBasicDataTypeArrayOther"
+'Private Const sVerZZZ = "2005-06-22"
+
+
+
+Function ArrayDateStringAppendZZZ(session As notessession, vArray As Variant, vWhat As Variant, tp As TypePAramZZZ, sFlag As String) As Variant
+%REM
+Diese Funktion hängt an ein Datumsarray weitere Werte an, die als String geliefert werden.
+%END REM	
+	On Error Goto errhNoCall
+	
+	'### Variablen
+	Dim iCounterStart As Integer, iCounter As Integer, iCounterpos As Integer, iCounterAll As Integer
+	Dim vaTemp() As Variant
+	Dim ndate As notesdatetime
+	
+	'### Übergabeparameter prüfen
+	If Isnull(vWhat) Or Isnull(vArray) Then Goto EndeNull
+	If Isempty(vArray) Then Goto EndeEmptyvArray
+	If Isempty(vWhat) Then Goto EndeEmptyvWhat
+	
+	
+	'#######################
+	
+	If Isarray(vArray) Then
+		iCounterStart = Ubound(vArray)
+		
+		If Isarray(vWhat) Then
+			'Fall: Array um Array erweitern
+			iCounterAll = iCounterStart + Ubound(vWhat) + 1		
+			Redim Preserve vArray(iCounterAll) As Variant
+			iCounterPos = iCounterStart + 1
+			
+			For iCounter = 0 To Ubound(vWhat)
+				Set ndate = New notesdatetime(Trim(Cstr(vWhat(iCounter))))				
+				vArray(iCounterPos) = Cdat(ndate.localtime)
+				iCounterPos = iCounterPos + 1
+			Next iCounter			
+		Else
+			'Fall: Array um Einzelstring erweitern
+			iCounterAll = iCounterstart + 1
+			Redim Preserve vArray(iCounterAll) As Variant
+			iCounterPos = iCounterAll
+			
+			Set ndate = New notesdatetime(Trim(Cstr(vWhat)))	
+			vArray(iCounterPos) = Cdat(ndate.localtime)
+		End If
+	Else
+		iCounterpos = -1
+		iCounterStart = 1
+		
+		
+		If Isarray(vWhat) Then
+			Redim vaTemp(0) As Variant 'das neue Array erstellen
+			
+			'Fall: Einzelwert um Array erweitern
+			iCounterAll = iCounterStart + Ubound(vWhat) + 1
+			Redim Preserve vaTemp(iCounterAll) As Variant
+			iCounterPos = iCounterPos + 1
+			vaTemp(iCounterPos) = vArray
+			
+			For iCounter = 0 To Ubound(vWhat)
+				iCounterPos = iCounterPos + 1				
+				Set ndate = New notesdatetime(Trim(Cstr(vWhat(iCounter))))
+				vaTemp(iCounterPos) = Cdat(ndate.localtime)
+			Next iCounter
+		Else
+			'Fall: Einzelwert um Einzelwert erweitern	
+			Redim vaTemp(1) As Variant
+			
+			vaTemp(0) = vArray
+			
+			Set ndate = New notesdatetime(Trim(Cstr(vWhat)))
+			vaTemp(1) = Cdat(ndate.localtime)
+		End If
+		
+	End If
+	
+	
+	'###########
+EndTrue:
+	tp.ierr = 0
+	If Isarray(vArray) Then
+		ArrayDateStringAppendZZZ = vArray 		'bestehendes Array wird also erweitert
+	Else
+		ArrayDateStringAppendZZZ = vaTemp		'Es muß ein neues Array ausgegeben werden
+	End If	
+	Exit Function
+EndFalse:
+EndeNull:
+	tp.ierr = 0
+	If Isnull(vArray) Then
+		ArrayDateStringAppendZZZ = vWhat
+	End If
+	If Isnull(vWhat) Then 
+		ArrayDateStringAppendZZZ = vArray
+	End If
+	Exit Function
+EndeEmptyvArray: 
+	tp.ierr = 0
+	ArrayDateStringAppendZZZ = vWhat
+	Exit Function
+EndeEmptyvWhat:
+	tp.ierr = 0
+	ArrayDateStringAppendZZZ = vArray
+	Exit Function
+EndError:
+	ArrayDateStringAppendZZZ = Null
+	Exit Function
+ErrHNoCall:
+	Dim sScript As String, tpCall As TypePAramZZZ
+	sScript = "ZBasic.DataType.Array.Other\" & Getthreadinfo(LSI_THREAD_PROC)
+	tp.iErr = Err 'Beim wiederholten Aufruf (d.h. zwei Zeilen hintereinanger ' Error iERR_NEXT, "das ist ein text" ' aufrufen) verliert Err zwei Stellen von rechts nach dem Aufruf der MEthode objMe.MessageAppend(..) !!!! 
+	tp.serr = strMsgZZZ(Nothing, tp.sErr, sScript, Erl, Error$, Err, tpCall, "")
+	If tpcall.iErr > 0 Then
+		Msgbox tpcall.serr
+		Resume EndError
+	End If
+	Select Case tp.ierr
+	Case iMSG_NEXT, iERR_NEXT: Resume Next
+	Case iMSG_FALSE, iERR_FALSE: Resume EndFalse
+	Case iMSG_TRUE, iERR_TRUE: Resume EndTrue
+	Case Else: Resume EndError		
+	End Select
+End Function
+Function ArrayIntegerAppendZZZ(session As notessession,vX As Variant, vY As Variant, tp As TypeParamZZZ, sFlag As String) As Variant
+%REM
+Diese Funktion hängt an ein IntegerArray weitere Integerwerte an.
+%END REM
+	'###
+	Dim tpcall As TypeParamZZZ
+	On Error Goto errh
+	
+	Dim iproofX As Integer
+	iproofX = ArrayInitProofZZZ(session, vX,tpCall, "")
+	If tpcall.ierr > 0 Then Error iERR_FUNCTION_CALL, tpcall.serr
+	
+	Dim iProofY As Integer
+	iproofY = ArrayInitProofZZZ(session, vY, tpCall, "")
+	If tpcall.ierr > 0 Then Error iERR_FUNCTION_CALL, tpcall.serr
+	
+	'### Merke: Die Reihenfolge der Abfragen ist so gewählt, wie die Häufigkeit des Falls eingeschätzt wird
+	Dim iaTemp() As Integer
+	Dim iCounterAll As Integer
+	Dim iCounterStart As Integer
+	Dim iCounterPos As Integer
+	If iProofX = True And iProofY = True Then
+		Dim iCounter As Integer
+		
+		'Fall: ArrayX um ArrayY erweitern
+		iCounterStart = Ubound(vX)
+		iCounterAll = iCounterStart + Ubound(vY) + 1		
+		Redim Preserve vX(iCounterAll)' As Integer
+		
+		iCounterpos = iCounterStart
+		For iCounter = 0 To Ubound(vY)
+			iCounterPos = iCounterPos + 1
+			vX(iCounterPos) = Cint(vY(iCounter))
+		Next iCounter
+		Goto EndvX
+	End If
+	
+	If iProofX=-2 And iProofY=-2 Then
+		'Fall: Einzelwert um Einzelwert erweitern	
+		Redim iaTemp(1) As Integer
+		iaTemp(0) = Cint(vX)
+		iaTemp(1) = Cint(vY)
+		Goto EndNew
+	End If
+	
+		'Fall: ArrayX um Einzelwert Y erweitern
+	If iProofX = True And iProofY = -2 Then
+		
+		iCounterStart = Ubound(vX)
+		iCounterAll = iCounterstart + 1
+		'Das geht nicht Redim Preserve vX(iCounterAll) 'As Integer
+		'Darum wird extra ein Integer-Array erstellt und auch die vorherigen Werte werden dort hineinkopiert
+		'!!! DAS ARRAY MUSS SCHON VOM TYPE INTER SEIN. TYP VARIANT IST NICHT ERLAUBT !!!
+		Redim iaTemp(iCounterAll) As Integer
+		For iCounter = 0 To iCounterStart
+			iaTemp(iCounter) = Cint(vX(iCounter))
+		Next
+		iaTemp(iCounterAll) = Cint(vY)
+		'iCounterPos = iCounterAll		
+		'vX(iCounterPos) = Cint(vY)
+		'geht nicht wg Problematik   Goto endvX
+		Goto EndNew
+	End If
+	
+	'Fall: Einzelwert X um Array Y erweitern
+	If iProofY = True And iProofX = -2 Then
+		iCounterStart = Ubound(vY)		
+		iCounterAll = iCounterstart + 1
+		Redim iaTemp(iCounterAll) As Integer
+		iaTemp(0) = Cint(vX)
+		For iCounter=1 To Ubound(iaTemp)
+			iatemp(iCounter)=Cint(vY(iCounter-1))
+		Next
+		Goto EndNew
+	End If
+	
+	'Fall: ArrayX ist nicht initialisiert, Y ist Einzelwert
+	If iProofX=False And iProofY = -2 Then
+		Redim iaTemp(0) As Integer
+		iaTemp(0) = Cint(vY)
+		Goto EndNew
+	End If
+	
+	'Fall: ArrayY ist nicht initialisiert, X ist Einzelwert
+	If iProofY= False And iProofX = -2 Then
+		Redim iaTemp(0) As Integer
+		iaTemp(0) = Cint(vX)
+		Goto EndNew
+	End If
+	
+	
+	
+	'Fall: ArrayY ist nicht initialisiert
+	If iProofX=True And iProofY = 0 Then Goto EndvX
+	
+	'Fall: ArrayX ist nicht initialisiert
+	If iProofY=True And iProofX = 0 Then Goto EndvY
+	
+	If iproofY = 1 Then Goto EndvX
+	If iProofX = 1 Then Goto EndvY
+	If iproofX=2 Or iProofY = 2 Then Goto EndNull
+	
+	
+	'Fall: Weder ArrayX noch ArrayY sind initialisiert
+	If iProofY = 0 And iProofX = 0 Then Goto EndNull
+	
+	'###########
+EndTrue:
+EndvX:
+	tp.ierr = 0
+	ArrayIntegerAppendZZZ = vX
+	Exit Function
+endvY:
+	tp.ierr = 0
+	ArrayIntegerAppendZZZ = vY
+	Exit Function
+EndNew:
+	tp.ierr = 0
+	ArrayIntegerAppendZZZ = iaTemp
+	Exit Function
+EndFalse:
+EndNull:
+	tp.ierr = 0
+	If Isnull(vX) Then
+		ArrayIntegerAppendZZZ = vY
+	End If
+	If Isnull(vY) Then 
+		ArrayIntegerAppendZZZ = vX
+	End If
+	Exit Function
+EndError:
+	ArrayIntegerAppendZZZ = Null
+	Exit Function
+ErrH:
+	Dim sScript As String
+	sScript = "ZBasic.DataType.Array.Other\" & Getthreadinfo(LSI_THREAD_PROC)
+	tp.iErr = Err 'Beim wiederholten Aufruf (d.h. zwei Zeilen hintereinanger ' Error iERR_NEXT, "das ist ein text" ' aufrufen) verliert Err zwei Stellen von rechts nach dem Aufruf der MEthode objMe.MessageAppend(..) !!!! 
+	tp.serr = strMsgZZZ(Nothing, tp.sErr, sScript, Erl, Error$, Err, tpCall, "")
+	If tpcall.iErr > 0 Then
+		Msgbox tpcall.serr
+		Resume EndError
+	End If
+	Select Case tp.ierr
+	Case iMSG_NEXT, iERR_NEXT: Resume Next
+	Case iMSG_FALSE, iERR_FALSE: Resume EndFalse
+	Case iMSG_TRUE, iERR_TRUE: Resume EndTrue
+	Case Else: Resume EndError		
+	End Select
+End Function
+Function ArrayIntegerContainsZZZ(session As notessession, vArray As Variant, iWhatToFind As Integer,tp As TypeParamZZZ, sFlag As String) As Boolean
+	On Error Goto errhNoCall
+	
+	'####	
+	Dim iCounter As Integer
+	
+	If Isarray(vArray) Then
+		For iCounter = 0 To Ubound(vArray) 
+			If vArray(iCounter) = iWhatToFind Then	Goto EndTrue
+		Next iCounter	
+	Else
+		If vArray = iWhatToFind Then Goto EndTrue
+	End If
+	Goto EndFalse
+	
+'######################################	
+EndTrue:
+	tp.ierr = 0
+	ArrayIntegerContainsZZZ = True
+	Exit Function	
+EndFalse:
+	tp.ierr = 0
+	ArrayIntegerContainsZZZ = False
+	Exit Function	
+EndError:
+	ArrayIntegerContainsZZZ = False
+	Exit Function
+ErrHNoCall:
+	Dim sScript As String, tpcall As TypeParamZZZ
+	sScript = "ZBasic.DataType.Array.Other\" & Getthreadinfo(LSI_THREAD_PROC)
+	tp.iErr = Err 'Beim wiederholten Aufruf (d.h. zwei Zeilen hintereinanger ' Error iERR_NEXT, "das ist ein text" ' aufrufen) verliert Err zwei Stellen von rechts nach dem Aufruf der MEthode objMe.MessageAppend(..) !!!! 
+	tp.serr = strMsgZZZ(Nothing, tp.sErr, sScript, Erl, Error$, Err, tpCall, "")
+	If tpcall.iErr > 0 Then
+		Msgbox tpcall.serr
+		Resume EndError
+	End If
+	Select Case tp.ierr
+	Case iMSG_NEXT, iERR_NEXT: Resume Next
+	Case iMSG_FALSE, iERR_FALSE: Resume EndFalse
+	Case iMSG_TRUE, iERR_TRUE: Resume EndTrue
+	Case Else: Resume EndError		
+	End Select
+End Function
+Function ArrayIntegerFromVariantZZZ(session As notessession, vtemp As Variant, iaArray As Variant, tp As TypeParamZZZ, sFlag As String) As Integer
+	Dim iReturn As Integer, tpcall As TypeParamZZZ
+	On Error Goto errh
+	
+	'############	
+	Dim itemp As Integer, stemp As String
+	Dim iCounter
+	
+	'### Übergabeparameter Prüfen
+	itemp = ArrayInitProofZZZ(session, vtemp,  tpCall, "")
+	If tpcall.ierr > 0 Then Error iERR_FUNCTION_CALL, tpcall.serr
+	If itemp >= 0 Then Goto EndFalse    'Kein Array und nicht initialisiert
+	
+	'##############
+	If Isarray(vtemp) Then 
+		Redim iaArray(Ubound(vtemp)) As Integer
+		For iCounter = 0 To Ubound(vtemp)
+			iaArray(iCounter) = Cint(vtemp(iCounter))
+		Next iCounter
+	Else
+		iCounter = 0		
+		If Not Isempty(vtemp) Then
+			Redim Preserve iaArray(iCounter) As Integer
+			iaArray(iCounter) = Cint(vtemp)
+		End If
+	End If		
+	iReturn = Ubound(iaArray)
+	
+	'#########################	
+EndTrue: 
+	tp.ierr = 0
+	ArrayIntegerFromVariantZZZ = iReturn
+	Exit Function	
+EndFalse:
+	tp.ierr = 0
+	ArrayIntegerFromVariantZZZ = -1
+	Exit Function 
+EndError:
+	ArrayIntegerFromVariantZZZ = -99
+	Exit Function
+ErrH:
+	Dim sScript As String
+	sScript = "ZBasic.DataType.Array.Other\" & Getthreadinfo(LSI_THREAD_PROC)
+	tp.iErr = Err 'Beim wiederholten Aufruf (d.h. zwei Zeilen hintereinanger ' Error iERR_NEXT, "das ist ein text" ' aufrufen) verliert Err zwei Stellen von rechts nach dem Aufruf der MEthode objMe.MessageAppend(..) !!!! 
+	tp.serr = strMsgZZZ(Nothing, tp.sErr, sScript, Erl, Error$, Err, tpCall, "")
+	If tpcall.iErr > 0 Then
+		Msgbox tpcall.serr
+		Resume EndError
+	End If
+	Select Case tp.ierr
+	Case iMSG_NEXT, iERR_NEXT: Resume Next
+	Case iMSG_FALSE, iERR_FALSE: Resume EndFalse
+	Case iMSG_TRUE, iERR_TRUE: Resume EndTrue
+	Case Else: Resume EndError		
+	End Select
+End Function
+Function ArrayIndexTransformZZZ(session As notessession, iaIndexCur As Variant, iaIndexNew() As Integer,  tp As TypeParamZZZ, sFlag As String) As Boolean
+	'Wird ein IndexArray übergeben, so wird dieser Vektor so transformiert, dass die zahlen sortiert werden und die alte Position zurückgegeben wird.	
+	Dim tpcall As TypeParamZZZ
+	On Error Goto errh
+	
+	'### Variable 
+	Dim iCounter As Integer
+	
+	'### Param-check
+	If Isnull(iaIndexNew) Then Goto endnothingtodo
+	
+	'######################################
+	If Not Isarray(iaIndexCur) Then 
+		Redim iaIndexNew(Cint(iaIndexCur)) As Integer
+		iaIndexNew(Cint(iaIndexCur)) = 0
+		Goto EndTrue
+	End If
+	
+	Dim itemp As Integer  'Dabei wird davon ausgegangen, dass in dem Array nur Werte im Integr Bereich sind, wg. der Array-Index Begrenzung auf Integer !!!
+	itemp = ArrayLongValueMaxZZZ(session, iaIndexCur, tpCall, "")
+	If tpcall.ierr > 0 Then Error iERR_FUNCTION_CALL, tpcall.serr
+	
+	Redim iaIndexnew(itemp) As Integer
+	For iCounter = 0 To Ubound(iaIndexnew)
+		iaIndexnew(iaIndexCur(iCounter))  = iCounter
+	Next iCounter
+	
+	'#######################################
+EndTrue:
+	tp.ierr = 0
+	ArrayIndexTransformZZZ = True
+	Exit Function
+EndFalse:
+	tp.ierr = 0
+	ArrayIndexTransformZZZ = False
+	Exit Function
+endnothingtodo:
+	tp.ierr = 0
+	ArrayIndexTransformZZZ = False
+	Exit Function
+EndError:
+	ArrayIndexTransformZZZ = False
+	Exit Function
+ErrH:
+	Dim sScript As String
+	sScript = "ZBasic.DataType.Array.Other\" & Getthreadinfo(LSI_THREAD_PROC)
+	tp.iErr = Err 'Beim wiederholten Aufruf (d.h. zwei Zeilen hintereinanger ' Error iERR_NEXT, "das ist ein text" ' aufrufen) verliert Err zwei Stellen von rechts nach dem Aufruf der MEthode objMe.MessageAppend(..) !!!! 
+	tp.serr = strMsgZZZ(Nothing, tp.sErr, sScript, Erl, Error$, Err, tpCall, "")
+	If tpcall.iErr > 0 Then
+		Msgbox tpcall.serr
+		Resume EndError
+	End If
+	Select Case tp.ierr
+	Case iMSG_NEXT, iERR_NEXT: Resume Next
+	Case iMSG_FALSE, iERR_FALSE: Resume EndFalse
+	Case iMSG_TRUE, iERR_TRUE: Resume EndTrue
+	Case Else: Resume EndError		
+	End Select
+End Function
+Function ArrayLongValueMaxZZZ(session As notessession, vlArray As Variant,  tp As TypeParamZZZ, sFlag As String) As Long
+%REM
+Auch wenn die ubound Grneze eines Arrays vom Typ Integer maximal sein kann,
+so können die Werte darin doch vom Typ long sein.
+%END REM
+	Dim lFunction As Long
+	On Error Goto errhNoCall
+	
+	
+	'### Parameter Check ########		
+	If Isempty(vlArray) Then Goto endNull
+	If Isnull(vlArray) Then Goto endNull
+	
+	'##########		
+	If Not Isarray(vlArray) Then 
+		lFunction = Clng(vlArray)
+		Goto EndTrue
+	Else
+		Dim iCounter As Integer, ltemp As Long
+		For iCounter = 0 To Ubound(vlArray)
+			ltemp = vlArray(iCounter)
+			If ltemp > lFunction Then
+				lFunction = ltemp
+			End If
+		Next iCounter	
+	End If'not isarray(vsArrayToCopy)
+	
+	'###########
+EndTrue:
+	tp.ierr = 0
+	ArraylongvalueMaxZZZ = lFunction		'Es muß ein neues Array ausgegeben werden	
+	Exit Function
+EndFalse:
+EndNull:
+	tp.ierr = 0
+	ArraylongvalueMaxZZZ = 0
+	Exit Function
+EndError:
+	ArraylongvalueMaxZZZ = 0
+	Exit Function
+ErrHNoCall:
+	Dim sScript As String, tpcall As TypeParamZZZ
+	sScript = "ZBasic.DataType.Array.Other\" & Getthreadinfo(LSI_THREAD_PROC)
+	tp.iErr = Err 'Beim wiederholten Aufruf (d.h. zwei Zeilen hintereinanger ' Error iERR_NEXT, "das ist ein text" ' aufrufen) verliert Err zwei Stellen von rechts nach dem Aufruf der MEthode objMe.MessageAppend(..) !!!! 
+	tp.serr = strMsgZZZ(Nothing, tp.sErr, sScript, Erl, Error$, Err, tpCall, "")
+	If tpcall.iErr > 0 Then
+		Msgbox tpcall.serr
+		Resume EndError
+	End If
+	Select Case tp.ierr
+	Case iMSG_NEXT, iERR_NEXT: Resume Next
+	Case iMSG_FALSE, iERR_FALSE: Resume EndFalse
+	Case iMSG_TRUE, iERR_TRUE: Resume EndTrue
+	Case Else: Resume EndError		
+	End Select
+End Function
+Function ArrayDatatypeChangeZZZ(session As notessession, vArrayOld As Variant, sDatatypeNewIn As String,  tp As TypeParamZZZ, sFlag As String) As Variant
+	
+%REM
+     Diese Funktion wandelt die Werte eines Array von einem Datentyp in einen anderen Datentyp um.	
+
+    Die folgenden Datentypen werden unterstützt, und können als Schlüssel eingegeben werden:
+	- string / str
+	- integer / int
+	- long / lng
+     - single / sng
+	- double / dbl
+     - currency / cur
+     - date
+     - time
+     - datetime
+     - variant / var
+%END REM	
+	
+	Dim vtemp As Variant, itemp As Integer, stemp As String
+	On Error Goto errhNoCall
+	
+'### Parameter check
+	Dim sFlagControl As String
+	Dim sDataTypeNew As String
+	If Isnull(vArrayOld) Then Goto endfalse
+	If sDatatypeNewIn = "" Then Goto endfalse
+	sFlagControl = Ucase(sflag)
+	
+	'##########################################################################################################################		
+	
+	Dim strArrayNew() As String
+	Dim strValueNew As String	
+	Dim intArrayNew() As Integer
+	Dim intValueNew As Integer	
+	Dim lngArrayNew() As Long
+	Dim lngValueNew As Long	
+	Dim sngArrayNew() As Single
+	Dim sngValueNew As Single
+	Dim dblArrayNew() As Double
+	Dim dblValueNew As Double
+	Dim curArrayNew() As Currency
+	Dim curValueNew As Currency
+	Dim varArrayNew() As Variant
+	Dim varValueNew As Variant
+	Dim dateTime As NotesDateTime
+	Dim dblValueTmp As Double
+	Dim i As Integer
+	Dim ValueOld As Variant	
+	Dim ValueNew As Variant
+	
+	sDatatypeNew = Lcase(sDatatypeNewIn)
+	
+	If sDatatypeNew = "string" Or sDatatypeNew = "str" Or sDatatypeNew = "integer" Or sDatatypeNew = "int" Or sDatatypeNew = "long" Or sDatatypeNew = "lng" Or _
+	sDatatypeNew = "single" Or sDatatypeNew = "sng" Or sDatatypeNew = "double" Or sDatatypeNew = "dbl" Or sDatatypeNew = "currency" Or sDatatypeNew = "cur" Or _
+	sDatatypeNew = "date" Or sDatatypeNew = "time" Or sDatatypeNew = "datetime" Or sDatatypeNew = "variant" Or sDatatypeNew = "var" Then
+		' Array's und Values entsprechend dem Datentyp aufbauen
+		If sDatatypeNew = "string" Or sDatatypeNew = "str" Then
+			Redim strArrayNew(Ubound(vArrayOld)) As String		
+		Elseif sDatatypeNew = "integer" Or sDatatypeNew = "int" Then
+			Redim intArrayNew(Ubound(vArrayOld)) As Integer
+		Elseif sDatatypeNew = "long" Or sDatatypeNew = "lng" Then
+			Redim lngArrayNew(Ubound(vArrayOld)) As Long
+		Elseif sDatatypeNew = "single" Or sDatatypeNew = "sng" Then
+			Redim sngArrayNew(Ubound(vArrayOld)) As Single
+		Elseif sDatatypeNew = "double" Or sDatatypeNew = "dbl" Then
+			Redim dblArrayNew(Ubound(vArrayOld)) As Double
+		Elseif sDatatypeNew = "currency" Or sDatatypeNew = "cur" Then
+			Redim curArrayNew(Ubound(vArrayOld)) As Currency
+		Elseif sDatatypeNew = "date" Or sDatatypeNew = "time" Or sDatatypeNew = "datetime" Or sDatatypeNew = "variant" Then
+			Redim varArrayNew(Ubound(vArrayOld)) As Variant
+		End If
+		
+		' Werte entsprechend dem Datentyp umwandeln
+		For i=0 To Ubound(vArrayOld)
+			ValueOld = vArrayOld(i)
+			
+			If sDatatypeNew = "string" Or sDatatypeNew = "str" Then ' -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+				 ' ACHTUNG: Einfache Umwandlung, ohne Formatierung
+				strValueNew = Cstr(ValueOld)
+				strArrayNew(i) = strValueNew	
+				
+			Elseif sDatatypeNew = "integer" Or sDatatypeNew = "int" Then ' -----------------------------------------------------------------------------------------------------------------------------------------------------------------------
+				If Isnumeric(ValueOld) Then
+					dblValueNew = Cdbl(ValueOld)
+					If dblValueNew > -32768 And dblValueNew < 32767 Then
+						intValueNew = Cint(ValueOld)
+					Else
+						Error iERR_PARAM_VALUE, "Value out of datatype range: Integer"
+					End If					
+				Else
+					intValueNew = 0
+				End If
+				
+				intArrayNew(i) = intValueNew
+				
+			Elseif sDatatypeNew = "long" Or sDatatypeNew = "lng" Then ' ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+				If Isnumeric(ValueOld) Then
+					dblValueNew = Cdbl(ValueOld)
+					If dblValueNew > -2147483648 And dblValueNew < 2147483647 Then			
+						lngValueNew = Clng(ValueOld)
+					Else
+						Error iERR_PARAM_VALUE, "Value out of datatype range: Long"
+					End If
+				Else
+					lngValueNew = 0
+				End If
+				
+				lngArrayNew(i) = lngValueNew	
+				
+			Elseif sDatatypeNew = "single" Or sDatatypeNew = "sng" Then ' -----------------------------------------------------------------------------------------------------------------------------------------------------------------------
+				If Isnumeric(ValueOld) Then
+					sngValueNew = Csng(ValueOld)		
+					If sngValueNew > -3.402823E+38 And sngValueNew < 3.402823E+38 Then
+						sngValueNew = Csng(ValueOld)
+					Else
+						Error iERR_PARAM_VALUE, "Value out of datatype range: Single"
+					End If
+				Else
+					sngValueNew = 0
+				End If
+				
+				sngArrayNew(i) = sngValueNew					
+				
+				
+			Elseif sDatatypeNew = "double" Or sDatatypeNew = "dbl" Then ' -----------------------------------------------------------------------------------------------------------------------------------------------------------------------
+				If Isnumeric(ValueOld) Then
+					dblValueNew = Cdbl(ValueOld)
+					If dblValueNew > -1.7976931348623158E+308 And dblValueNew < 1.7976931348623158E+308 Then
+						dblValueNew = Cdbl(ValueOld)
+					Else
+						Error iERR_PARAM_VALUE, "Value out of datatype range: Double"
+					End If
+				Else
+					dblValueNew = 0
+				End If
+				
+				dblArrayNew(i) = dblValueNew	
+				
+			Elseif sDatatypeNew = "currency" Or sDatatypeNew = "cur" Then ' -----------------------------------------------------------------------------------------------------------------------------------------------------------------------
+				If Isnumeric(ValueOld) Then
+					curValueNew = Ccur(ValueOld)
+				Else
+					curValueNew = 0
+				End If
+				
+				curArrayNew(i) = curValueNew	
+				
+			Elseif sDatatypeNew = "date" Or sDatatypeNew = "time" Or sDatatypeNew = "datetime" Then ' ---------------------------------------------------------------------------------------------------------------------------
+				'Falls ValueOld ein Leerstring ist, dann erzeugt die Abfrage der Notesdatetime-Properties einen Fehler, darum ...				
+				If Len(Cstr(ValueOld)) = 0 Then
+					varValueNew = Cdat(0)
+				Else
+					Set dateTime = New notesdatetime(ValueOld)
+					If Not dateTime Is Nothing Then
+						If sDatatypeNew = "date" Then ' Nur Datum
+							varValueNew = Cdat(dateTime.DateOnly)
+						Elseif sDatatypeNew = "time" Then ' Nur Zeit
+							varValueNew = Cdat(dateTime.TimeOnly)
+						Else ' Datum und Zeit
+							varValueNew = Cdat(dateTime.DateOnly & " " & dateTime.TimeOnly)
+						End If
+					Else
+						varValueNew = Cdat(0)
+					End If			
+				End If 'Len(Cstr(vValueOld)) = 0
+				varArrayNew(i) = varValueNew			
+				
+			Elseif sDatatypeNew = "variant" Or sDatatypeNew = "var" Then ' ----------------------------------------------------------------------------------------------------------------------------------------------------------------------
+				varValueNew = Cvar(ValueOld)
+				
+				varArrayNew(i) = varValueNew						
+			End If
+		Next
+		
+	End If
+	
+	'#########################################################################################################################
+EndTrue:
+	tp.ierr = 0
+	If sDatatypeNew = "string" Or sDatatypeNew = "str"Then
+		ArrayDatatypeChangeZZZ = strArrayNew	
+	Elseif sDatatypeNew = "integer" Or sDatatypeNew = "int" Then
+		ArrayDatatypeChangeZZZ = intArrayNew	 
+	Elseif sDatatypeNew = "long" Or sDatatypeNew = "lng" Then
+		ArrayDatatypeChangeZZZ = lngArrayNew	
+	Elseif sDatatypeNew = "single" Or sDatatypeNew = "sng" Then
+		ArrayDatatypeChangeZZZ = sngArrayNew	
+	Elseif sDatatypeNew = "double" Or sDatatypeNew = "dbl" Then
+		ArrayDatatypeChangeZZZ = dblArrayNew	
+	Elseif sDatatypeNew = "currency" Or sDatatypeNew = "cur" Then
+		ArrayDatatypeChangeZZZ = curArrayNew
+	Elseif sDatatypeNew = "date" Or sDatatypeNew = "time" Or sDatatypeNew = "datetime" Or sDatatypeNew = "variant" Or sDatatypeNew = "var" Then
+		ArrayDatatypeChangeZZZ = varArrayNew		
+	Else
+		ArrayDatatypeChangeZZZ = vArrayOld	
+	End If
+	Exit Function
+EndFalse:
+	tp.ierr = 0
+	ArrayDatatypeChangeZZZ = vArrayOld
+	Exit Function
+EndError: 
+	ArrayDatatypeChangeZZZ = Null
+	Exit Function
+ErrHNoCall:
+	Dim sScript As String, tpcall As TypePAramZZZ
+	sScript = "ZBasic.DataType.Array.Other\" & Getthreadinfo(LSI_THREAD_PROC)
+	tp.iErr = Err 'Beim wiederholten Aufruf (d.h. zwei Zeilen hintereinanger ' Error iERR_NEXT, "das ist ein text" ' aufrufen) verliert Err zwei Stellen von rechts nach dem Aufruf der MEthode objMe.MessageAppend(..) !!!! 
+	tp.serr = strMsgZZZ(Nothing, tp.sErr, sScript, Erl, Error$, Err, tpCall, "")
+	If tpcall.iErr > 0 Then
+		Msgbox tpcall.serr
+		Resume EndError
+	End If
+	Select Case tp.ierr
+	Case iMSG_NEXT, iERR_NEXT: Resume Next
+	Case iMSG_FALSE, iERR_FALSE: Resume EndFalse
+	Case iMSG_TRUE, iERR_TRUE: Resume EndTrue
+	Case Else: Resume EndError		
+	End Select
+End Function
+Function ArrayLongFromVariantZZZ(session As notessession, vArrayToTransform As Variant, vArray As Variant, tp As TypeParamZZZ, sFlag As String) As Integer
+	On Error Goto errhNoCall 
+	Dim iReturn As Integer
+	
+	'############	
+	Dim itemp As Integer, stemp As String
+	Dim iCounter 
+	
+	'### Übergabeparameter Prüfen
+	If Isnull(vArrayToTransform) Then Goto endError
+	If Isempty(vArrayToTransform) Then Goto endError
+	
+	
+	'##############
+	If Isarray(vArrayToTransform) Then
+		Redim vArray(Ubound(vArrayToTransform)) As Long
+		For iReturn = 0 To Ubound(vArrayToTransform)
+			vArray(iReturn) = Clng(vArrayToTransform(iReturn))
+		Next iReturn
+	Else
+		iReturn = 0		
+		If Not Isempty(vArrayToTransform) Then
+			Redim Preserve vArray(iReturn) As Long
+			vArray(iReturn) = Clng(vArrayToTransform)
+		End If
+	End If	
+	'#########################
+EndTrue:
+	tp.ierr = 0
+	ArrayLongFromVariantZZZ = iReturn
+	Exit Function	
+EndFalse:
+	tp.ierr = 0
+	ArrayLongFromVariantZZZ = -1
+	Exit Function
+EndError:
+	ArrayLongFromVariantZZZ = -1
+	Exit Function
+ErrHNoCall:
+	Dim sScript As String, tpcall As TypeParamZZZ
+	sScript =  "ZBasic.DataType.Array.Other\"& Getthreadinfo(LSI_THREAD_PROC)
+	tp.iErr = Err 'Beim wiederholten Aufruf (d.h. zwei Zeilen hintereinanger ' Error iERR_NEXT, "das ist ein text" ' aufrufen) verliert Err zwei Stellen von rechts nach dem Aufruf der MEthode objMe.MessageAppend(..) !!!! 
+	tp.serr = strMsgZZZ(Nothing, tp.sErr, sScript, Erl, Error$, Err, tpCall, "")
+	If tpcall.iErr > 0 Then
+		Msgbox tpcall.serr
+		Resume EndError
+	End If
+	Select Case tp.ierr
+	Case iMSG_NEXT, iERR_NEXT: Resume Next
+	Case iMSG_FALSE, iERR_FALSE: Resume EndFalse
+	Case iMSG_TRUE, iERR_TRUE: Resume EndTrue
+	Case Else: Resume EndError		
+	End Select
+End Function
+
+Function ArrayLongValueMinZZZ(session As notessession, vlArray As Variant,  tp As TypeParamZZZ, sFlag As String) As Long
+	Dim lFunction As Integer
+	
+	On Error Goto errhNoCall
+	
+	'### Parameter Check ########		
+	If Isempty(vlArray) Then Goto endNull
+	If Isnull(vlArray) Then Goto endNull
+	
+	'##########	
+	Dim ltemp As Integer
+	If Not Isarray(vlArray) Then 
+		lFunction = Clng(vlArray)
+		Goto EndTrue
+	Else
+		Dim lCounter As Integer
+		For lCounter = 0 To Ubound(vlArray)
+			ltemp = vlArray(lCounter)
+			If ltemp < lFunction Then   '!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+				lFunction = ltemp
+			End If
+		Next lCounter	
+	End If'not isarray(vsArrayToCopy)
+	
+	'###########
+EndTrue:
+	tp.ierr = 0
+	ArraylongvalueMinZZZ = lFunction		'Es muß ein neues Array ausgegeben werden	
+	Exit Function
+EndFalse:
+	tp.ierr = 0
+	ArrayLongValueMinZZZ = 0
+	Exit Function
+EndNull:
+	tp.ierr = 0
+	ArraylongvalueMinZZZ = 0
+	Exit Function
+EndError:
+	ArraylongvalueMinZZZ = 0
+	Exit Function
+ErrHNoCall:
+	Dim sScript As String, tpcall As TypeParamZZZ
+	sScript = "ZBasic.DataType.Array.Other\" & Getthreadinfo(LSI_THREAD_PROC)
+	tp.iErr = Err 'Beim wiederholten Aufruf (d.h. zwei Zeilen hintereinanger ' Error iERR_NEXT, "das ist ein text" ' aufrufen) verliert Err zwei Stellen von rechts nach dem Aufruf der MEthode objMe.MessageAppend(..) !!!! 
+	tp.serr = strMsgZZZ(Nothing, tp.sErr, sScript, Erl, Error$, Err, tpCall, "")
+	If tpcall.iErr > 0 Then
+		Msgbox tpcall.serr
+		Resume EndError
+	End If
+	Select Case tp.ierr
+	Case iMSG_NEXT, iERR_NEXT: Resume Next
+	Case iMSG_FALSE, iERR_FALSE: Resume EndFalse
+	Case iMSG_TRUE, iERR_TRUE: Resume EndTrue
+	Case Else: Resume EndError		
+	End Select
+End Function
+Function ArrayInitProofZZZ(session As notessession, vArray As Variant,  tp As TypeParamZZZ, sFlag As String) As Integer
+	On Error Goto errhNoCall
+	On Error 200 Goto EndFalse             'Dieser Fehler tritt beim ermitteln des ubound eines unitialisierten Arrays auf
+	
+	'### Parameter Check ########		
+	If Isempty(vArray) Then Goto endEmpty
+	If Isnull(vArray) Then Goto endnull
+	If Not Isarray(vArray) Then Goto EndIsScalarOnly
+	
+	Dim itemp As Integer
+	itemp = Ubound(vArray)  'Das ist die Prüfung, deren Fehlschlagen liefert den Returnwert von "false"
+	
+	'###########
+EndTrue:
+	tp.ierr = 0
+	ArrayInitProofZZZ = True
+	Exit Function
+EndFalse:
+	tp.ierr = 0
+	ArrayInitProofZZZ = False
+	Exit Function
+EndEmpty:
+	tp.ierr = 0
+	ArrayInitProofZZZ = 1
+	Exit Function
+EndNull:
+	tp.ierr = 0
+	ArrayInitProofZZZ = 2 
+	Exit Function
+EndISScalarOnly:
+	tp.ierr = 0
+	ArrayInitProofZZZ = -2
+	Exit Function	
+EndError:
+	ArrayInitProofZZZ = False
+	Exit Function
+ErrHNoCall:
+	Dim sScript As String, tpCall As TypeParamZZZ
+	sScript = "ZBasic.DataType.Array.Other\" & Getthreadinfo(LSI_THREAD_PROC)
+	tp.iErr = Err 'Beim wiederholten Aufruf (d.h. zwei Zeilen hintereinanger ' Error iERR_NEXT, "das ist ein text" ' aufrufen) verliert Err zwei Stellen von rechts nach dem Aufruf der MEthode objMe.MessageAppend(..) !!!! 
+	tp.serr = strMsgZZZ(Nothing, tp.sErr, sScript, Erl, Error$, Err, tpCall, "")
+	If tpcall.iErr > 0 Then
+		Msgbox tpcall.serr
+		Resume EndError
+	End If
+	Select Case tp.ierr
+	Case iMSG_NEXT, iERR_NEXT: Resume Next
+	Case iMSG_FALSE, iERR_FALSE: Resume EndFalse
+	Case iMSG_TRUE, iERR_TRUE: Resume EndTrue
+	Case Else: Resume EndError		
+	End Select
+End Function
+
+Function iArrayUboundZZZ(session As notessession, vArray As Variant, tp As TypeParamZZZ, sFlag As String) As Integer
+	Dim iReturn As Integer, tpcall As TypeParamZZZ
+	Dim btemp As Boolean, vtemp As Variant, stemp As String, itemp As Integer
+	On Error Goto errh
+	
+	'1. Prüfen, obj das Array initialisiert ist
+	itemp = ArrayInitProofZZZ(session, vArray,  tpcall, "")
+	If tpcall.ierr > 0 Then Error iERR_FUNCTION_CALL, tpcall.serr
+	
+	'2. Auswertung, Merke: Ein Einzelwert erhält hier auch einen ubound-Wert !!!
+	If itemp = True Then
+		iReturn = Ubound(vArray)
+	Elseif itemp = -2 Then
+		iReturn = 0
+	Else
+		iReturn = -1
+	End If
+	
+EndTrue:
+	tp.ierr = 0
+	iArrayUboundZZZ = iReturn
+	Exit Function
+EndFalse:
+	tp.ierr = 0
+	iArrayUboundZZZ = -1
+	Exit Function
+EndError: 
+	iArrayUboundZZZ = -99
+	Exit Function
+ErrH:
+	tp.iErr = Err 'Beim wiederholten Aufruf (d.h. zwei Zeilen hintereinanger ' Error iERR_NEXT, "das ist ein text" ' aufrufen) verliert Err zwei Stellen von rechts nach dem Aufruf der MEthode objMe.MessageAppend(..) !!!! 	
+	Select Case tp.iErr
+	Case iASSERT_FALSE, iASSERT_TRUE: Resume Next  'd.h. es soll keine Information über den Message oder den Error Kanals ausgegeben werden.
+	Case iASSERT_FALSE_CRITICAL: Resume EndFalse
+	End Select
+	
+	Dim sinfo As String
+	If tp.iErr = iMSG_ASSERT_TRUE Or tp.iErr = iERR_ASSERT_TRUE Then 'Or tp.iErr = iERR_ASSERT_TRUE_CRITICAL Then 
+		sinfo = "Assertion negative: '" & Error$ & "'"
+	Else
+		sinfo = Error$
+	End If
+	
+	Dim sScript As String, tperrh As TypeParamZZZ, sessionerrh As New notessession
+	sScript = "Replace this by current library name\" & Getthreadinfo(LSI_THREAD_PROC)
+	tp.serr = strMsgZZZ(sessionerrh,  tp.sErr, sScript, Erl, sinfo, tp.iErr, tperrh, "")
+	If tperrh.iErr > 0 Then
+		Msgbox sScript & "#" & tperrh.serr
+		Resume EndError
+	End If
+	Select Case tp.ierr
+	Case iMSG_NEXT, iERR_NEXT, iMSG_AGENT_NEXT, iERR_AGENT_NEXT, iMSG_ASSERT_TRUE, iERR_ASSERT_TRUE, iMSG_ASSERT_FALSE, iERR_ASSERT_FALSE: Resume Next
+	Case iMSG_TRUE, iERR_TRUE, iMSG_AGENT_TRUE, iERR_AGENT_TRUE: Resume EndTrue  ', iMSG_ASSERT_TRUE_CRITICAL, iERR_ASSERT_TRUE_CRITICAL: Resume EndTrue
+	Case iMSG_FALSE, iERR_FALSE, iMSG_AGENT_FALSE, iERR_AGENT_FALSE, iMSG_ASSERT_FALSE_CRITICAL, iERR_ASSERT_FALSE_CRITICAL: Resume EndFalse
+	Case iERR_OBJECT_ERR, iERR_OBJECT_CUR, iERR_AGENT_CALL, iERR_FUNCTION_CALL, iERR_PARAM_VALUE, iERR_PARAM_MISSING, iERR_PROPERTY_VALUE, iERR_PROPERTY_MISSING, iERR_DESIGN_MISSING: Resume EndError 'Ziel: Nicht jeden Fehler ins Log stellen
+	Case Else: Resume EndError
+	End Select
+End Function
+Function ArrayIntegerReduceZZZ(session As notessession, viaArray As Variant, viaWhat As Variant, tP As TypeParamZZZ, sFlag As String) As Variant
+	Dim iaReturn() As Integer, iBoundOfReturn As Integer, tpcall As Typeparamzzz
+	On Error Goto errh
+	Dim btemp As Boolean
+	
+	iBoundOfReturn = -1
+	
+	'### ParamWerte - prüfen A
+	Dim iProofArray As Integer
+	iproofArray = ArrayInitProofZZZ(session, viaArray,tpCall, "")
+	If tpcall.ierr > 0 Then Error iERR_FUNCTION_CALL, tpcall.serr
+	If iProofArray >= False Then Goto EndEmptyArray
+	
+	'### Normieren A (d.h. auf jeden Fall integer)
+	Dim iaArray() As Integer, iBoundOfArray As Integer
+	iBoundOfArray = ArrayIntegerFromVariantZZZ(session, viaArray, iaArray, tpcall, "") 'MErke: IBoundOfArray kann wg. ArrayIntProof >= False nicht mehr -1 sein !!!
+	If tpcall.ierr > 0 Then Error iERR_FUNCTION_CALL, tpcall.serr 
+	
+	'### ParamWerte - prüfen B
+	Dim iProofWhat As Integer
+	iproofWhat = ArrayInitProofZZZ(session, viaWhat, tpCall, "")
+	If tpcall.ierr > 0 Then Error iERR_FUNCTION_CALL, tpcall.serr
+	If iProofWhat >= False Then Goto EndEmptyWhat
+	
+	'### Normieren B (d.h. auf jeden Fall integer)
+	Dim iaWhat() As Integer, iBoundOfWhat As Integer
+	iBoundOfWhat = ArrayIntegerFromVariantZZZ(session, viaWhat, iaWhat, tpcall, "") 'MErke: IBoundOfWhat kann wg. ArrayIntProof >= False nicht mehr -1 sein !!!
+	If tpcall.ierr > 0 Then Error iERR_FUNCTION_CALL, tpcall.serr 
+	
+	'########################################################
+	Dim icount As Integer
+	For icount = 0 To iBoundOfArray
+		btemp = ArrayIntegerContainsZZZ(session, iaWhat, iaArray(icount),tpcall, "")
+		If tpcall.ierr > 0 Then Error iERR_FUNCTION_CALL, tpcall.serr 
+		
+		If btemp = False Then  'Es werden also diejenigen weggelassen, die zu reduzieren sind
+			iBoundOfReturn = iBoundOfReturn + 1
+			Redim Preserve iaReturn(iBoundOfReturn) As Integer
+			iaReturn(iBoundOfReturn) = iaArray(icount)
+		End If
+		
+	Next
+	
+EndTrue:
+	tp.ierr = 0
+	If iBoundOfReturn >= 0 Then
+		Redim Preserve iaReturn(iBoundOfReturn) As Integer
+		ArrayIntegerReduceZZZ = iaReturn
+	Else
+		ArrayIntegerReduceZZZ = Null
+	End If
+	Exit Function
+EndFalse:
+EndEmptyArray: 
+	tp.ierr = 0
+	ArrayIntegerReduceZZZ = Null
+	Exit Function
+EndEmptyWhat: 
+	tp.ierr = 0
+	ArrayIntegerReduceZZZ = iaArray
+	Exit Function
+EndError:
+	ArrayIntegerReduceZZZ = Null
+	Exit Function
+ErrH:
+	Dim sScript As String
+	sScript = "ZBasic.DataType.Array.Other\" & Getthreadinfo(LSI_THREAD_PROC)
+	tp.iErr = Err 'Beim wiederholten Aufruf (d.h. zwei Zeilen hintereinanger ' Error iERR_NEXT, "das ist ein text" ' aufrufen) verliert Err zwei Stellen von rechts nach dem Aufruf der MEthode objMe.MessageAppend(..) !!!! 
+	tp.serr = strMsgZZZ(Nothing,  tp.sErr, sScript, Erl, Error$, Err, tpCall, "")
+	If tpcall.iErr > 0 Then
+		Msgbox tpcall.serr
+		Resume EndError
+	End If
+	Select Case tp.ierr
+	Case iMSG_NEXT, iERR_NEXT: Resume Next
+	Case iMSG_FALSE, iERR_FALSE: Resume EndFalse
+	Case iMSG_TRUE, iERR_TRUE: Resume EndTrue
+	Case Else: Resume EndError		
+	End Select
+End Function
+Function bArrayIntegerContainsMoreZZZ(session As notessession, viaArray As Variant, viaWhat As Variant, tP As TypeParamZZZ, sFlag As String) As Boolean
+	Dim tpcall As Typeparamzzz
+	On Error Goto errh
+	Dim btemp As Boolean
+	
+	'### ParamWerte - prüfen A
+	Dim iProofArray As Integer
+	iproofArray = ArrayInitProofZZZ(session, viaArray,tpCall, "")
+	If tpcall.ierr > 0 Then Error iERR_FUNCTION_CALL, tpcall.serr
+	If iProofArray >= False Then Goto EndEmptyArray
+	
+	'### Normieren A (d.h. auf jeden Fall integer)
+	Dim iaArray() As Integer, iBoundOfArray As Integer
+	iBoundOfArray = ArrayIntegerFromVariantZZZ(session, viaArray, iaArray, tpcall, "") 'MErke: IBoundOfArray kann wg. ArrayIntProof >= False nicht mehr -1 sein !!!
+	If tpcall.ierr > 0 Then Error iERR_FUNCTION_CALL, tpcall.serr 
+	
+	'### ParamWerte - prüfen B
+	Dim iProofWhat As Integer
+	iproofWhat = ArrayInitProofZZZ(session, viaWhat, tpCall, "")
+	If tpcall.ierr > 0 Then Error iERR_FUNCTION_CALL, tpcall.serr
+	If iProofWhat >= False Then Goto EndEmptyWhat
+	
+	'### Normieren B (d.h. auf jeden Fall integer)
+	Dim iaWhat() As Integer, iBoundOfWhat As Integer
+	iBoundOfWhat = ArrayIntegerFromVariantZZZ(session, viaWhat, iaWhat, tpcall, "") 'MErke: IBoundOfWhat kann wg. ArrayIntProof >= False nicht mehr -1 sein !!!
+	If tpcall.ierr > 0 Then Error iERR_FUNCTION_CALL, tpcall.serr 
+	
+	'########################################################
+	Dim icount As Integer
+	For icount = 0 To iBoundOfArray
+		btemp = ArrayIntegerContainsZZZ(session, iaWhat, iaArray(icount),tpcall, "")
+		If tpcall.ierr > 0 Then Error iERR_FUNCTION_CALL, tpcall.serr 
+		
+		If btemp = False Then Goto endtrue 'Falls also ein Wert gefunden wird, der nicht in der Vergleichsliste ist, dann verlassen
+	Next
+	Goto endfalse 'Falls nur werte gefunden wurden, die in der Vergleichsliste waren, dann enthält das Array keine weiteren Werte.
+	
+EndTrue:
+	tp.ierr = 0
+	bArrayIntegerContainsMoreZZZ = True
+	Exit Function
+EndFalse:
+	tp.ierr = 0
+	bArrayIntegerContainsMoreZZZ = False
+	Exit Function
+EndEmptyArray: 
+	tp.ierr = 0
+	bArrayIntegerContainsMoreZZZ = False
+	Exit Function
+EndEmptyWhat: 
+	tp.ierr = 0
+	bArrayIntegerContainsMoreZZZ = True
+	Exit Function
+EndError:
+	bArrayIntegerContainsMoreZZZ = False
+	Exit Function
+ErrH:
+	Dim sScript As String
+	sScript = "ZBasic.DataType.Array.Other\" & Getthreadinfo(LSI_THREAD_PROC)
+	tp.iErr = Err 'Beim wiederholten Aufruf (d.h. zwei Zeilen hintereinanger ' Error iERR_NEXT, "das ist ein text" ' aufrufen) verliert Err zwei Stellen von rechts nach dem Aufruf der MEthode objMe.MessageAppend(..) !!!! 
+	tp.serr = strMsgZZZ(Nothing,  tp.sErr, sScript, Erl, Error$, Err, tpCall, "")
+	If tpcall.iErr > 0 Then
+		Msgbox tpcall.serr
+		Resume EndError
+	End If
+	Select Case tp.ierr
+	Case iMSG_NEXT, iERR_NEXT: Resume Next
+	Case iMSG_FALSE, iERR_FALSE: Resume EndFalse
+	Case iMSG_TRUE, iERR_TRUE: Resume EndTrue
+	Case Else: Resume EndError		
+	End Select
+End Function
+Function ArrayDoubleAppendZZZ(session As notessession,vX As Variant, vY As Variant, tp As TypeParamZZZ, sFlag As String) As Variant
+%REM
+Diese Funktion hängt an ein IntegerArray weitere Integerwerte an.
+%END REM
+	'###
+	Dim tpcall As TypeParamZZZ
+	On Error Goto errh
+	
+	Dim iproofX As Integer
+	iproofX = ArrayInitProofZZZ(session, vX,tpCall, "")
+	If tpcall.ierr > 0 Then Error iERR_FUNCTION_CALL, tpcall.serr
+	
+	Dim iProofY As Integer
+	iproofY = ArrayInitProofZZZ(session, vY, tpCall, "")
+	If tpcall.ierr > 0 Then Error iERR_FUNCTION_CALL, tpcall.serr
+	
+	'### Merke: Die Reihenfolge der Abfragen ist so gewählt, wie die Häufigkeit des Falls eingeschätzt wird
+	Dim daTemp() As Double
+	Dim iCounterAll As Integer
+	Dim iCounterStart As Integer
+	Dim iCounterPos As Integer
+	If iProofX = True And iProofY = True Then
+		Dim iCounter As Integer
+		
+		'Fall: ArrayX um ArrayY erweitern
+		iCounterStart = Ubound(vX)
+		iCounterAll = iCounterStart + Ubound(vY) + 1		
+		Redim Preserve vX(iCounterAll)' As Integer
+		
+		iCounterpos = iCounterStart
+		For iCounter = 0 To Ubound(vY)
+			iCounterPos = iCounterPos + 1
+			vX(iCounterPos) = Cint(vY(iCounter))
+		Next iCounter
+		Goto EndvX
+	End If
+	
+	If iProofX=-2 And iProofY=-2 Then
+		'Fall: Einzelwert um Einzelwert erweitern	
+		Redim daTemp(1) As Double
+		daTemp(0) = Cdbl(vX)
+		daTemp(1) = Cdbl(vY)
+		Goto EndNew
+	End If
+	
+		'Fall: ArrayX um Einzelwert Y erweitern
+	If iProofX = True And iProofY = -2 Then
+		
+		iCounterStart = Ubound(vX)
+		iCounterAll = iCounterstart + 1
+		'Das geht nicht Redim Preserve vX(iCounterAll) 'As Integer
+		'Darum wird extra ein Integer-Array erstellt und auch die vorherigen Werte werden dort hineinkopiert
+		'!!! DAS ARRAY MUSS SCHON VOM TYPE INTER SEIN. TYP VARIANT IST NICHT ERLAUBT !!!
+		Redim daTemp(iCounterAll) As Double
+		For iCounter = 0 To iCounterStart
+			daTemp(iCounter) = Cdbl(vX(iCounter))
+		Next
+		daTemp(iCounterAll) = Cdbl(vY)
+		'iCounterPos = iCounterAll		
+		'vX(iCounterPos) = Cint(vY)
+		'geht nicht wg Problematik   Goto endvX
+		Goto EndNew
+	End If
+	
+	'Fall: Einzelwert X um Array Y erweitern
+	If iProofY = True And iProofX = -2 Then
+		iCounterStart = Ubound(vY)		
+		iCounterAll = iCounterstart + 1
+		Redim daTemp(iCounterAll) As Double
+		daTemp(0) = Cdbl(vX)
+		For iCounter=1 To Ubound(daTemp)
+			datemp(iCounter)=Cdbl(vY(iCounter-1))
+		Next
+		Goto EndNew
+	End If
+	
+	'Fall: ArrayX ist nicht initialisiert, Y ist Einzelwert
+	If iProofX=False And iProofY = -2 Then
+		Redim daTemp(0) As Double
+		daTemp(0) = Cdbl(vY)
+		Goto EndNew
+	End If
+	
+	'Fall: ArrayY ist nicht initialisiert, X ist Einzelwert
+	If iProofY= False And iProofX = -2 Then
+		Redim daTemp(0) As Double
+		daTemp(0) = Cdbl(vX)
+		Goto EndNew
+	End If
+	
+	
+	
+	'Fall: ArrayY ist nicht initialisiert
+	If iProofX=True And iProofY = 0 Then Goto EndvX
+	
+	'Fall: ArrayX ist nicht initialisiert
+	If iProofY=True And iProofX = 0 Then Goto EndvY
+	
+	If iproofY = 1 Then Goto EndvX
+	If iProofX = 1 Then Goto EndvY
+	If iproofX=2 Or iProofY = 2 Then Goto EndNull
+	
+	
+	'Fall: Weder ArrayX noch ArrayY sind initialisiert
+	If iProofY = 0 And iProofX = 0 Then Goto EndNull
+	
+	'###########
+EndTrue:
+EndvX:
+	tp.ierr = 0
+	ArrayDoubleAppendZZZ = vX
+	Exit Function
+endvY:
+	tp.ierr = 0
+	ArrayDoubleAppendZZZ = vY
+	Exit Function
+EndNew:
+	tp.ierr = 0
+	ArrayDoubleAppendZZZ = daTemp
+	Exit Function
+EndFalse:
+EndNull:
+	tp.ierr = 0
+	If Isnull(vX) Then
+		ArrayDoubleAppendZZZ = vY
+	End If
+	If Isnull(vY) Then 
+		ArrayDoubleAppendZZZ = vX
+	End If
+	Exit Function
+EndError:
+	ArrayDoubleAppendZZZ = Null
+	Exit Function
+ErrH:
+	Dim sScript As String
+	sScript = "ZBasic.DataType.Array.Other\" & Getthreadinfo(LSI_THREAD_PROC)
+	tp.iErr = Err 'Beim wiederholten Aufruf (d.h. zwei Zeilen hintereinanger ' Error iERR_NEXT, "das ist ein text" ' aufrufen) verliert Err zwei Stellen von rechts nach dem Aufruf der MEthode objMe.MessageAppend(..) !!!! 
+	tp.serr = strMsgZZZ(Nothing, tp.sErr, sScript, Erl, Error$, Err, tpCall, "")
+	If tpcall.iErr > 0 Then
+		Msgbox tpcall.serr
+		Resume EndError
+	End If
+	Select Case tp.ierr
+	Case iMSG_NEXT, iERR_NEXT: Resume Next
+	Case iMSG_FALSE, iERR_FALSE: Resume EndFalse
+	Case iMSG_TRUE, iERR_TRUE: Resume EndTrue
+	Case Else: Resume EndError		
+	End Select
+End Function
+Function ArrayDoubleFromVariantZZZ(session As notessession, vArrayToTransform As Variant, vArray As Variant, tp As TypeParamZZZ, sFlag As String) As Integer
+	On Error Goto errhNoCall
+	Dim iReturn As Integer
+	
+	'############	
+	Dim itemp As Integer, stemp As String
+	
+	'### Übergabeparameter Prüfen
+	If Isnull(vArrayToTransform) Then Goto endError
+	If Isempty(vArrayToTransform) Then Goto endError
+	
+	
+	'##############
+	If Isarray(vArrayToTransform) Then
+		Redim vArray(Ubound(vArrayToTransform)) As Double
+		For iReturn = 0 To Ubound(vArrayToTransform)
+			vArray(iReturn) = Cdbl(vArrayToTransform(iReturn))
+		Next iReturn
+	Else
+		iReturn = 0		
+		If Not Isempty(vArrayToTransform) Then
+			Redim Preserve vArray(iReturn) As Double
+			vArray(iReturn) = Cdbl(vArrayToTransform)
+		End If
+	End If	
+	'#########################
+EndTrue:
+	tp.ierr = 0
+	ArrayDoubleFromVariantZZZ = iReturn
+	Exit Function	
+EndFalse:
+	tp.ierr = 0
+	ArrayDoubleFromVariantZZZ = -1
+	Exit Function
+EndError:
+	ArrayDoubleFromVariantZZZ = -1
+	Exit Function
+ErrHNoCall:
+	Dim sScript As String, tpcall As TypeParamZZZ
+	sScript = "ZBasic.DataType.Array.Other\" & Getthreadinfo(LSI_THREAD_PROC)
+	tp.iErr = Err 'Beim wiederholten Aufruf (d.h. zwei Zeilen hintereinanger ' Error iERR_NEXT, "das ist ein text" ' aufrufen) verliert Err zwei Stellen von rechts nach dem Aufruf der MEthode objMe.MessageAppend(..) !!!! 
+	tp.serr = strMsgZZZ(Nothing, tp.sErr, sScript, Erl, Error$, Err, tpCall, "")
+	If tpcall.iErr > 0 Then
+		Msgbox tpcall.serr
+		Resume EndError
+	End If
+	Select Case tp.ierr
+	Case iMSG_NEXT, iERR_NEXT: Resume Next
+	Case iMSG_FALSE, iERR_FALSE: Resume EndFalse
+	Case iMSG_TRUE, iERR_TRUE: Resume EndTrue
+	Case Else: Resume EndError		
+	End Select
+End Function
+Function vArrayMinZZZ(session As notessession, vNum1 As Variant, vNum2 As Variant, tp As TypePAramZZZ, sFlag As String) As Variant
+%REM
+Funktion liefert das Array zurück, das den kleineren ubound() hat oder das Erste der Parameterliste.
+%END REM
+	Dim vErg As Variant
+	Dim itemp1 As Integer, itemp2 As Integer
+	itemp1 = ArrayInitProofZZZ(session, vNum1,  tp, "")
+	If tp.ierr > 0 Then Error iERR_FUNCTION_CALL, tp.serr
+	
+	itemp2 = ArrayInitProofZZZ(session, vNum2,  tp, "")
+	If tp.ierr > 0 Then Error iERR_FUNCTION_CALL, tp.serr
+	
+	If itemp1 <> True And itemp2 <> True Then 
+		Goto EndFalse
+	Elseif itemp1 = True And itemp2 <> True Then
+		vErg = vNum1
+	Elseif itemp1 <> True And itemp2 = True Then
+		vErg = vNum2
+	Else
+		'Beide sind richtige arrays
+		itemp1 = Ubound(vNum1)
+		itemp2 = Ubound(vNum2)
+		If itemp1 <= itemp2 Then
+			vErg = vNum1
+		Else
+			vErg = vNum2
+		End If
+	End If
+	
+	
+EndTrue:
+	tp.ierr = 0
+	vArrayMinZZZ = vErg
+	Exit Function
+EndFalse:
+	tp.ierr = 0
+	vArrayMinZZZ = Null
+	Exit Function
+EndError:
+	vArrayMinZZZ = Null
+	Exit Function
+ErrHNoCall:
+	Dim sScript As String, tpcall As TypeParamZZZ
+	sScript = "ZBasic.DataType.ArrayOther\" & Getthreadinfo(LSI_THREAD_PROC)
+	tp.iErr = Err 'Beim wiederholten Aufruf (d.h. zwei Zeilen hintereinanger ' Error iERR_NEXT, "das ist ein text" ' aufrufen) verliert Err zwei Stellen von rechts nach dem Aufruf der MEthode objMe.MessageAppend(..) !!!! 
+	tp.serr = strMsgZZZ(Nothing,  tp.sErr, sScript, Erl, Error$, Err, tpCall, "")
+	If tpcall.iErr > 0 Then
+		Msgbox tpcall.serr
+		Resume EndError
+	End If
+	Select Case tp.ierr
+	Case iMSG_NEXT, iERR_NEXT: Resume Next
+	Case iMSG_FALSE, iERR_FALSE: Resume EndFalse
+	Case iMSG_TRUE, iERR_TRUE: Resume EndTrue
+	Case Else: Resume EndError		
+	End Select
+End Function
+Function vMinZZZ(session As notessession, vNum1 As Variant, vNum2 As Variant, tp As TypeParamZZZ, sFlag As String) As Variant
+%REM
+Function liefert von 2 zahlen den kleinsten Wert zurück. bei Übergebenen Arrays das mit dem kleineren Ubound oder das erste der PArameterliste
+%END REM
+	Dim vErg As Variant
+	On Error Goto errhNoCall
+	
+	If Isnull(vnum1) Then 
+		vErg = vnum2
+	Elseif Isnull(vnum2) Then
+		vErg = vnum1
+	End If
+	If Isarray(vNum1) And Isarray(vNum2) Then
+		vErg = vArrayMinZZZ(session, vNum1, vNum2, tp, sFlag) 
+		If tp.ierr > 0 Then Error iERR_FUNCTION_CALL, tp.serr
+		Goto endtrue
+	End If
+	If Typename(vnum2) <> "STRING" And Typename(vnum1) <> "STRING" Then
+		If vnum2 < vnum1 Then
+			vErg = vnum2
+		Elseif vnum2 >= vnum1 Then
+			vErg = vnum1
+		End If
+		
+		Goto EndTrue
+	End If
+	
+	Goto endfalse
+	
+EndTrue:
+	tp.ierr = 0
+	vMinZZZ = vErg
+	Exit Function
+EndFalse:
+	tp.ierr = 0
+	vMinZZZ = Null
+	Exit Function
+EndError:
+	vMinZZZ = Null
+	Exit Function
+ErrHNoCall:
+	Dim sScript As String, tpcall As TypeParamZZZ
+	sScript = "ZBasic.DataType.AllPrimitive\" & Getthreadinfo(LSI_THREAD_PROC)
+	tp.iErr = Err 'Beim wiederholten Aufruf (d.h. zwei Zeilen hintereinanger ' Error iERR_NEXT, "das ist ein text" ' aufrufen) verliert Err zwei Stellen von rechts nach dem Aufruf der MEthode objMe.MessageAppend(..) !!!! 
+	tp.serr = strMsgZZZ(Nothing,  tp.sErr, sScript, Erl, Error$, Err, tpCall, "")
+	If tpcall.iErr > 0 Then
+		Msgbox tpcall.serr
+		Resume EndError
+	End If
+	Select Case tp.ierr
+	Case iMSG_NEXT, iERR_NEXT: Resume Next
+	Case iMSG_FALSE, iERR_FALSE: Resume EndFalse
+	Case iMSG_TRUE, iERR_TRUE: Resume EndTrue
+	Case Else: Resume EndError		
+	End Select
+End Function
+Function iBoundMinZZZ(session As notessession, vNum1 As Variant, vNum2 As Variant, tp As TypeParamZZZ, sFlag As String) As Integer
+%REM 
+Funktion liefert von den beiden übergebenen Arrays als wert den ubound() des kleinsten Arrays zurück
+%END REM
+	On Error Goto errhNoCall
+	Dim iReturn As Integer
+	
+	Dim itemp As Integer, vtemp As Variant
+	vtemp = vArrayMinZZZ(session, vNum1, vNum2, tp, "")
+	If tp.ierr > 0 Then Error iERR_FUNCTION_CALL, tp.serr
+	
+	iReturn = Ubound(vtemp)
+	
+	'###########
+EndTrue:
+	tp.ierr = 0
+	iBoundMinZZZ = iReturn
+	Exit Function
+EndFalse:
+	tp.ierr = 0
+	iBoundMinZZZ = -1
+	Exit Function
+EndError:
+	iBoundMinZZZ = -1
+	Exit Function
+ErrHNoCall:
+	Dim sScript As String, tpcall As TypeParamZZZ
+	sScript = "ZBasic.DataType.AllPrimitive\" & Getthreadinfo(LSI_THREAD_PROC)
+	tp.iErr = Err 'Beim wiederholten Aufruf (d.h. zwei Zeilen hintereinanger ' Error iERR_NEXT, "das ist ein text" ' aufrufen) verliert Err zwei Stellen von rechts nach dem Aufruf der MEthode objMe.MessageAppend(..) !!!! 
+	tp.serr = strMsgZZZ(Nothing,  tp.sErr, sScript, Erl, Error$, Err, tpCall, "")
+	If tpcall.iErr > 0 Then
+		Msgbox tpcall.serr
+		Resume EndError
+	End If
+	Select Case tp.ierr
+	Case iMSG_NEXT, iERR_NEXT: Resume Next
+	Case iMSG_FALSE, iERR_FALSE: Resume EndFalse
+	Case iMSG_TRUE, iERR_TRUE: Resume EndTrue
+	Case Else: Resume EndError		
+	End Select
+End Function
+Function ArrayIntegerIndexRemoveZZZ(session As notessession, iaArray As Variant, iPosition As Integer, iaArrayNew() As Integer, _
+tP As TypeParamZZZ, sFlag As String) As Integer
+	On Error Goto errhNoCall
+	On Error 200 Goto errhRedim
+	'###########	 
+	
+	If Isnull(iaArray) Then Goto endnull
+	If Isempty(iaArray) Then Goto EndNull
+	If Not Isarray(iaArray) Then Goto EndNull
+	If iPosition < 0 Or iPosition > Ubound(iaArray) Then Goto EndNull
+	
+	'########################
+	Dim iCounter As Integer
+	Dim iReturn As Integer
+	iReturn = -1
+	
+	If Ubound(iaArray) = 0 Then
+		'+++ Die einzige Position im Array wegzulöschen ist gefährlich, darum wird sie auf 0 gesetzt und der Rückgabewert ist dann -1
+		If iPosition = 0 Then
+			Redim iaArrayNew(0) As Integer
+			IaArrayNew(0) = 0
+		End If
+		Goto EndFalse 'wg. des Rückgabewerts von -1
+	Else
+		Redim iaArrayNew(Ubound(iaArray) - 1) As Integer
+		For iCounter = 0 To Ubound(iaArray)
+			If iCounter <> iPosition Then
+				iReturn = iReturn + 1
+				iaArrayNew(iReturn) = iaArray(iCounter)
+			End If
+		Next iCounter
+	End If
+	
+	'###########
+EndTrue:
+	tp.ierr = 0
+	ArrayIntegerIndexRemoveZZZ = iReturn
+	Exit Function
+EndFalse:
+	tp.ierr = 0
+	ArrayIntegerIndexRemoveZZZ = -1
+	Exit Function
+EndNull:
+	tp.ierr = 0
+	ArrayIntegerIndexRemoveZZZ = -1
+	Exit Function
+EndError:
+	ArrayIntegerIndexRemoveZZZ = -1
+	Exit Function
+errhRedim:
+	Redim iaArray(0) As Integer
+	Resume Next
+ErrHNoCall:
+	Dim sScript As String, tpcall As TypeParamZZZ
+	sScript = "ZBasic.DataType.Array.Other\" & Getthreadinfo(LSI_THREAD_PROC)
+	tp.iErr = Err 'Beim wiederholten Aufruf (d.h. zwei Zeilen hintereinanger ' Error iERR_NEXT, "das ist ein text" ' aufrufen) verliert Err zwei Stellen von rechts nach dem Aufruf der MEthode objMe.MessageAppend(..) !!!! 
+	tp.serr = strMsgZZZ(Nothing,  tp.sErr, sScript, Erl, Error$, Err, tpCall, "")
+	If tpcall.iErr > 0 Then
+		Msgbox tpcall.serr
+		Resume EndError
+	End If
+	Select Case tp.ierr
+	Case iMSG_NEXT, iERR_NEXT: Resume Next
+	Case iMSG_FALSE, iERR_FALSE: Resume EndFalse
+	Case iMSG_TRUE, iERR_TRUE: Resume EndTrue
+	Case Else: Resume EndError		
+	End Select
+End Function
+Function ArrayDoubleUniqueZZZ(session As notessession, dawhat As Variant, tP As TypeParamZZZ, sFlag As String) As Variant
+	'Merke: Ein "DoubleTrim" macht als Funktion keinen Sinn, es sei denn man sieht z.B. die 0 als ein wegzutrimmenden Wert an.
+	
+	Dim daReturn() As Double, itemp As Integer, vtemp As Variant, btemp As Boolean
+	On Error Goto errhNoCall
+	On Error 200 Goto ErrhRedim
+	
+	'### Übergabeparemer prüfen
+	If Isempty(daWhat) Then Goto endNull	
+	If Isnull(daWhat) Then Goto endnull
+	
+	Dim sFlagControl As String
+	If Len(sFlag)>0 Then
+		sFlagControl = Ucase(sFlag)
+		If Instr(sFlagControl, "NOCOPY") = 0 Then
+			Error iERR_PARAM_VALUE, "FlagControl = '" & sFlag & "', but expected 'NOCOPY'"
+		End If
+	End If
+	
+	'###
+	If Isarray(daWhat) Then
+		Dim i As Integer
+		Dim iPosMarker As Integer
+		Dim iPosMarkerNew As Integer
+		
+		Dim iaPosMarkerObsolete() As Integer  'INTEGER: Speichert die Indexpositionen der zu entfernenden (weil doppelt vorkommend) Werte
+		Dim iBoundMarkerObsolete As Integer
+		iBoundMarkerObsolete = -1
+		
+		
+		iPosMarker = 0
+		iPosMarkerNew = -1
+		If Instr(sFlagControl, "NOCOPY") > 0 Then					
+			For iPosMarker=0 To Ubound(dawhat)				
+				For i = iPosMarker + 1 To Ubound(dawhat)
+					If daWhat(iPosMarker) = dawhat(i) Then
+						
+						'in die Liste der überflüssigen Indizes packen. Diese werden am Schluss entfernt.			
+						If iBoundMarkerObsolete = -1 Then
+							iBoundMarkerObsolete = iBoundMarkerObsolete + 1
+							Redim Preserve iaPosMarkerObsolete(iBoundMarkerObsolete) As Integer
+							iaPosMarkerObsolete(iBoundMarkerObsolete) = i					
+						Else
+							'!!! Aber nur darein packen, wenn die Indexposition nicht schon gespeichert ist
+							btemp = ArrayIntegerContainsZZZ(session, iaPosMarkerObsolete, i,tp, "")
+							If tp.ierr > 0 Then Error iERR_FUNCTION_CALL, tp.serr
+							
+							If btemp = False Then
+								iBoundMarkerObsolete = iBoundMarkerObsolete + 1
+								Redim Preserve iaPosMarkerObsolete(iBoundMarkerObsolete) As Integer
+								iaPosMarkerObsolete(iBoundMarkerObsolete) = i		
+							End If
+						End If
+					End If
+				Next i			
+			Next iPosMarker						
+			
+			
+			If iBoundMarkerObsolete >= 0 Then			
+			'+++ Nun die Indizes entfernen, die doppelt sind		
+				itemp = ArrayDoubleIndexAllRemoveZZZ(session, daWhat, iaPosMarkerObsolete, daReturn, tP, "")
+				If tp.ierr > 0 Then Error iERR_FUNCTION_CALL, tp.serr
+				iPosMarkerNew = itemp
+			Else
+			'+++ Nix zu entfernen. Eine Kopie des aktuellen Arrays zurückgeben
+				Call ArrayDoubleCopyZZZ(session, daWhat, daReturn, tP, "")
+				iPosMarkerNew = Ubound(daReturn)
+			End If
+			
+		Else
+			'#######################################################################
+			'Erstelle eine Kopie des eingehenden Arrays
+			Dim daCopied() As Double
+			Call ArrayDoubleCopyZZZ(session, daWhat, daCopied, tP, "")
+			
+			'Rufe diese Funktion rekursiv auf. Diesmal mit der Arraykopie
+			vtemp =ArrayDoubleUniqueZZZ(session,  daCopied, tp, "NOCOPY")
+			If tp.ierr > 0 Then Error iERR_FUNCTION_CALL, tp.serr
+			
+			itemp = ArrayDoubleFromVariantZZZ(session, vtemp, daReturn, tp, "")
+			If tp.ierr > 0 Then Error iERR_FUNCTION_CALL, tp.serr					
+			
+			iPosMarkerNew = itemp
+		End If 'sFlagControl = "NOCOPY"
+		If iPosMarkerNew = -1 Then Goto EndNull
+	Else 'isarray(saWhat)
+		Redim daReturn(0) As Double
+		daReturn(0) = daWhat
+		If Len(daReturn(0)) = 0 Then Goto endnull
+	End If 'isarray(saWhat)
+	
+'#######################
+EndTrue:
+	tp.ierr = 0
+	ArrayDoubleUniqueZZZ = daReturn
+	Exit Function
+EndFalse:
+EndNull:
+	tp.ierr = 0
+	ArrayDoubleUniqueZZZ = Null
+	Exit Function
+EndError:
+	ArrayDoubleUniqueZZZ = Null
+	Exit Function	
+errhRedim:
+	'geht jetz nicht, da byval übergabe: Redim saWhat(0) As String
+	'Resume Next
+	Resume EndNull
+ErrHNoCall:
+	Dim sScript As String, tpcall As TypePAramZZZ
+	sScript = "ZBasic.DataType.Array.Other\" & Getthreadinfo(LSI_THREAD_PROC)
+	tp.iErr = Err 'Beim wiederholten Aufruf (d.h. zwei Zeilen hintereinanger ' Error iERR_NEXT, "das ist ein text" ' aufrufen) verliert Err zwei Stellen von rechts nach dem Aufruf der MEthode objMe.MessageAppend(..) !!!! 
+	tp.serr = strMsgZZZ(Nothing,  tp.sErr, sScript, Erl, Error$, Err, tpCall, "")
+	If tpcall.iErr > 0 Then
+		Msgbox tpcall.serr
+		Resume EndError
+	End If
+	Select Case tp.ierr
+	Case iMSG_NEXT, iERR_NEXT: Resume Next
+	Case iMSG_FALSE, iERR_FALSE: Resume EndFalse
+	Case iMSG_TRUE, iERR_TRUE: Resume EndTrue
+	Case Else: Resume EndError		
+	End Select
+End Function
+Function ArrayDoubleIndexRemoveZZZ(session As notessession, daArray As Variant, iPosition As Integer, daArrayNew() As Double, _
+tP As TypeParamZZZ, sFlag As String) As Integer
+	On Error Goto errhNoCall
+	On Error 200 Goto errhRedim
+	'###########	 
+	
+	If Isnull(daArray) Then Goto endnull
+	If Isempty(daArray) Then Goto EndNull
+	If Not Isarray(daArray) Then Goto EndNull
+	If iPosition < 0 Or iPosition > Ubound(daArray) Then Goto EndNull
+	
+	'########################
+	Dim iCounter As Integer
+	Dim iReturn As Integer
+	iReturn = -1
+	
+	If Ubound(daArray) = 0 Then
+		'+++ Die einzige Position im Array wegzulöschen ist gefährlich, darum wird sie auf 0 gesetzt und der Rückgabewert ist dann -1
+		If iPosition = 0 Then
+			Redim daArrayNew(0) As Double
+			daArrayNew(0) = 0
+		End If
+		Goto EndFalse 'wg. des Rückgabewerts von -1
+	Else
+		Redim daArrayNew(Ubound(daArray) - 1) As Double
+		For iCounter = 0 To Ubound(daArray)
+			If iCounter <> iPosition Then
+				iReturn = iReturn + 1
+				daArrayNew(iReturn) = daArray(iCounter)
+			End If
+		Next iCounter
+	End If
+	
+	'###########
+EndTrue:
+	tp.ierr = 0
+	ArrayDoubleIndexRemoveZZZ = iReturn
+	Exit Function
+EndFalse:
+	tp.ierr = 0
+	ArrayDoubleIndexRemoveZZZ = -1
+	Exit Function
+EndNull:
+	tp.ierr = 0
+	ArrayDoubleIndexRemoveZZZ = -1
+	Exit Function
+EndError:
+	ArrayDoubleIndexRemoveZZZ = -1
+	Exit Function
+errhRedim:
+	Redim daArray(0) As Double
+	Resume Next
+ErrHNoCall:
+	Dim sScript As String, tpcall As TypeParamZZZ
+	sScript = "ZBasic.DataType.Array.Other\" & Getthreadinfo(LSI_THREAD_PROC)
+	tp.iErr = Err 'Beim wiederholten Aufruf (d.h. zwei Zeilen hintereinanger ' Error iERR_NEXT, "das ist ein text" ' aufrufen) verliert Err zwei Stellen von rechts nach dem Aufruf der MEthode objMe.MessageAppend(..) !!!! 
+	tp.serr = strMsgZZZ(Nothing,  tp.sErr, sScript, Erl, Error$, Err, tpCall, "")
+	If tpcall.iErr > 0 Then
+		Msgbox tpcall.serr
+		Resume EndError
+	End If
+	Select Case tp.ierr
+	Case iMSG_NEXT, iERR_NEXT: Resume Next
+	Case iMSG_FALSE, iERR_FALSE: Resume EndFalse
+	Case iMSG_TRUE, iERR_TRUE: Resume EndTrue
+	Case Else: Resume EndError		
+	End Select
+End Function
+Function ArrayDoubleIndexAllRemoveZZZ(session As notessession, vsArray As Variant, viPosition As Variant, daArrayNew As Variant, _
+tP As TypeParamZZZ, sFlag As String) As Integer
+	Dim iReturn As Integer, tpcall As TypeParamZZZ
+	On Error Goto errh
+	Dim itemp As Integer, btemp As Boolean
+	
+	'###########
+	Dim daArray() As Double
+	itemp = ArrayDoubleFromVariantZZZ(session, vsArray, daArray, tPcall, "")
+	If tpcall.ierr > 0 Then Error iERR_FUNCTION_CALL, tpcall.serr	
+	If itemp <= -1 Then Goto EndNull
+	
+	'###########	 
+	Dim iaArray() As Integer  '!!! Das bleibt integer. Hierin werden die Indexpositonen gespeichert
+	itemp = ArrayIntegerFromVariantZZZ(session, viPosition,iaArray, tpcall, "")
+	If tpcall.ierr > 0 Then Error iERR_FUNCTION_CALL, tpcall.serr	
+	If itemp <= -1 Then
+		'Falls keine Position übergeben wurde, wird das komplette Array übergeben
+		iReturn = Ubound(daArray)
+		Redim daArrayNew(iReturn) As Double
+		Dim icount2 As Integer		
+		For iCount2 = 0 To iReturn
+			daArrayNew(icount2) = daArray(icount2)			
+		Next
+		Goto EndTrue
+	End If
+	
+	'########################
+	'0. Neues Array maximal dimensionieren, wird später ggf. zurechtgestutzt
+	Redim daArrayNew(Ubound(daArray)) As Double
+	
+	'1. Neues Array füllen 
+	Dim iCount As Integer
+	iReturn = -1
+	For icount = 0 To Ubound(daArray)
+		btemp = ArrayIntegerContainsZZZ(session, iaArray, icount,tpcall,"")  '!!! Das ist Integer. Hier werden die Indexpositionen gespeichert
+		If tpcall.ierr > 0 Then Error tpcall.serr
+		
+		If btemp = False Then 
+			iReturn = iReturn + 1
+			daArrayNew(iReturn) = daArray(icount)
+		End If
+	Next icount
+	If iReturn >= 0 Then
+		Redim Preserve daArrayNew(iReturn) As Double
+	Else 
+		Goto EndNull
+	End If
+	
+	'###########
+EndTrue:
+	tp.ierr = 0
+	ArrayDoubleIndexAllRemoveZZZ = iReturn
+	Exit Function
+EndFalse: 
+	tp.ierr = 0
+	ArrayDoubleIndexAllRemoveZZZ = -1
+	Exit Function
+EndNull:
+	tp.ierr = 0
+	Redim daArrayNew(0) As Double
+	daArrayNew(0) = 0
+	ArrayDoubleIndexAllRemoveZZZ = -1
+	Exit Function
+EndError:
+	ArrayDoubleIndexAllRemoveZZZ = -99
+	Exit Function
+errhRedim:
+	Redim daArray(0) As Double
+	Resume Next
+ErrH:
+	Dim sScript As String
+	sScript = "ZBasic.DataType.Array.Other\" & Getthreadinfo(LSI_THREAD_PROC)
+	tp.iErr = Err 'Beim wiederholten Aufruf (d.h. zwei Zeilen hintereinanger ' Error iERR_NEXT, "das ist ein text" ' aufrufen) verliert Err zwei Stellen von rechts nach dem Aufruf der MEthode objMe.MessageAppend(..) !!!! 
+	tp.serr = strMsgZZZ(Nothing,  tp.sErr, sScript, Erl, Error$, Err, tpCall, "")
+	If tpcall.iErr > 0 Then
+		Msgbox tpcall.serr
+		Resume EndError
+	End If
+	Select Case tp.ierr
+	Case iMSG_NEXT, iERR_NEXT: Resume Next
+	Case iMSG_FALSE, iERR_FALSE: Resume EndFalse
+	Case iMSG_TRUE, iERR_TRUE: Resume EndTrue
+	Case Else: Resume EndError		
+	End Select
+End Function
+Function ArrayDoubleCopyZZZ(session As notessession, vArrayToCopy As Variant, daCopied() As Double, tP As TypeParamZZZ, sFlag As String) As Boolean
+%REM
+Kopiert den Inhalt eines Arrays in ein anderes
+%END REM
+	On Error Goto errhNoCall
+	On Error 200 Goto ErrhRedim
+	
+	'### Parameter Check ########		
+	If Isempty(vArrayToCopy) Then Goto EndNull
+	If Isnull(vArrayToCopy) Then Goto EndNull
+	
+	'##########
+	If Not Isarray(vArrayToCopy) Then 
+		Redim daCopied(0) As Double
+		daCopied(0) = Cdbl(vArrayToCopy)
+		Goto EndTrue
+	Else		
+		Dim iCounter As Integer
+		Redim daCopied(Ubound(vArrayToCopy)) As Double
+		For iCounter = 0 To Ubound(vArrayToCopy)
+			daCopied(iCounter) = Cdbl(vArrayToCopy(iCounter))
+		Next iCounter		
+	End If'not isarray(vsArrayToCopy)
+	
+	'###########
+EndTrue:
+	tp.ierr = 0
+	ArrayDoubleCopyZZZ = True		'Es muß ein neues Array ausgegeben werden	
+	Exit Function
+EndFalse:
+EndNull:
+	tp.ierr = 0
+	ArrayDoubleCopyZZZ = False
+	Exit Function
+EndError:
+	ArrayDoubleCopyZZZ = False
+	Exit Function
+errhredim:
+	Redim vArrayToCopy(0) 'As Double
+	Resume Next
+ErrHNoCall:
+	Dim sScript As String, tpcall As TypeParamZZZ
+	sScript = "ZBasic.DataType.Array.Other\" & Getthreadinfo(LSI_THREAD_PROC)
+	tp.iErr = Err 'Beim wiederholten Aufruf (d.h. zwei Zeilen hintereinanger ' Error iERR_NEXT, "das ist ein text" ' aufrufen) verliert Err zwei Stellen von rechts nach dem Aufruf der MEthode objMe.MessageAppend(..) !!!! 
+	tp.serr = strMsgZZZ(Nothing,  tp.sErr, sScript, Erl, Error$, Err, tpCall, "")
+	If tpcall.iErr > 0 Then
+		Msgbox tpcall.serr
+		Resume EndError
+	End If
+	Select Case tp.ierr
+	Case iMSG_NEXT, iERR_NEXT: Resume Next
+	Case iMSG_FALSE, iERR_FALSE: Resume EndFalse
+	Case iMSG_TRUE, iERR_TRUE: Resume EndTrue
+	Case Else: Resume EndError		
+	End Select
+End Function
+Function ArrayDoubleIndexAllSearchZZZ(Session As notessession, vArray As Variant, dToSearchFor As Double, tP As TypeParamZZZ, sFlag As String) As Variant
+	'Diese Funktion gibt ein Array aller Indizis zurück. Damit macht sie mehr als die einfache LotusScript-Funtion ArrayGetIndex,
+	'welche nur den ersten Index zurückgibt. Ist der Wert nicht in Array enthalten wird -1 zurückgegeben
+	
+	
+	On Error Goto errh
+	On Error 200 Goto ErrhRedim
+	
+	'##############
+	If Isnull(vArray) Then Goto EndFalse
+	
+	'##############
+	Dim iIndex As Integer
+	Dim vReturn() As Integer, tpcall As TypeParamZZZ
+	
+	Dim iCounter As Integer, iCounterPos As Integer
+	If Not Isarray(vArray) Then
+		iIndex = ArrayDoubleIndexFirstSearchZZZ(session, vArray, dToSearchFor, 0, tpcall, sFlag)
+		If tpcall.ierr > 0 Then Error iERR_FUNCTION_CALL, tpcall.serr
+		If iIndex >= 0 Then
+			Redim vReturn(0) As Integer
+			vReturn(0) = 0
+			Goto EndTrue
+		Else
+			Goto EndFalse
+		End If
+	Else
+		iCounterPos = -1
+		For iCounter = 0 To Ubound(vArray)
+			iIndex = ArrayDoubleIndexFirstSearchZZZ(session, vArray, dToSearchFor, iCounter, tpcall,sFlag)
+			If tpcall.ierr > 0 Then Error iERR_FUNCTION_CALL, tpcall.serr
+			If iIndex >= 0 Then
+				iCounterPos = iCounterPos + 1
+				Redim Preserve vReturn(iCounterPos) As Integer
+				vReturn(iCounterPos) = iIndex
+				iCounter = iIndex
+			Else 
+				If iCounterPos = -1 Then 
+					Goto EndFalse
+				Else
+					Goto EndTrue
+				End If
+			End If
+		Next
+	End If
+	
+	'#############
+EndTrue:
+	tp.ierr = 0
+	ArrayDoubleIndexAllSearchZZZ = vReturn
+	Exit Function	
+EndFalse:
+	tp.ierr = 0
+	Redim vReturn(0) As Integer
+	vReturn(0) = -1
+	ArrayDoubleIndexAllSearchZZZ = vReturn
+	Exit Function
+EndError:
+	ArrayDoubleIndexAllSearchZZZ = Null
+	Exit Function	
+errhRedim:
+	Redim vArray(0) As Double
+	Resume Next
+ErrH:
+	Dim sScript As String
+	sScript = "ZBasic.DataType.Array.Other\" & Getthreadinfo(LSI_THREAD_PROC)
+	tp.iErr = Err 'Beim wiederholten Aufruf (d.h. zwei Zeilen hintereinanger ' Error iERR_NEXT, "das ist ein text" ' aufrufen) verliert Err zwei Stellen von rechts nach dem Aufruf der MEthode objMe.MessageAppend(..) !!!! 
+	tp.serr = strMsgZZZ(Nothing,  tp.sErr, sScript, Erl, Error$, Err, tpCall, "")
+	If tpcall.iErr > 0 Then
+		Msgbox tpcall.serr
+		Resume EndError
+	End If
+	Select Case tp.ierr
+	Case iMSG_NEXT, iERR_NEXT: Resume Next
+	Case iMSG_FALSE, iERR_FALSE: Resume EndFalse
+	Case iMSG_TRUE, iERR_TRUE: Resume EndTrue
+	Case Else: Resume EndError		
+	End Select
+End Function
+Function ArrayLongIndexAllSearchZZZ(Session As notessession, vArray As Variant, lToSearchFor As Long, tP As TypeParamZZZ, sFlag As String) As Variant
+	'Diese Funktion gibt ein Array aller Indizis zurück. Damit macht sie mehr als die einfache LotusScript-Funtion ArrayGetIndex,
+	'welche nur den ersten Index zurückgibt. Ist der Wert nicht in Array enthalten wird -1 zurückgegeben
+	
+	
+	On Error Goto errh
+	On Error 200 Goto ErrhRedim
+	
+	'##############
+	If Isnull(vArray) Then Goto EndFalse
+	
+	'##############
+	Dim iIndex As Integer
+	Dim vReturn() As Integer, tpcall As TypeParamZZZ
+%REM
+	Dim iCounter As Integer, iCounterPos As Integer
+	If Not Isarray(vArray) Then
+		iIndex = ArrayStringIndexFirstSearchZZZ(session, vArray, sToSearchFor, 0, iCompMethod, tpcall, sFlag)
+		If tpcall.ierr > 0 Then Error iERR_FUNCTION_CALL, tpcall.serr
+		If iIndex >= 0 Then
+			Redim vReturn(0) As Integer
+			vReturn(0) = 0
+			Goto EndTrue
+		Else
+			Goto EndFalse
+		End If
+	Else
+		iCounterPos = -1
+		For iCounter = 0 To Ubound(vArray)
+			iIndex = ArrayStringIndexFirstSearchZZZ(session, vArray, sToSearchFor, iCounter, iCompMethod, tpcall,sFlag)
+			If tpcall.ierr > 0 Then Error iERR_FUNCTION_CALL, tpcall.serr
+			If iIndex >= 0 Then
+				iCounterPos = iCounterPos + 1
+				Redim Preserve vReturn(iCounterPos) As Integer
+				vReturn(iCounterPos) = iIndex
+				iCounter = iIndex
+			Else 
+				If iCounterPos = -1 Then 
+					Goto EndFalse
+				Else
+					Goto EndTrue
+				End If
+			End If
+		Next
+	End If
+%ENDREM
+	
+	'#############
+EndTrue:
+	tp.ierr = 0
+	ArrayLongIndexAllSearchZZZ = vReturn
+	Exit Function	
+EndFalse:
+	tp.ierr = 0
+	Redim vReturn(0) As Integer
+	vReturn(0) = -1
+	ArrayLongIndexAllSearchZZZ = vReturn
+	Exit Function
+EndError:
+	ArrayLongIndexAllSearchZZZ = Null
+	Exit Function	
+errhRedim:
+	Redim vArray(0) As Long
+	Resume Next
+ErrH:
+	Dim sScript As String
+	sScript = "ZBasic.DataType.Array.Other\" & Getthreadinfo(LSI_THREAD_PROC)
+	tp.iErr = Err 'Beim wiederholten Aufruf (d.h. zwei Zeilen hintereinanger ' Error iERR_NEXT, "das ist ein text" ' aufrufen) verliert Err zwei Stellen von rechts nach dem Aufruf der MEthode objMe.MessageAppend(..) !!!! 
+	tp.serr = strMsgZZZ(Nothing,  tp.sErr, sScript, Erl, Error$, Err, tpCall, "")
+	If tpcall.iErr > 0 Then
+		Msgbox tpcall.serr
+		Resume EndError
+	End If
+	Select Case tp.ierr
+	Case iMSG_NEXT, iERR_NEXT: Resume Next
+	Case iMSG_FALSE, iERR_FALSE: Resume EndFalse
+	Case iMSG_TRUE, iERR_TRUE: Resume EndTrue
+	Case Else: Resume EndError		
+	End Select
+End Function
+Function ArrayDoubleIndexFirstSearchZZZ(session As notessession, vArray As Variant, dWhatToFind As Double, iIndexPosIn As Integer, tP As TypeParamZZZ, sFlag As String) As Integer
+	'Diese Funktion liefert die Indexposition zurück, an der der String gefunden wird. Oder -1, falls nix gefunden wird.
+	Dim iReturn As Integer, tpcall As TypeParamZZZ
+	iReturn = -1
+	On Error Goto errh
+	On Error 200 Goto ErrhRedim
+	
+	'### Übergabeparameter prüfen
+	If Isnull(vArray) Then Goto EndFalse
+	If Isempty(vArray) Then Goto EndFalse			
+	
+	Dim iIndexPos As Integer
+	If iIndexPosIn < Lbound(vArray) Then
+		iIndexPos = Lbound(vArray)   'Falls vor dem Array lbound gesucht wird, muss es halt auf das lBound gesetzt werden
+	Else
+		If iIndexPosIn > Ubound(vArray) Then
+			Goto EndFalse 'Falls jenseits des Arrays gesucht wird, wird halt nix gefunden
+		Else			
+			iIndexPos = iIndexPosIn  'der Normalfall
+		End If
+	End If
+	
+	'#########################
+	Dim iCounter As Integer, dtemp As Double
+	
+	For iCounter = iIndexPos To Ubound(vArray) 
+		dtemp = Cdbl(vArray(iCounter))
+		If  dtemp = dWhatToFind Then		
+			iReturn = iCounter
+			Goto EndTrue
+		End If		
+	Next iCounter		
+	
+'######################################	
+EndTrue:
+	tp.ierr = 0
+	ArrayDoubleIndexFirstSearchZZZ = iReturn
+	Exit Function	
+EndFalse:
+	tp.ierr = 0
+	ArrayDoubleIndexFirstSearchZZZ = -1
+	Exit Function	
+EndError:
+	ArrayDoubleIndexFirstSearchZZZ= -99
+	Exit Function
+errhRedim:
+	Redim vArray(0) As Double
+	Resume Next
+ErrH:
+	Dim sScript As String
+	sScript = "ZBasic.DataType.Array.Other\" & Getthreadinfo(LSI_THREAD_PROC)
+	tp.iErr = Err 'Beim wiederholten Aufruf (d.h. zwei Zeilen hintereinanger ' Error iERR_NEXT, "das ist ein text" ' aufrufen) verliert Err zwei Stellen von rechts nach dem Aufruf der MEthode objMe.MessageAppend(..) !!!! 
+	tp.serr = strMsgZZZ(Nothing,  tp.sErr, sScript, Erl, Error$, Err, tpCall, "")
+	If tpcall.iErr > 0 Then
+		Msgbox tpcall.serr
+		Resume EndError
+	End If
+	Select Case tp.ierr
+	Case iMSG_NEXT, iERR_NEXT: Resume Next
+	Case iMSG_FALSE, iERR_FALSE: Resume EndFalse
+	Case iMSG_TRUE, iERR_TRUE: Resume EndTrue
+	Case Else: Resume EndError		
+	End Select
+End Function
+Function ArrayLongIndexAllRemoveZZZ(session As notessession, vsArray As Variant, viPosition As Variant, laArrayNew As Variant, _
+tP As TypeParamZZZ, sFlag As String) As Integer
+	Dim iReturn As Integer, tpcall As TypeParamZZZ
+	On Error Goto errh
+	Dim itemp As Integer, btemp As Boolean
+	
+	'###########
+	Dim laArray() As Long
+	itemp = ArrayLongFromVariantZZZ(session, vsArray, laArray, tPcall, "")
+	If tpcall.ierr > 0 Then Error iERR_FUNCTION_CALL, tpcall.serr	
+	If itemp <= -1 Then Goto EndNull
+	
+	'###########	 
+	Dim iaArray() As Integer  '!!! Das bleibt integer. Hierin werden die Indexpositonen gespeichert
+	itemp = ArrayIntegerFromVariantZZZ(session, viPosition,iaArray, tpcall, "")
+	If tpcall.ierr > 0 Then Error iERR_FUNCTION_CALL, tpcall.serr	
+	If itemp <= -1 Then
+		'Falls keine Position übergeben wurde, wird das komplette Array übergeben
+		iReturn = Ubound(laArray)
+		Redim laArrayNew(iReturn) As Long
+		Dim icount2 As Integer		
+		For iCount2 = 0 To iReturn
+			laArrayNew(icount2) = laArray(icount2)			
+		Next
+		Goto EndTrue
+	End If
+	
+	'########################
+	'0. Neues Array maximal dimensionieren, wird später ggf. zurechtgestutzt
+	Redim laArrayNew(Ubound(laArray)) As Long
+	
+	'1. Neues Array füllen 
+	Dim iCount As Integer
+	iReturn = -1
+	For icount = 0 To Ubound(laArray)
+		btemp = ArrayIntegerContainsZZZ(session, iaArray, icount,tpcall,"")  '!!! Das ist Integer. Hier werden die Indexpositionen gespeichert
+		If tpcall.ierr > 0 Then Error tpcall.serr
+		
+		If btemp = False Then 
+			iReturn = iReturn + 1
+			laArrayNew(iReturn) = laArray(icount)
+		End If
+	Next icount
+	If iReturn >= 0 Then
+		Redim Preserve laArrayNew(iReturn) As Long
+	Else 
+		Goto EndNull 
+	End If
+	
+	'###########
+EndTrue:
+	tp.ierr = 0
+	ArrayLongIndexAllRemoveZZZ = iReturn
+	Exit Function
+EndFalse: 
+	tp.ierr = 0
+	ArrayLongIndexAllRemoveZZZ = -1
+	Exit Function
+EndNull:
+	tp.ierr = 0
+	Redim laArrayNew(0) As Double
+	laArrayNew(0) = 0
+	ArrayLongIndexAllRemoveZZZ = -1
+	Exit Function
+EndError:
+	ArrayLongIndexAllRemoveZZZ = -99
+	Exit Function
+errhRedim:
+	Redim laArray(0) As Long
+	Resume Next
+ErrH:
+	Dim sScript As String
+	sScript = "ZBasic.DataType.Array.Other\" & Getthreadinfo(LSI_THREAD_PROC)
+	tp.iErr = Err 'Beim wiederholten Aufruf (d.h. zwei Zeilen hintereinanger ' Error iERR_NEXT, "das ist ein text" ' aufrufen) verliert Err zwei Stellen von rechts nach dem Aufruf der MEthode objMe.MessageAppend(..) !!!! 
+	tp.serr = strMsgZZZ(Nothing,  tp.sErr, sScript, Erl, Error$, Err, tpCall, "")
+	If tpcall.iErr > 0 Then
+		Msgbox tpcall.serr
+		Resume EndError
+	End If
+	Select Case tp.ierr
+	Case iMSG_NEXT, iERR_NEXT: Resume Next
+	Case iMSG_FALSE, iERR_FALSE: Resume EndFalse
+	Case iMSG_TRUE, iERR_TRUE: Resume EndTrue
+	Case Else: Resume EndError		
+	End Select
+End Function

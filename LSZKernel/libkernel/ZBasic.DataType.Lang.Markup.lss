@@ -1,0 +1,1431 @@
+'%INCLUDE "C:\1fgl\workspace\Eclipse3FGL\LSZKernel\libkernel\ZAPI.Basic.Asset.lss" 
+'Use "ZAPI.Basic.."
+'Use "ZBasic.BasicType.String"
+'Use "ZBasic.DataType.Array.Other"      
+'Private Const sLibZZZ = "ZZZBasicDataTypeLangMarkup"
+'Private Const sVerZZZ = "2005-06-22"
+Type TypeXMLNodeZZZ
+	sName As String              
+	sValue As String	
+End Type
+Type TypeXMLMessageZZZ
+	tNode As TypeXMLNodeZZZ
+	bHasEncoding As Boolean
+End Type 
+
+
+
+
+
+
+Function strTagEncodingRemoveZZZ(session As NotesSession, sXML As String, tp As TypeParamZZZ, sFlagControl As String) As String
+	Dim sReturn As String
+	On Error Goto ErrhNoCall
+	
+	'##################
+	'<?xml version="1.0" encoding="iso-8859-1" ?>
+	Dim itemp As Integer, itemp2 As Integer, stemp As String
+	sReturn = sXML
+	Do
+		itemp = Instr(1, sReturn, "<?xml version",5)
+		If itemp > 0 Then
+			Dim sLeft As String, sRight As String
+			sLeft = Left(sReturn, itemp-1)
+			stemp = Right(sReturn,Len(sReturn)-Len(sLeft)-Len("<?xml version"))
+			itemp2 = Instr(1, stemp, "?>",5)
+			If itemp2 = 0 Then Error iERR_PARAM_VALUE, "Missing closing bracket for '<?xml version'"
+			sRight = Right(stemp, Len(stemp)-itemp2-(Len("?>")-1))						
+			sReturn = sLeft & sRight
+		End If	 'itemp >0
+	Loop While itemp > 0
+	
+		'##########################
+EndTrue:
+	tp.ierr = 0
+	strTagEncodingRemoveZZZ = sReturn
+	Exit Function
+EndFalse:
+	tp.ierr = 0
+	strTagEncodingRemoveZZZ  = ""
+	Exit Function
+EndError:
+	strTagEncodingRemoveZZZ = ""
+	Exit Function
+ErrHNoCall:
+	Dim sScript As String, tpcall As TypeParamZZZ
+	sScript = "ZBasic.DataType.Lang.Markup\" & Getthreadinfo(LSI_THREAD_PROC)
+	tp.iErr = Err 'Beim wiederholten Aufruf (d.h. zwei Zeilen hintereinanger ' Error iERR_NEXT, "das ist ein text" ' aufrufen) verliert Err zwei Stellen von rechts nach dem Aufruf der MEthode objMe.MessageAppend(..) !!!! 
+	tp.serr = strMsgZZZ(Nothing,  tp.sErr, sScript, Erl, Error$, Err, tpcall, "")
+	If tpcall.iErr > 0 Then
+		Msgbox tpcall.serr
+		Resume EndError
+	End If
+	Select Case tp.ierr
+	Case iMSG_NEXT, iERR_NEXT: Resume Next
+	Case iMSG_FALSE, iERR_FALSE: Resume EndFalse
+	Case iMSG_TRUE, iERR_TRUE: Resume EndTrue
+	Case Else: Resume EndError		
+	End Select
+End Function
+Function strTagByNodeZZZ(session As NotesSession, tXMLNode As TypeXMLNodeZZZ, tp As TypeParamZZZ, sFlagcontrolin As String) As String
+	Dim sReturn As String
+	On Error Goto errhNoCall
+	
+	If Len(tXMLNode.sName)=0 Then Goto EndFalse
+	
+	sReturn = "<" & tXMLNode.sName & ">" & tXMLNode.sValue & "</" & tXMLNode.sName & ">"
+	
+	'##########################
+EndTrue:
+	tp.ierr = 0
+	strTagByNodeZZZ = sReturn
+	Exit Function
+EndFalse:
+	tp.ierr = 0
+	strTagByNodeZZZ  = ""
+	Exit Function
+EndError:
+	strTagByNodeZZZ = ""
+	Exit Function
+ErrHNoCall:
+	Dim sScript As String, tpcall As TypeParamZZZ
+	sScript = "ZBasic.DataType.Lang.Markup\" & Getthreadinfo(LSI_THREAD_PROC)
+	tp.iErr = Err 'Beim wiederholten Aufruf (d.h. zwei Zeilen hintereinanger ' Error iERR_NEXT, "das ist ein text" ' aufrufen) verliert Err zwei Stellen von rechts nach dem Aufruf der MEthode objMe.MessageAppend(..) !!!! 
+	tp.serr = strMsgZZZ(Nothing,  tp.sErr, sScript, Erl, Error$, Err, tpcall, "")
+	If tpcall.iErr > 0 Then
+		Msgbox tpcall.serr
+		Resume EndError
+	End If
+	Select Case tp.ierr
+	Case iMSG_NEXT, iERR_NEXT: Resume Next
+	Case iMSG_FALSE, iERR_FALSE: Resume EndFalse
+	Case iMSG_TRUE, iERR_TRUE: Resume EndTrue
+	Case Else: Resume EndError		
+	End Select
+End Function
+Function strNodeAddZZZ(session As NotesSession, sXMLin As String, tXMLNodeIn As TypeXMLNodeZZZ, iPositionin As String,tp As TypeParamZZZ,  sFlagControlin As String) As String
+	Dim sReturn As String, tpcall As TypeParamZZZ
+	On Error Goto errh
+	
+	'### Param
+	Dim iPosition As Integer
+	
+	sReturn = sXMLin
+	If Len(tXMLNodeIn.sName) = 0 Then Goto EndTrue
+	
+	If iPositionin <= -2 Or iPositionIn >= 2 Then
+		iPosition = 0
+	Else
+		iPosition = iPositionin
+	End If
+	
+	
+	'Erst einmal den hinzuzufügenden Teil ausrechnen
+	Dim sXML2Add As String
+	sXML2Add = strTagByNodeZZZ(session, tXMLNodeIn,tpcall, "")	
+	If tpcall.ierr > 0 Then Error iERR_FUNCTION_CALL, tpcall.serr
+	If Len(sXML2Add) = 0 Then Goto EndTrue
+	
+	If Len(sXMLin) > 0 Then
+		'Ist das eine ZMessage ???
+		Dim bIsXMLMessage As Boolean
+		Dim tXMLMsg As TypeXMLMessageZZZ
+		bIsXMLMessage = bMsgDetailRefreshZZZ(session, sXMLin, tXMLMsg, tpcall,"")	
+		If tpcall.ierr > 0 Then Error iERR_FUNCTION_CALL, tpcall.serr
+		If bIsXMLMessage = True Then 
+			
+			If iPosition = 0 Or iPosition = 1 Then
+			'Den neuen Knotenstring hinzufügen +++ hinten
+				tXMLMsg.tNode.sValue = tXMLMsg.tNode.sValue & sXML2Add
+			Else
+				tXMLMsg.tNode.sValue = sXML2Add & tXMLMsg.tNode.sValue
+			End If
+			
+			
+			'Nun wieder zu einem String machen
+			sReturn = strTagByNodeZZZ(session, tXMLMsg.tNode, tpcall,"")
+			If tpcall.ierr > 0 Then Error iERR_FUNCTION_CALL, tpcall.serr
+			
+			'ggf. das Encoding hinzufügen
+			If tXMLMsg.bHasEncoding = True Then
+				sReturn = strTagEncodingReplaceZZZ(session, sReturn,"", tpcall, "")
+				If tpcall.ierr > 0 Then Error iERR_FUNCTION_CALL, tpcall.serr
+			End If			
+		Else
+			Goto EndFalse
+		End If
+	Else
+		sReturn = sXML2Add
+	End If
+	
+	'##########################
+EndTrue:
+	tp.ierr = 0
+	strNodeAddZZZ = sReturn
+	Exit Function
+EndFalse:
+	tp.ierr = 0
+	strNodeAddZZZ  = ""
+	Exit Function
+EndError:
+	strNodeAddZZZ = ""
+	Exit Function
+ErrH:
+	Dim sScript As String
+	sScript = "ZBasic.DataType.Lang.Markup\" & Getthreadinfo(LSI_THREAD_PROC)
+	tp.iErr = Err 'Beim wiederholten Aufruf (d.h. zwei Zeilen hintereinanger ' Error iERR_NEXT, "das ist ein text" ' aufrufen) verliert Err zwei Stellen von rechts nach dem Aufruf der MEthode objMe.MessageAppend(..) !!!! 
+	tp.serr = strMsgZZZ(Nothing,  tp.sErr, sScript, Erl, Error$, Err, tpcall, "")
+	If tpcall.iErr > 0 Then
+		Msgbox tpcall.serr
+		Resume EndError
+	End If
+	Select Case tp.ierr
+	Case iMSG_NEXT, iERR_NEXT: Resume Next
+	Case iMSG_FALSE, iERR_FALSE: Resume EndFalse
+	Case iMSG_TRUE, iERR_TRUE: Resume EndTrue
+	Case Else: Resume EndError		
+	End Select
+End Function
+Function bMsgDetailRefreshZZZ(session As notessession, sXML As String, tXMLMsg As TypeXMLMessageZZZ,tp As TypeParamZZZ,  sFlagControl As String) As Boolean
+	Dim tpcall As TypeParamZZZ
+	On Error Goto errh
+	
+	'### Param
+	If Len(sXML) = 0 Then Goto EndFalse
+	
+	
+	'+++ Encoding Tag entfernen	
+	Dim sRemaining As String
+	sRemaining = strTagEncodingRemoveZZZ(session, sXML, tpcall,"")
+	If tpcall.ierr > 0 Then Error iERR_FUNCTION_CALL, tpcall.serr
+	If sRemaining = sXML Then
+		tXMLMsg.bHasEncoding = False
+	Else
+		tXMLMsg.bHasEncoding = True
+	End If
+	
+	'+++ Enclosing Tag entfernen	
+	Dim itemp As Integer, itemp2 As Integer, stemp As String
+	'Starttag
+	itemp = Instr(1,sRemaining, "<", 5)
+	If itemp > 0 Then
+		Dim sLeft As String, sRight As String, sRightReversed As String, sTag As String, sTagReversed As String
+		sLeft = Left(sRemaining, itemp-1)
+		stemp = Right(sRemaining,Len(sRemaining)-Len(sLeft)-Len("<"))
+		itemp2 = Instr(1, stemp, ">",5)
+		If itemp2 = 0 Then Error iERR_PARAM_MISSING, "Closing bracket for '<'"
+		
+		sTag = Left(stemp, itemp2-1)
+		tXMLMsg.tNode.sName = sTag
+		
+		sRight = Right(stemp, Len(stemp)-itemp2-(Len(">")-1))		
+		
+		'Endtag
+		sRightReversed = strReverseZZZ(Nothing, sRight, tpcall, "")
+		If tpcall.ierr > 0 Then Error iERR_FUNCTION_CALL, tpcall.serr
+		sTagReversed = strReverseZZZ(Nothing, sTag, tpcall, "")
+		If tpcall.ierr > 0 Then Error iERR_FUNCTION_CALL, tpcall.serr
+		
+		itemp = Instr(1, sRightReversed, ">" & sTagReversed & "/<", 5)
+		If itemp = 0 Then Error iERR_PARAM_MISSING, "Closing tag for '<'" & sTag & "'>'"
+		
+		sRemaining = Right(sRightReversed, Len(sRightReversed) - Len(sTagReversed) - Len("/<") -itemp)				
+		sRemaining = strReverseZZZ(Nothing, sRemaining, tpcall, "")  '!!! und wieder umdrehen
+		If tpcall.ierr > 0 Then Error iERR_FUNCTION_CALL, tpcall.serr
+		
+		tXMLMsg.tNode.sValue = sRemaining
+	End If
+	
+	'##########################
+EndTrue:
+	tp.ierr = 0
+	bMsgDetailRefreshZZZ = True
+	Exit Function
+EndFalse:	
+	tp.ierr = 0
+	bMsgDetailRefreshZZZ = False
+	Exit Function
+EndError:
+	'Hier entstehende Fehler müssen sofort ausgegeben werden, nicht erst wieder in der übergeordneten Funktion ins Error Handling und womöglich erneut einen Fehler produzieren.
+	stemp = MSG2FileSendZZZ(Nothing, "", tp.serr, 1, tpcall, "")
+	If tpcall.ierr > 0 Then Msgbox tpcall.sErr   'Fehler im Errorhandling sofort ans Frontend/Serverlog ausgeben
+	Msgbox "Es ist ein Fehler aufgetreten. Mehr in folgender Datei: " & Chr(13) & stemp
+	bMsgDetailRefreshZZZ = False
+	Exit Function
+ErrH:
+	Dim sScript As String
+	sScript = "ZBasic.DataType.Lang.Markup\" & Getthreadinfo(LSI_THREAD_PROC)
+	tp.iErr = Err 'Beim wiederholten Aufruf (d.h. zwei Zeilen hintereinanger ' Error iERR_NEXT, "das ist ein text" ' aufrufen) verliert Err zwei Stellen von rechts nach dem Aufruf der MEthode objMe.MessageAppend(..) !!!! 
+	tp.serr = strMsgZZZ(Nothing,  tp.sErr, sScript, Erl, Error$, Err, tpcall, "")
+	If tpcall.iErr > 0 Then
+		Msgbox tpcall.serr
+		Resume EndError
+	End If
+	Select Case tp.ierr
+	Case iMSG_NEXT, iERR_NEXT: Resume Next
+	Case iMSG_FALSE, iERR_FALSE: Resume EndFalse
+	Case iMSG_TRUE, iERR_TRUE: Resume EndTrue
+	Case Else: Resume EndError		
+	End Select
+End Function
+Function strMsgAllJoinZZZ(session As notessession, vXML As Variant,tp As TypeParamZZZ,  sFlagControl As String) As String
+	Dim sReturn As String, tpcall As TypeParamZZZ
+	On Error Goto errh
+	
+	'### Param
+	If Isnull(vXML) Then Goto EndFalse
+	If Isempty(vXML) Then Goto EndFalse
+	
+	
+	'### 	
+	If Not Isarray(vXML) Then
+		'+++ den String zurückgeben
+		sReturn = vXML
+	Else
+		Dim iCount As Integer, sXML As String, sTagOld As String
+		Dim btemp As Boolean, tXMLMsg As TypeXMLMessageZZZ
+		'erst alle Messages auf Korrektheit prüfen
+		sXML = vXML(0)
+		btemp = bMsgDetailRefreshZZZ(session, sXML, tXMLMsg,tpcall, "")
+		If tpcall.ierr > 0 Then Error iERR_FUNCTION_CALL, tpcall.serr
+		
+		sTagOld = tXMLMsg.tNode.sName
+		
+		For iCount = 1 To Ubound(vXML)			
+			sXML = vXML(iCount)
+			btemp = bMsgDetailRefreshZZZ(session, sXML, tXMLMsg, tpcall,"")
+			If tpcall.ierr > 0 Then Error iERR_FUNCTION_CALL, tpcall.serr			
+			If btemp = False Then Error iERR_FUNCTION_CALL, "Calling function 'bMsgDetailRefreshZZZ'"   'doppelt hält besser
+			
+			If sTagOld <> tXMLMsg.tNode.sName Then Error iERR_PARAM_VALUE, "Different root nodes in XML-Messages (e.g. '" & sTagOld & "' != '" & tXMLMsg.tNode.sName & "')" 'Merke: Hier nicht <> sondern != verwenden !!!!
+			
+			sTagOld = tXMLMsg.tNode.sName
+		Next iCount
+		
+		'Nun verarbeiten
+		For iCount = 0 To Ubound(vXML) 
+			sXML = vXML(iCount)
+			'Msgbox sScript & Chr(13) & "Alle Messages des Arrays: " & Chr(13) & sXML
+			
+			'+++ Encoding Tag und Umschliessenden Tag entfernen			
+			sXML = strTagEnclosingRemoveZZZ(session, sXML, tpcall,"")
+			If tpcall.ierr > 0 Then Error iERR_FUNCTION_CALL, tpcall.serr
+			
+			sReturn = sReturn & sXML
+		Next iCount
+		
+		
+		'+++ den alten Tag wieder um den String legen
+		sReturn = strTagZZZ(session, sTagOld, sReturn, tpcall, "")
+		If tpcall.ierr > 0 Then Error iERR_FUNCTION_CALL, tpcall.serr
+		
+		
+		'+++ den encoding Type setzen
+		sReturn = strTagEncodingReplaceZZZ(session, sReturn, "", tpcall, "")
+		If tpcall.ierr > 0 Then Error iERR_FUNCTION_CALL, tpcall.serr
+	End If
+	
+	
+	'##########################
+EndTrue:
+	tp.ierr = 0
+	strMsgAllJoinZZZ = sReturn
+	Exit Function
+EndFalse:
+	tp.ierr = 0
+	strMsgAllJoinZZZ = ""
+	Exit Function
+EndError:
+	strMsgAllJoinZZZ = ""
+	Exit Function
+ErrH:
+	Dim sScript As String
+	sScript = "ZBasic.DataType.Lang.Markup\" & Getthreadinfo(LSI_THREAD_PROC)
+	tp.iErr = Err 'Beim wiederholten Aufruf (d.h. zwei Zeilen hintereinanger ' Error iERR_NEXT, "das ist ein text" ' aufrufen) verliert Err zwei Stellen von rechts nach dem Aufruf der MEthode objMe.MessageAppend(..) !!!! 
+	tp.serr = strMsgZZZ(Nothing,  tp.sErr, sScript, Erl, Error$, Err, tpcall, "")
+	If tpcall.iErr > 0 Then
+		Msgbox tpcall.serr
+		Resume EndError
+	End If
+	Select Case tp.ierr
+	Case iMSG_NEXT, iERR_NEXT: Resume Next
+	Case iMSG_FALSE, iERR_FALSE: Resume EndFalse
+	Case iMSG_TRUE, iERR_TRUE: Resume EndTrue
+	Case Else: Resume EndError		
+	End Select
+End Function
+Function strTagEnclosingRemoveZZZ(session As notessession, sXML As String,tp As TypeParamZZZ,  sFlagControl As String) As String
+	Dim sReturn As String, tpcall As TypeParamZZZ
+	On Error Goto errh
+	
+	'### Param
+	If Len(sXML) = 0 Then Goto EndFalse
+	
+	'+++ Encoding Tag entfernen	
+	sReturn = strTagEncodingRemoveZZZ(session, sXML,tpcall, "")
+	If tpcall.ierr > 0 Then Error iERR_FUNCTION_CALL, tpcall.serr
+	
+	'+++ Enclosing Tag entfernen	
+	Dim itemp As Integer, itemp2 As Integer, stemp As String
+	'Starttag
+	itemp = Instr(1,sReturn, "<", 5)
+	If itemp > 0 Then
+		Dim sLeft As String, sRight As String,sRightReversed As String,  sTag As String, sTagReversed As String
+		sLeft = Left(sReturn, itemp-1)
+		stemp = Right(sReturn,Len(sReturn)-Len(sLeft)-Len("<"))
+		itemp2 = Instr(1, stemp, ">",5)
+		If itemp2 = 0 Then Error iERR_PARAM_VALUE, "Missing closing bracket for '<'"
+		
+		sTag = Left(stemp, itemp2-1)
+		
+		
+		sRight = Right(stemp, Len(stemp)-itemp2-(Len(">")-1))			
+		'Endtag
+		sRightReversed = strReverseZZZ(Nothing, sRight, tpcall, "")
+		If tpcall.ierr > 0 Then Error iERR_FUNCTION_CALL, tpcall.serr
+		
+		sTagReversed = strReverseZZZ(Nothing, sTag, tpcall, "")
+		If tpcall.ierr > 0 Then Error iERR_FUNCTION_CALL, tpcall.serr
+		
+		itemp = Instr(1, sRightReversed, ">" & sTagReversed & "/<", 5)
+		If itemp = 0 Then Error iERR_PARAM_VALUe, "Missing closing tag for '<'" & sTag & "'>'"
+		
+		sReturn = Right(sRightReversed, Len(sRightReversed) - Len(sTagReversed) - Len("/<") -itemp)				
+		sReturn = strReverseZZZ(Nothing, sReturn, tpcall, "")  '!!! und wieder umdrehen
+		If tpcall.ierr > 0 Then Error iERR_FUNCTION_CALL, tpcall.serr		
+	End If
+	
+	
+		'####################
+EndTrue:
+	tp.ierr = 0
+	strTagEnclosingRemoveZZZ = sReturn
+	Exit Function	
+endFalse:
+	tp.ierr = 0
+	strTagEnclosingRemoveZZZ = ""
+	Exit Function
+EndError:
+	strTagEnclosingRemoveZZZ = ""
+	Exit Function
+ErrH:
+	Dim sScript As String
+	sScript = "ZBasic.DataType.Lang.Markup\" & Getthreadinfo(LSI_THREAD_PROC)
+	tp.iErr = Err 'Beim wiederholten Aufruf (d.h. zwei Zeilen hintereinanger ' Error iERR_NEXT, "das ist ein text" ' aufrufen) verliert Err zwei Stellen von rechts nach dem Aufruf der MEthode objMe.MessageAppend(..) !!!! 
+	tp.serr = strMsgZZZ(Nothing,  tp.sErr, sScript, Erl, Error$, Err, tpcall, "")
+	If tpcall.iErr > 0 Then
+		Msgbox tpcall.serr
+		Resume EndError
+	End If
+	Select Case tp.ierr
+	Case iMSG_NEXT, iERR_NEXT: Resume Next
+	Case iMSG_FALSE, iERR_FALSE: Resume EndFalse
+	Case iMSG_TRUE, iERR_TRUE: Resume EndTrue
+	Case Else: Resume EndError		
+	End Select
+End Function
+
+Function iMsgTagAllZZZ(session As notessession, sXML2SplitIn As String, sTagName As String, saContainer As Variant,tp As TypeParamZZZ,  sFlagControl As String) As Integer
+%REM
+Generiert ein String - Array aus allen Tags des übergebenen XML-Strings, die dem übergebenene Tag Entsprechen
+Rückagebewert: 'Die Anzahl der Tags
+%END REM
+	Dim iReturn As Integer, tpcall As TypeParamZZZ
+	On Error Goto errh
+	
+	'####################
+	Dim itemp As Integer, vtemp As Variant
+	itemp = ArrayInitProofZZZ(session, saContainer, tpcall, "")
+	If tpcall.ierr > 0 Then Error iERR_FUNCTION_CALL, tpcall.serr
+	If itemp >= 1 Then Error iERR_PARAM_VALUE, "Array to be filled empty or null"
+	If itemp = 0 Then
+		iReturn = 0
+	Else
+		iReturn = Ubound(saContainer) + 1
+	End If
+	
+	If Len(sTagName) = 0 Then Goto EndFalse
+	
+	Dim sXML As String
+	If Len(sXML2SplitIn) = 0 Then
+		Goto EndFalse
+	Else
+		sXML =sXML2Splitin
+	End If
+	
+	'+++ 1. Entfernen des Encoding - Tags
+	sXML = strTagEncodingRemoveZZZ(session, sXML,tpcall, "")
+	If tpcall.ierr > 0 Then Error iERR_FUNCTION_CALL, tpcall.serr
+	
+	'+++ 2. Splitten des XML-Strings in alle Unterstrings auf gleicher Ebene
+	vtemp = saMsgTagSplitZZZ(session, sXML, sTagName, tpcall, "")
+	If tpcall.ierr > 0 Then Error iERR_FUNCTION_CALL, tpcall.serr
+	If Isnull(vtemp) Then Error iERR_FUNCTION_CALL, "Error in function saMsgTagSplitZZZ" 'doppelt hält besser
+	
+	'####################
+EndTrue:
+	tp.ierr = 0
+	iMsgTagAllZZZ = iReturn
+	Exit Function	
+endFalse:
+	tp.ierr = 0
+	iMsgTagAllZZZ = 0
+	Exit Function
+EndError:
+	iMsgTagAllZZZ = -1
+	Exit Function
+ErrH:
+	Dim sScript As String
+	sScript = "ZBasic.DataType.Lang.Markup\" & Getthreadinfo(LSI_THREAD_PROC)
+	tp.iErr = Err 'Beim wiederholten Aufruf (d.h. zwei Zeilen hintereinanger ' Error iERR_NEXT, "das ist ein text" ' aufrufen) verliert Err zwei Stellen von rechts nach dem Aufruf der MEthode objMe.MessageAppend(..) !!!! 
+	tp.serr = strMsgZZZ(Nothing,  tp.sErr, sScript, Erl, Error$, Err, tpcall, "")
+	If tpcall.iErr > 0 Then
+		Msgbox tpcall.serr
+		Resume EndError
+	End If
+	Select Case tp.ierr
+	Case iMSG_NEXT, iERR_NEXT: Resume Next
+	Case iMSG_FALSE, iERR_FALSE: Resume EndFalse
+	Case iMSG_TRUE, iERR_TRUE: Resume EndTrue
+	Case Else: Resume EndError		
+	End Select
+End Function
+Function iNrOfTagBetweenZZZ(session As notessession, sXMLIn As String, sTagName As String, iPosA As Integer, iPosB As Integer, sTagTypeIn As String, tp As TypeParamZZZ,  sFlagControl As String) As Integer
+%REM
+Zählt die Anzahl der Tags zwischen den angegebenen Positionen
+Rückgabewert:  'Die Anzahl der Tags
+%ENDREM
+	Dim iReturn As Integer, tpcall As TypeParamZZZ
+	On Error Goto errh
+	
+	'####################
+	Dim itemp As Integer, vtemp As Variant, btemp As Boolean
+	Dim sTag As String, sTagType As String
+	
+	If Len(sXMLin) = 0 Then Goto EndFalse	
+	
+	If Len(sTagTypeIn) > 0 Then
+		sTagType = Lcase(sTagTypeIn)
+	Else
+		sTagType = "start"
+	End If
+	
+	If Len(sTagName) = 0 Then
+		Goto EndFalse
+	Else
+		If stagType = "start" Then
+			sTag = "<" & sTagName & ">"
+		Elseif stagType = "end" Then
+			sTag = "</" & sTagName & ">"
+		Else
+			Error iERR_PARAM_VALUE, "sTagType='" & sTagTypeIn & "', but expected 'start','end'"
+		End If
+	End If
+	
+	Dim sXML As String
+	If Len(sXMLIn) = 0 Then
+		Goto EndFalse
+	Else
+		sXML =sXMLIn
+	End If
+	
+	If iPosA <= 0 Then iPosA = 1
+	If iPosB <=0 Then iPosB = Len(sXML)
+	If iPosB <= iPosA + Len(sTag) Then Goto EndFalse  'passt ja nix dazwischen
+	
+	'+++ 0. den String-Bereich
+	sXML = Mid$(sXML, iPosA, iPosB-iPosA)
+	'Msgbox sscript & Chr(13) & "String Bereich am Anfang: " & Chr(13) & sXML
+	
+	'+++ 1. Ggf. Entfernen des Encoding - Tags
+	sXML = strTagEncodingRemoveZZZ(session, sXML,tpcall, "")
+	'Msgbox sxml
+	If tpcall.ierr > 0 Then Error iERR_FUNCTION_CALL, tpcall.serr
+	
+	'+++ 2. Parsen des Reststrings
+	Dim iPosStartSearch As Integer
+	iPosStartSearch = Instr(1, sXML, sTag, 5)
+	While(iPosStartSearch>=1)		
+		
+			'!!! Der Tag kann theoretisch auch in einer CDATA-Section liegen
+	'ZUM TEST, ERRORMESSAGE VORHER
+	'Call MSG2SinkSendZZZ(Session, "FILE", Nothing, "", "", sXML, 1, tpcall, "")
+	'If tpcall.iErr > 0 Then
+	'	Msgbox "ZBasic.DataType.Lang.Markup" & "\" & Getthreadinfo(LSI_THREAD_PROC) & "#" & tpcall.serr
+	'	Resume EndError
+	'End If
+		
+		btemp = bPosition4CDataProofZZZ(session, sXML, Clng(iPosStartSearch),  tPcall, "")
+		If tpcall.ierr > 0 Then Error iERR_FUNCTION_CALL, tpcall.serr	
+		If btemp = True Then
+			Msgbox "ZBasic.DataType.Lang.Markup" & "\" & Getthreadinfo(LSI_THREAD_PROC) & "#" & "Position of Tag '" & sTagname & "' is in a CDATA-Section. Not counting this tag heading to next position of tag."				
+		Else
+			'+++ Den Tag zählen
+			iReturn = iReturn + 1
+		End If
+		
+		'+++ Nun den String abschneiden um zum nächsten zu gehen
+		iPosStartSearch = iPosStartSearch + Len(sTag)   'also hinter dem Tag geht´s weiter
+		itemp = Len(sXML) - iPosStartSearch
+		If itemp >= 1 Then
+			sXML = Right(sXML, itemp)
+			'Msgbox sxml
+			iPosStartSearch = Instr(1, sXML, sTag, 5)
+		Else
+			iPosStartSearch = 0 'bewirkt Abbruch der Schleife
+		End If		
+	Wend
+	
+	'####################
+EndTrue:
+	tp.ierr = 0
+	iNrOfTagBetweenZZZ = iReturn
+	Exit Function	
+endFalse:
+	tp.ierr = 0
+	iNrOfTagBetweenZZZ = 0
+	Exit Function
+EndError:
+	iNrOfTagBetweenZZZ = -1
+	Exit Function
+ErrH:
+	Dim sScript As String
+	sScript = "ZBasic.DataType.Lang.Markup\" & Getthreadinfo(LSI_THREAD_PROC)
+	tp.iErr = Err 'Beim wiederholten Aufruf (d.h. zwei Zeilen hintereinanger ' Error iERR_NEXT, "das ist ein text" ' aufrufen) verliert Err zwei Stellen von rechts nach dem Aufruf der MEthode objMe.MessageAppend(..) !!!! 
+	tp.serr = strMsgZZZ(Nothing,  tp.sErr, sScript, Erl, Error$, Err, tpcall, "")
+	If tpcall.iErr > 0 Then
+		Msgbox tpcall.serr
+		Resume EndError
+	End If
+	Select Case tp.ierr
+	Case iMSG_NEXT, iERR_NEXT: Resume Next
+	Case iMSG_FALSE, iERR_FALSE: Resume EndFalse
+	Case iMSG_TRUE, iERR_TRUE: Resume EndTrue
+	Case Else: Resume EndError		
+	End Select
+End Function
+Function strTagNameFirstGetZZZ(session As notessession, sXMLIn As String, tp As TypeParamZZZ,  sFlagControl As String) As String
+%REM
+Holt aus dem String den ersten TagNamen.
+%END REM
+	Dim sReturn As String, tpcall As TypeParamZZZ
+	On Error Goto errh
+	
+	'####################
+	Dim itemp As Integer, vtemp As Variant
+	
+	Dim sXML As String
+	If Len(sXMLIn) = 0 Then
+		Goto EndFalse
+	Else
+		sXML =sXMLIn
+	End If
+	'Msgbox sScript & Chr(13) & sXML
+	
+	'+++ Parsen des Reststrings
+	Dim iPosEnd As Integer, iPosStart As Integer
+	iPosStart = Instr(1, sXML, "<", 5)
+	While(iPosStart>=1)		
+		'Keine Kommentare,etc.
+		If Instr(iPosStart, sXML, "!",5) = iPosStart +1 Then
+			iPosEnd = Instr(iPosStart + 1, sXML, "!>",5)
+		Elseif Instr(iPosStart, sXML, "?", 5) = iPosStart + 1 Then
+			iPosEnd = Instr(iPosStart + 1, sXML, "?>", 5)
+		Else
+			iPosEnd = Instr(iPosStart, sXML, ">", 5)
+			itemp = iPosEnd - iPosStart - 1
+			If itemp >= 1 Then sReturn = Mid$(sXML, iPosStart + 1,itemp) 
+			Goto EndTrue
+		End If
+		
+		'Nun den String abschneiden
+		iPosStart = iPosEnd + 1   'also hinter dem Tag geht´s weiter
+		itemp = Len(sXML) - iPosStart
+		If itemp >= 1 Then
+			sXML = Right(sXML, itemp)
+			'Msgbox sxml
+			iPosStart = Instr(1, sXML, "<", 5)
+		Else
+			iPosStart = 0 'bewirkt Abbruch der Schleife
+		End If
+	Wend
+	
+	'####################
+EndTrue:
+	tp.ierr = 0
+	strTagNameFirstGetZZZ = sReturn
+	Exit Function	
+endFalse:
+	tp.ierr = 0
+	strTagNameFirstGetZZZ = ""
+	Exit Function
+EndError:
+	strTagNameFirstGetZZZ = ""
+	Exit Function
+ErrH:
+	Dim sScript As String
+	sScript = "ZBasic.DataType.Lang.Markup\" & Getthreadinfo(LSI_THREAD_PROC)
+	tp.iErr = Err 'Beim wiederholten Aufruf (d.h. zwei Zeilen hintereinanger ' Error iERR_NEXT, "das ist ein text" ' aufrufen) verliert Err zwei Stellen von rechts nach dem Aufruf der MEthode objMe.MessageAppend(..) !!!! 
+	tp.serr = strMsgZZZ(Nothing,  tp.sErr, sScript, Erl, Error$, Err, tpcall, "")
+	If tpcall.iErr > 0 Then
+		Msgbox tpcall.serr
+		Resume EndError
+	End If
+	Select Case tp.ierr
+	Case iMSG_NEXT, iERR_NEXT: Resume Next
+	Case iMSG_FALSE, iERR_FALSE: Resume EndFalse
+	Case iMSG_TRUE, iERR_TRUE: Resume EndTrue
+	Case Else: Resume EndError		
+	End Select
+End Function
+Function bTagDetailFirstGetZZZ(session As notessession, sXMLIn As String, tNode As TypeXMLNodeZZZ, sXMLRemaining As String, tp As TypeParamZZZ,  sFlagControl As String) As Boolean
+%REM
+Holt aus dem String den ersten TagNamen und dazu dann den Wert bis zum End-Tag
+%END REM
+	Dim bReturn As Boolean, tpcall As TypeParamZZZ
+	On Error Goto errh
+	
+	'####################
+	Dim itemp As Integer, vtemp As Variant
+	
+	Dim sXML As String
+	If Len(sXMLIn) = 0 Then
+		Goto EndFalse
+	Else
+		sXML =sXMLIn
+	End If
+	
+	'+++ 1. den Tag - Namen holen
+	Dim sTagName As String, sTagValue As String
+	sTagName = strTagNameFirstGetZZZ(session, sXML, tpcall, "")
+	'Msgbox "TagName: " & sTagName
+	If tpcall.ierr > 0 Then Error iERR_FUNCTION_CALL, tpcall.serr
+	If Len(sTagName) = 0 Then Goto EndFalse
+	
+	bReturn = bTagDetailFirstByNameGetZZZ(session, sXMLin, sTagName, tNode, sXMLRemaining, tpcall, sFlagControl)
+	If tpcall.ierr > 0 Then Error iERR_FUNCTION_CALL, tpcall.serr
+	
+	'####################
+EndTrue:
+	tp.ierr = 0
+	bTagDetailFirstGetZZZ = bReturn
+	Exit Function	
+endFalse:
+	tp.ierr = 0
+	bTagDetailFirstGetZZZ = False
+	Exit Function
+EndError:
+	bTagDetailFirstGetZZZ = False
+	Exit Function
+ErrH:
+	Dim sScript As String
+	sScript = "ZBasic.DataType.Lang.Markup\" & Getthreadinfo(LSI_THREAD_PROC)
+	tp.iErr = Err 'Beim wiederholten Aufruf (d.h. zwei Zeilen hintereinanger ' Error iERR_NEXT, "das ist ein text" ' aufrufen) verliert Err zwei Stellen von rechts nach dem Aufruf der MEthode objMe.MessageAppend(..) !!!! 
+	tp.serr = strMsgZZZ(Nothing,  tp.sErr, sScript, Erl, Error$, Err, tpcall, "")
+	If tpcall.iErr > 0 Then
+		Msgbox tpcall.serr
+		Resume EndError
+	End If
+	Select Case tp.ierr
+	Case iMSG_NEXT, iERR_NEXT: Resume Next
+	Case iMSG_FALSE, iERR_FALSE: Resume EndFalse
+	Case iMSG_TRUE, iERR_TRUE: Resume EndTrue
+	Case Else: Resume EndError		
+	End Select
+End Function
+Function bTagDetailFirstByNameGetZZZ(session As notessession, sXMLIn As String, sTagName As String, tNode As TypeXMLNodeZZZ, sXMLRemaining As String, tp As TypeParamZZZ,  sFlagControl As String) As Boolean
+%REM
+Holt aus dem String den ersten TagNamen und dazu dann den Wert bis zum echten End-Tag
+
+Merke: Falls die Ausgabe des XML-Strings in einer Message-Box nicht mehr ausreicht, in die Standarddatei ausgeben lassen.
+		'Call MSG2SinkSendZZZ(Session, "FILE", Nothing, "", "", sXML, 1, tpcall, "")
+		'If tpcall.iErr > 0 Then
+		'	Msgbox "ZBasic.DataType.Lang.Markup" & "\" & Getthreadinfo(LSI_THREAD_PROC) & "#" & tpcall.serr
+		'	Resume EndError
+		'End If
+%END REM
+	Dim bReturn As Boolean, tpcall As TypeParamZZZ
+	On Error Goto errh
+	
+	'####################
+	Dim itemp As Integer, vtemp As Variant, stemp As String, btemp As Boolean
+	
+	Dim sXML As String
+	If Len(sXMLIn) = 0 Then
+		Goto EndFalse
+	Else
+		sXML =sXMLIn
+	End If
+	
+	'+++ 1. den Tag - Namen holen
+	If Len(sTagName) = 0 Then Goto EndFalse
+	
+	'+++ 2. das passende Ende des Tags suchen
+	Dim sTagStart As String, sTagEnd As String
+	Dim iPosStart As Integer, iPosEnd As Integer, iNrOfTagStartTotal As Integer, iNrOfTagEndTotal As Integer, iNrOfTagBetween As Integer
+	Dim iPosStarttotal As Integer, iPosEndTotal As Integer
+	sTagEnd = "</" & sTagName & ">"
+	sTagStart = "<" & sTagName & ">"
+	
+	'######################## DAS ERSTE START/ENDTAG 
+	'Startposition ermitteln
+	'Msgbox "ZBasic.DataType.Lang.Markup" & "\" & Getthreadinfo(LSI_THREAD_PROC) & "#XML-String for searching first start tag" & Chr(13) & sXML
+	
+	'!!! Dieser Tag Kann auch in einer CDATA-Section liegen !!!
+	Dim bGoon As Boolean, iPosStartSearch As Integer, sXMLSearch As String
+	iPosStartSearch = 1
+	Do	
+		Stop
+		iPosStartSearch = Instr(iPosStartSearch, sXML, sTagStart, 5)
+		If iPosStartSearch = 0 Then Goto EndFalse 'es gibt überhaupt keinen Tag in dem XML-String
+		
+		btemp = bPosition4CDataProofZZZ(session, sXML, Clng(iPosStartSearch),  tPcall, "")
+		If tpcall.ierr > 0 Then Error iERR_FUNCTION_CALL, tpcall.serr	
+		If btemp = True Then
+			'Msgbox "ZBasic.DataType.Lang.Markup" & "\" & Getthreadinfo(LSI_THREAD_PROC) & "#" & "Position of first starttag is in a CDATA-Section. Heading to next position of first starttag." & Chr(13) & sXML
+			
+			'Das Ende der CDATA-Section ermitteln
+			iPosStartSearch = Instr(iPosStartSearch, sXML, "]]", 5)
+			If iPosStartSearch = 0 Then
+				stemp =  "XML String, missing EndTag for CDATA-Section (remark, in the following string the cdata-section has been replaced) : " & Chr(13)  & sXML & "'"
+				stemp = strCDataReplaceZZZ(session, stemp,tpcall, "")   'Damit wird in dem fehlerhaften XML-String eine CDATA-Section ersetzt
+				If tpcall.ierr > 0 Then Error iERR_FUNCTION_CALL, tpcall.serr 'wg. der CDATA-Section, die im Errorhandler darum gesetzt werden soll.
+				Error iERR_XML_ERR, stemp  'Hier wird nur eine neue CDATA-Section um diesen String gesetzt
+			Else
+				sXML = Strright(sXML, Len(sXML) - iPosStartSearch)
+				'Msgbox "ZBasic.DataType.Lang.Markup" & "\" & Getthreadinfo(LSI_THREAD_PROC) & "#" & "Remaining XML to search for position of first starttag." & Chr(13) & sXML				
+			End If
+			bGoon = False
+		Else
+			bGoon = True
+		End If
+		
+		iPosStart = iPosStart + iPosStartSearch 'weil iPosStartSearch ja auf einen ggf. geänderten XML-String basiert
+	Loop Until bGOON = True
+	iPosStartTotal = iPosStart  + Len(sTagStart)             'damit ist der erste echte StartTag festgehalten, wird für das Ausschneiden aus dem Gesamtstring gebraucht.
+	iPosStart = iPosStart + Len(sTagStart)
+	
+	
+	'+++ Das erste Endtag ermitteln, dazu den XML-String wieder "Resetten"
+	'sXML = sXMLIn NEIN, der erste verarbeitete StartTag muss reduziert bleiben
+	Dim iPosEndSearch As Integer
+	iPosEndSearch = iPosStart
+	
+	'Msgbox "ZBasic.DataType.Lang.Markup" & "\" & Getthreadinfo(LSI_THREAD_PROC) & "#" & "XML-String for searching last end tag" & Chr(13) & sXML				
+	
+	'!!! Dieser Tag Kann auch in einer CDATA-Section liegen !!!
+	
+	Do
+		Stop
+		iPosEndSearch = Instr(iPosEndSearch, sXML, sTagEnd, 5)
+		If iPosEndSearch = 0 Then
+			stemp =  "XML String, missing EndTag '" & sTagEnd & "', no end-tag available: '" & sXMLin & "'"
+			stemp = strCDataReplaceZZZ(session, stemp,tpcall, "")   'Damit wird in dem fehlerhaften XML-String eine CDATA-Section ersetzt
+			If tpcall.ierr > 0 Then Error iERR_FUNCTION_CALL, tpcall.serr 'wg. der CDATA-Section, die im Errorhandler darum gesetzt werden soll.
+			Error iERR_XML_ERR, stemp 
+		End If		
+		
+		btemp = bPosition4CDataProofZZZ(session, sXML, Clng(iPosEndSearch),  tPcall, "")
+		If tpcall.ierr > 0 Then Error iERR_FUNCTION_CALL, tpcall.serr	
+		If btemp = True Then
+			'Msgbox "ZBasic.DataType.Lang.Markup" & "\" & Getthreadinfo(LSI_THREAD_PROC) & "#" & "Position of endTag is in a CDATA-Section. Heading to next position of endTag."
+			iPosEndSearch = iPosEndSearch + 1
+			
+			'Das Ende der CDATA-Section ermitteln
+			iPosEndSearch = Instr(iPosEndSearch, sXML, "]]", 5)
+			If iPosEndSearch = 0 Then
+				stemp =  "XML String, missing EndTag for CDATA-Section (remark, in the following string the cdata-section has been replaced) : " & Chr(13)  & sXML & "'"
+				stemp = strCDataReplaceZZZ(session, stemp,tpcall, "")   'Damit wird in dem fehlerhaften XML-String eine CDATA-Section ersetzt
+				If tpcall.ierr > 0 Then Error iERR_FUNCTION_CALL, tpcall.serr 'wg. der CDATA-Section, die im Errorhandler darum gesetzt werden soll.
+				Error iERR_XML_ERR, stemp  'Hier wird nur eine neue CDATA-Section um diesen String gesetzt
+			Else
+				sXML = Strright(sXML, Len(sXML) - iPosEndSearch)
+				'Msgbox "ZBasic.DataType.Lang.Markup" & "\" & Getthreadinfo(LSI_THREAD_PROC) & "#" & "Remaining XML to search for position of endtag." & Chr(13) & sXML				
+			End If			
+			bGoon = False
+		Else
+			bGoon = True
+		End If
+		
+		iPosEnd = iPosEnd + iPosEndSearch
+	Loop Until bGOON = True
+	
+	iNrOfTagBetween = iNrOfTagBetweenZZZ(session, sXML,sTagName, iPosStart, iPosEnd, "start", tpcall, "")
+	If tpcall.ierr > 0 Then Error iERR_FUNCTION_CALL, tpcall.serr
+	
+	'Msgbox "ZBasic.DataType.Lang.Markup" & "\" & Getthreadinfo(LSI_THREAD_PROC) & "#" &"Starttags gefunden bis zum ersten EndTag iNrOfTagBetween=" & Cstr(iNrOfTagBetween)
+	If iNrOfTagBetween >= 1 Then 	
+		'Abschneiden und Vorbereiten für Suche nach Endtags mit dem Ziel das passende EndTag zu finden
+		iPosEndTotal = iPosEnd '+ Len(sTagEnd)
+		itemp = Len(sXML) - iPosEndTotal - Len(sTagEnd) + 1
+		
+		'Msgbox "ZBasic.DataType.Lang.Markup" & "\" & Getthreadinfo(LSI_THREAD_PROC) & "#XML-String für die Suche nach dem EndTag, VOR dem Reduzieren:" & Chr(13) & sXML
+		sXMLSearch = Right$(sXML,itemp)
+		'Msgbox "ZBasic.DataType.Lang.Markup" & "\" & Getthreadinfo(LSI_THREAD_PROC) & "#XML-String für die Suche nach dem EndTag, NACH dem Reduzieren:" & Chr(13) & sXMLSearch
+		
+		iNrOfTagEndTotal = 1 'einige Zeilen vorher wurde das erste gefundene EndTagRegistriert		
+		iNrOfTagStartTotal = iNrOfTagBetween + 1 'Damit das richtige Ausgangstag auch gezählt wird
+		
+	Elseif iNrOfTagBetween = 0 Then
+		Dim sTagValue As String
+		
+		'Einen "Root-Tag" gefunden, also kann das Ergebnis sofort zurückgegeben werden
+		sTagValue = Mid$(sXMLIn, iPosStartTotal , iPosEnd  - iPosStartTotal )
+		'Msgbox "ZBasic.DataType.Lang.Markup" & "\" & Getthreadinfo(LSI_THREAD_PROC) & "#Root tag found. TagValue = " & Chr(13) & sTagValue
+		tNode.sName = sTagName
+		tNode.sValue = sTagValue
+		
+		'Hier soll quasi nur der umgebende EndTag vorhanden sein
+		'itemp = Len(sXMLIn) - iPosEnd
+		itemp = Len(sXMLIn)-iPosEnd - Len(stagend) +1  '2006-03-03 Ansonsten gibt die Funktion im Remaining String ein Zeichen zu wenig zurück
+		If itemp <= 0 Then
+			'Msgbox "ZBasic.DataType.Lang.Markup" & "\" & Getthreadinfo(LSI_THREAD_PROC) & Chr(13) & "there is no remaining xml-string behind this root-string."
+			sXMLRemaining = ""
+		Else
+			sXMLRemaining = Right$(sXMLin, itemp)
+			'Msgbox "ZBasic.DataType.Lang.Markup" & "\" & Getthreadinfo(LSI_THREAD_PROC) & Chr(13) & "remaining XML-String  behind this root-string, so far: " & Chr(13) & sXMLRemaining
+		End If	
+		
+		
+		
+		
+		bReturn = True 'nicht vergessen, den Wert zu setzen	
+		Goto EndTrue
+	Else
+		Error iERR_PARAM_VALUE, "Unexpected returncode from Function iNrOfTagBetween(...), Returnvalue = '" & Cstr(iNrOfTagBetween) & "', but expected >= 0." 
+	End If			
+	
+	
+	
+	'###########FOLGE START/ENDTAGS
+	Stop
+	'+++ Nun die entsprechende Anzahl an gefundenen Tags wieder als Endtag suchen, damit man das passende EndTag-findet	
+	Dim icount As Integer				
+	Do
+		'Das nächste Endtag ermitteln, !!! DAS KANN AUCH IN EINER CDATA-SECTION LIEGEN !!!
+		
+		'Msgbox sScript & Chr(13) & "Ausgangsstring für die Suche nach dem nächsten EndTag" & Chr(13) & _
+		'"Starttags: " & Cstr(iNrOfTagStartTotal) & Chr(9) & "Endtags bisher gefunden: " & Cstr(iNrOfTagEndTotal) & Chr(13) & sXML
+		
+		'Erst einmal alles wieder zurücksetzen der xml-string wurde ja abgeschnitten
+		iPosEndSearch= 1 'wurde ja nun abgeschnitten
+		iPosEnd = 0
+		iPosStart = 1
+		Do	
+			iPosEndSearch = Instr(iPosEndSearch, sXMLSearch, sTagEnd, 5)
+			If iPosEndSearch = 0 Then
+				stemp =  "XML String, missing EndTag '" & sTagEnd & "', no end-tag available: '" & sXMLin & "'"
+				stemp = strCDataReplaceZZZ(session, stemp,tpcall, "")   'Damit wird in dem fehlerhaften XML-String eine CDATA-Section ersetzt
+				If tpcall.ierr > 0 Then Error iERR_FUNCTION_CALL, tpcall.serr 'wg. der CDATA-Section, die im Errorhandler darum gesetzt werden soll.
+				Error iERR_XML_ERR, stemp 
+			End If
+			
+			btemp = bPosition4CDataProofZZZ(session, sXMLSearch, Clng(iPosEndSearch),  tPcall, "")
+			If tpcall.ierr > 0 Then Error iERR_FUNCTION_CALL, tpcall.serr	
+			If btemp = True Then
+				'Msgbox "ZBasic.DataType.Lang.Markup" & "\" & Getthreadinfo(LSI_THREAD_PROC) & "#" & "Position of remaining endtag is in a CDATA-Section. Heading to next position of endtag." & Chr(13) & sXML
+				
+				'Das Ende der CDATA-Section ermitteln
+				iPosEndSearch = Instr(iPosEndSearch, sXMLSearch, "]]", 5)
+				If iPosStartSearch = 0 Then
+					stemp =  "XML String, missing EndTag for CDATA-Section (remark, in the following string the cdata-section has been replaced) : " & Chr(13)  & sXML & "'"
+					stemp = strCDataReplaceZZZ(session, stemp,tpcall, "")   'Damit wird in dem fehlerhaften XML-String eine CDATA-Section ersetzt
+					If tpcall.ierr > 0 Then Error iERR_FUNCTION_CALL, tpcall.serr 'wg. der CDATA-Section, die im Errorhandler darum gesetzt werden soll.
+					Error iERR_XML_ERR, stemp  'Hier wird nur eine neue CDATA-Section um diesen String gesetzt
+				Else
+					iposendsearch = iposendsearch + Len("]]")
+					If Len(sXML) - iposendsearch <= 0 Then
+						sXML = ""
+					Else
+						sXML = Strright(sXML, Len(sXML) - iPosEndSearch)						
+					End If					
+					'Msgbox "ZBasic.DataType.Lang.Markup" & "\" & Getthreadinfo(LSI_THREAD_PROC) & "#" & "Remaining XML to search for position of first starttag." & Chr(13) & sXML				
+				End If
+				bGoon = False
+			Else
+				bGoon = True
+			End If
+			
+			iPosEnd = iPosEnd + iPosEndSearch + (Len(sTagEnd)-1)
+		Loop Until bGOON = True
+		
+		'+++ Zähler für das neu gefundene EndTag erhöhen
+		iNrOfTagEndTotal = iNrOfTagEndTotal + 1
+		
+		
+		'Falls mehrere Tags des gleichen Tagnamens auf einer Ebene sind, könnten neue Starttags auftauchen, dies ist zu prüfen
+		iNrOfTagBetween = iNrOfTagBetweenZZZ(session, sXMLSearch,sTagName, iPosStart, iPosEnd, "start", tpcall, "")
+		If tpcall.ierr > 0 Then Error iERR_FUNCTION_CALL, tpcall.serr	
+		'Msgbox "ZBasic.DataType.Lang.Markup" & "\" & Getthreadinfo(LSI_THREAD_PROC) & "#Neue Starttags zwischen den EndTags iNrOfTagBetween=" & Cstr(iNrOfTagBetween)
+		iNrOfTagStartTotal = iNrOfTagStartTotal + inrOfTagBetween
+		
+		
+		'Abschneiden des restlichen XML-Strings
+		itemp = Len(sXMLSearch)-iPosEnd
+		If itemp <= 0 Then
+			sXMLSearch = ""
+		Else
+			sXMLSearch = Right$(sXMLSearch,itemp)
+		End If
+		'Msgbox "ZBasic.DataType.Lang.Markup" & "\" & Getthreadinfo(LSI_THREAD_PROC) & Chr(13) & "An end tag reduced. Remaining string: '"  & Chr(13) & sXMLSearch & "'"				
+		
+		'Werte zurücksetzen, gesamtende weiterschieben
+		itemp = iPosEndTotal
+		iPosEndTotal = iPosEndTotal + iPosEnd
+		'Msgbox "ZBasic.DataType.Lang.Markup" & "\" & Getthreadinfo(LSI_THREAD_PROC) & Chr(13) & Cstr(iPosEndTotal) & " = " & Cstr(itemp) & " + " & Cstr(iPosEnd) & Chr(13) & _
+		'"Result so far with this iPosEndTotal: " & Chr(13) & "'" & Mid$(sXMLin, iPosStartTotal, iPosEndTotal - iPosStartTotal) & "'"
+		
+	Loop Until iNrOfTagStartTotal  = iNrOfTagEndTotal 
+	
+	'######## Werte zuweisen und "Remaining-String"
+	Stop
+	tNode.sName = sTagName
+	tNode.sValue = Mid$(sXMLin, iPosStartTotal, iPosEndTotal - iPosStartTotal)
+	
+	'Hier soll quasi nur der umgebende EndTag vorhanden sein
+	itemp = Len(sXMLIn) - iPosEndTotal - Len(sTagEnd)
+	If itemp <= 0 Then
+		'Msgbox "ZBasic.DataType.Lang.Markup" & "\" & Getthreadinfo(LSI_THREAD_PROC) & Chr(13) & "Es gibt keine RestString"
+		sXMLRemaining = ""
+	Else
+		sXMLRemaining = Right$(sXMLin, itemp)
+		'Msgbox "ZBasic.DataType.Lang.Markup" & "\" & Getthreadinfo(LSI_THREAD_PROC) & Chr(13) & "remaining XML-String, so far: " & Chr(13) & sXMLRemaining
+	End If	
+	
+	'Hier soll das äußere Tag entfernt sein
+	'Msgbox "ZBasic.DataType.Lang.Markup" & "\" & Getthreadinfo(LSI_THREAD_PROC) & Chr(13) & "Ergebnis, so far: " & Chr(13) & tNode.sValue
+	
+	bReturn = True
+	
+	
+	'####################
+EndTrue:
+	tp.ierr = 0
+	bTagDetailFirstByNameGetZZZ = bReturn
+	Exit Function	
+endFalse:
+	tp.ierr = 0
+	bTagDetailFirstByNameGetZZZ = False
+	Exit Function
+EndError:
+	stemp = MSG2FileSendZZZ(Nothing, "", tp.serr, 1, tpcall, "")
+	If tpcall.ierr > 0 Then Msgbox tpcall.sErr   'Fehler im Errorhandling sofort ans Frontend/Serverlog ausgeben
+	Msgbox "Es ist ein Fehler aufgetreten. Mehr in folgender Datei: " & Chr(13) & stemp
+	bTagDetailFirstByNameGetZZZ = False
+	Exit Function
+'###########################################################################################################################################################################
+'REM: Bibliotheksfunktionen, die in .lss Dateien aufgenommen werden sollen, müssen die private Konstante sLIBZZZ durch den Bibliotheksnamen als konstanten String ersetzten. 
+ErrhNext:
+	'Fehler als Message entgegennehmen. Fehler tritt auf, wenn die neue DB schon exisitert
+	On Error Goto Errh
+	tp.iErr = Err 'Beim wiederholten Aufruf (d.h. zwei Zeilen hintereinanger ' Error iERR_NEXT, "das ist ein text" ' aufrufen) verliert Err zwei Stellen von rechts nach dem Aufruf der MEthode objMe.MessageAppend(..) !!!! 	
+	Dim sScripterrhnext As String, tperrhnext As TypeParamZZZ, sessionerrhnext As New notessession
+	sScripterrhnext = "ZBasic.DataType.Lang.Markup" & "\" & Getthreadinfo(LSI_THREAD_PROC)
+	
+	Dim sinfoerrhnext As String
+	sinfoerrhnext = Error$
+	tp.serr = strMsgZZZ(sessionerrhnext,  tp.sErr, sScripterrhnext, Erl, sinfoerrhnext, tp.iErr, tperrhnext, "")
+	If tperrhnext.iErr > 0 Then Error iERR_FUNCTION_CALL, tperrhnext.serr
+	
+	On Error Goto Errhnext
+	Resume Next
+ErrH:
+	tp.iErr = Err 'Beim wiederholten Aufruf (d.h. zwei Zeilen hintereinanger ' Error iERR_NEXT, "das ist ein text" ' aufrufen) verliert Err zwei Stellen von rechts nach dem Aufruf der MEthode objMe.MessageAppend(..) !!!! 	
+	Select Case tp.iErr
+	Case iASSERT_FALSE, iASSERT_TRUE: Resume Next  'd.h. es soll keine Information über den Message oder den Error Kanals ausgegeben werden.
+	Case iASSERT_FALSE_CRITICAL: Resume EndFalse
+	End Select
+	
+	Dim sinfoerrh As String
+	If tp.iErr = iMSG_ASSERT_TRUE Or tp.iErr = iERR_ASSERT_TRUE Then 'Or tp.iErr = iERR_ASSERT_TRUE_CRITICAL Then 
+		sinfoerrh = "Assertion negative: '" & Error$ & "'"
+	Else
+		sinfoerrh = Error$
+	End If
+	
+	Dim sScripterrh As String, tperrh As TypeParamZZZ, sessionerrh As New notessession
+	sScripterrh = "ZBasic.DataType.Lang.Markup" & "\" & Getthreadinfo(LSI_THREAD_PROC)
+	
+	'ZUM TEST, ERRORMESSAGE VORHER
+	'Call MSG2SinkSendZZZ(sessionerrh, "FILE", Nothing, "", "", tp.sErr, 1, tPerrh, "")
+	'If tperrh.iErr > 0 Then
+	'	Msgbox sScripterrh & "#" & tperrh.serr
+	'	Resume EndError
+	'End If
+	
+	tp.serr = strMsgZZZ(sessionerrh,  tp.sErr, sScripterrh, Erl, sinfoerrh, tp.iErr, tperrh, "")	
+	If tperrh.iErr > 0 Then
+		Msgbox sScripterrh & "#" & tperrh.serr
+		Resume EndError
+	End If
+	
+	
+	'ZUM TEST, ERRORMESSAGE NACHHER
+	'Call MSG2SinkSendZZZ(sessionerrh, "FILE", Nothing, "", "", tp.sErr, 1, tPerrh, "")
+	'If tperrh.iErr > 0 Then
+	'	Msgbox sScripterrh & "#" & tperrh.serr
+	'	Resume EndError
+	'End If
+	
+	
+	Select Case tp.ierr
+	Case iMSG_NEXT, iERR_NEXT, iMSG_AGENT_NEXT, iERR_AGENT_NEXT, iMSG_ASSERT_TRUE, iERR_ASSERT_TRUE, iMSG_ASSERT_FALSE, iERR_ASSERT_FALSE: Resume Next
+	Case iMSG_TRUE, iERR_TRUE, iMSG_AGENT_TRUE, iERR_AGENT_TRUE: Resume EndTrue  ', iMSG_ASSERT_TRUE_CRITICAL, iERR_ASSERT_TRUE_CRITICAL: Resume EndTrue
+	Case iMSG_FALSE, iERR_FALSE, iMSG_AGENT_FALSE, iERR_AGENT_FALSE, iMSG_ASSERT_FALSE_CRITICAL, iERR_ASSERT_FALSE_CRITICAL: Resume EndFalse
+	Case iERR_OBJECT_ERR, iERR_OBJECT_CUR, iERR_AGENT_CALL, iERR_FUNCTION_CALL, iERR_PARAM_VALUE, iERR_PARAM_MISSING, iERR_PROPERTY_VALUE, iERR_PROPERTY_MISSING, iERR_DESIGN_MISSING: Resume EndError 'Ziel: Nicht jeden Fehler ins Log stellen
+	Case Else: Resume EndError
+	End Select
+End Function
+Function iTagDetailFirstByNameSplitZZZ(session As notessession, sXMLIn As String, sTagName As String, saTagContainer() As String, _
+sXMLRemainingIn As String, bFlagTagNameInContainer As Boolean, tp As TypeParamZZZ,  sFlagControl As String) As Integer
+%REM
+Holt aus dem String den ersten Tag und füllt damit ein Array.
+Füllt weitere Arraypositionen mit gleichnamigen Untertags
+%END REM
+	Dim iReturn As Integer, tpcall As TypeParamZZZ
+	On Error Goto errh
+	Dim vtemp As Variant, itemp As Integer,stemp As String
+	
+	'### Param-Check	
+	Dim sXML As String, sXMLRemaining As String
+	If Len(sXMLIn) = 0 Then
+		Goto EndFalse
+	Else
+		sXML =sXMLIn
+	End If
+	
+	If Len(sTagName) = 0 Then Goto EndFalse
+	
+	sXMLRemaining = sXMLRemainingIn
+	
+	'###############
+	Dim tNode As TypeXMLNodeZZZ
+	Dim bTagExists As Boolean
+	Dim iNrOfTag As Integer
+	
+	
+	'0. Das reinkommende Array prüfen
+	itemp = ArrayInitProofZZZ(session, saTagContainer, tpcall, "")
+	If tpcall.ierr > 0 Then Error iERR_FUNCTION_CALL, tpcall.serr
+	Select Case itemp
+	Case True:
+		iNrOfTag = Ubound(saTagContainer)
+	Case False, 1, 2:
+		iNrOfTag = -1
+	Case -2:
+		Error iERR_PARAM_VALUE, "'saTagContainer' is no array"
+	Case Else:		
+		Error iERR_FUNCTION_CALL, "'ArrayInitProofZZZ', returns unexpected value"
+	End Select
+	
+	'1. Aus dem XML-String den TagString und den Rest ermitteln
+	Dim sXMLRemainingNew As String
+	bTagExists = bTagDetailFirstByNameGetZZZ(session, sXML, sTagName, tNode, sXMLRemainingNew, tpcall, "")
+	If tpcall.ierr > 0 Then Error iERR_FUNCTION_CALL, tpcall.serr
+	
+	If bTagExists = False Then 
+		Dim sXMLRemainingTemp As String 'Der Remaining String wird hier nur als DummyParameter übergeben		
+		If Len(sXMLRemainingNew)>0 Then
+			sXML = sXMLRemainingNew	
+			'Msgbox sScript & Chr(13) & "verarbeite den übrigen XMLString-neu: " & Chr(13) & sXML
+		Else
+			sXML = sXMLRemaining
+			'Msgbox sScript & Chr(13) & "verarbeite den übrigen XMLString-aus Funktion übergeben: " & Chr(13) & sXML
+		End If
+		
+		'2a. Den RestString verarbeiten (Rekursion)
+		iReturn = iTagDetailFirstByNameSplitZZZ(session, sXML, sTagName, saTagContainer, sXMLRemainingtemp, bFlagTagNameInContainer, tpcall, "")
+		If tpcall.ierr > 0 Then Error iERR_FUNCTION_CALL, tpcall.serr
+	Else
+		
+	'2b. Den gefundenen String an erster Stelle des Arrays hängen
+		iNrOfTag = iNrOfTag + 1
+		Redim Preserve saTagContainer(iNrOfTag) As String
+		If bFlagTagNameInContainer = True Then
+			saTagContainer(iNrOfTag) = strTagZZZ(session, sTagName, tNode.sValue, tpcall, "")
+			If tpcall.ierr > 0 Then Error iERR_FUNCTION_CALL, tpcall.serr
+		Else
+			saTagContainer(iNrOfTag) = tNode.sValue
+		End If
+		'Msgbox sScript & "#" & Cstr(iNrOfTag) & Chr(13) & saTagContainer(iNrOfTag)
+		
+		sXML = tNode.sValue
+		
+		'3. den gefundenen String erneut durchsuchen (Rekursion)
+		itemp = iTagDetailFirstByNameSplitZZZ(session, sXML, sTagName, saTagContainer, sXMLRemainingNew, bFlagTagNameInContainer, tpcall, "")
+		If tpcall.ierr > 0 Then Error iERR_FUNCTION_CALL, tpcall.serr
+		iReturn = Ubound(saTagContainer)
+	End If
+	
+	
+	
+	'####################
+EndTrue:
+	tp.ierr = 0
+	iTagDetailFirstByNameSplitZZZ = iReturn
+	Exit Function	
+endFalse:
+	tp.ierr = 0
+	iTagDetailFirstByNameSplitZZZ = -1
+	Exit Function
+EndError:
+	stemp = MSG2FileSendZZZ(Nothing, "", tp.serr, 1, tpcall, "")
+	If tpcall.ierr > 0 Then Msgbox tpcall.sErr   'Fehler im Errorhandling sofort ans Frontend/Serverlog ausgeben
+	Msgbox "Es ist ein Fehler aufgetreten. Mehr in folgender Datei: " & Chr(13) & stemp
+	iTagDetailFirstByNameSplitZZZ = -99
+	Exit Function
+ErrH:
+	Dim sScript As String
+	sScript = "ZBasic.DataType.Lang.Markup\" & Getthreadinfo(LSI_THREAD_PROC)
+	tp.iErr = Err 'Beim wiederholten Aufruf (d.h. zwei Zeilen hintereinanger ' Error iERR_NEXT, "das ist ein text" ' aufrufen) verliert Err zwei Stellen von rechts nach dem Aufruf der MEthode objMe.MessageAppend(..) !!!! 
+	tp.serr = strMsgZZZ(Nothing,  tp.sErr, sScript, Erl, Error$, Err, tpcall, "")
+	If tpcall.iErr > 0 Then
+		Msgbox tpcall.serr
+		Resume EndError
+	End If
+	Select Case tp.ierr
+	Case iMSG_NEXT, iERR_NEXT: Resume Next
+	Case iMSG_FALSE, iERR_FALSE: Resume EndFalse
+	Case iMSG_TRUE, iERR_TRUE: Resume EndTrue
+	Case Else: Resume EndError		
+	End Select
+End Function
+Function bTagDetailFirstByNameIsEqualZZZ(session As notessession, sXML1In As String, sXML2In As String, sTag1NameIn As String, sTag2NameIn As String, _
+sXML1BehindIn As String, sXML2BehindIn As String, tp As TypeParamZZZ,  sFlagControl As String) As Boolean
+%REM
+Vergleicht das erste gefundene echte Tag von zwei XML-Strings
+%END REM
+	Dim tpcall As TypeParamZZZ
+	Dim stemp As String, btemp As Boolean
+	On Error Goto errh
+	
+	'### Param-Check	
+	Dim sXML1 As String, sXML2 As String, sXML1Behind As String, sXML2Behind As String
+	Dim sTag1Name As String, sTag2Name As String
+	If Len(sXML1In) = 0 Then
+		Goto EndFalse
+	Else
+		sXML1 =sXML1In
+	End If
+	If Len(sXML2In)= 0 Then
+		Goto EndFalse
+	Else
+		sXML2 = sXML2In
+	End If	
+	If Len(sTag1NameIn) = 0 And Len(sTag2NameIn) = 0 Then Goto EndFalse
+	If Len(sTag1NameIn) = 0 Then 
+		sTag1Name = sTag2NameIn
+	Else
+		sTag1Name = sTag1NameIn
+	End If
+	If Len(sTag2NameIn) = 0 Then
+		sTag2Name = sTag1NameIn
+	Else
+		sTag2Name = sTag2NameIn
+	End If
+	
+	sXML1Behind = sXML1BehindIn
+	sXML2Behind = sXML2BehindIn
+	
+	'####################
+	
+	Dim tNodetemp As TypeXMLNodeZZZ
+	Dim sXML1Tag As String, sXML2Tag As String
+	btemp = bTagDetailFirstByNameGetZZZ(session, sXML1, sTag1Name, tNodetemp, sXML1Behind, tpcall, "")
+	If tpcall.ierr > 0 Then Error iERR_FUNCTION_CALL, tpcall.serr
+	sXML1Tag = tNodetemp.sValue
+	
+	btemp = bTagDetailFirstByNameGetZZZ(session, sXML2, sTag2Name, tNodetemp, sXML2Behind, tpcall, "")
+	If tpcall.ierr > 0 Then Error iERR_FUNCTION_CALL, tpcall.serr	
+	sXML2Tag = tNodetemp.sValue
+	
+	sXML1BehindIn = sXML1Behind
+	sXML2BehindIn = sXML2Behind
+	If sXML2Tag <> sXML1Tag Then Goto EndFalse		
+	
+	'####################
+EndTrue:
+	tp.ierr = 0
+	bTagDetailFirstByNameIsEqualZZZ = True
+	Exit Function	
+endFalse:
+	tp.ierr = 0
+	bTagDetailFirstByNameIsEqualZZZ = False
+	Exit Function
+EndError:
+	stemp = MSG2FileSendZZZ(Nothing, "", tp.serr, 1, tpcall, "")
+	If tpcall.ierr > 0 Then Msgbox tpcall.sErr   'Fehler im Errorhandling sofort ans Frontend/Serverlog ausgeben
+	Msgbox "Es ist ein Fehler aufgetreten. Mehr in folgender Datei: " & Chr(13) & stemp
+	bTagDetailFirstByNameIsEqualZZZ = False
+	Exit Function
+ErrH:
+	Dim sScript As String
+	sScript = "ZBasic.DataType.Lang.Markup\" & Getthreadinfo(LSI_THREAD_PROC)
+	tp.iErr = Err 'Beim wiederholten Aufruf (d.h. zwei Zeilen hintereinanger ' Error iERR_NEXT, "das ist ein text" ' aufrufen) verliert Err zwei Stellen von rechts nach dem Aufruf der MEthode objMe.MessageAppend(..) !!!! 
+	tp.serr = strMsgZZZ(Nothing,  tp.sErr, sScript, Erl, Error$, Err, tpcall, "")
+	If tpcall.iErr > 0 Then
+		Msgbox tpcall.serr
+		Resume EndError
+	End If
+	Select Case tp.ierr
+	Case iMSG_NEXT, iERR_NEXT: Resume Next
+	Case iMSG_FALSE, iERR_FALSE: Resume EndFalse
+	Case iMSG_TRUE, iERR_TRUE: Resume EndTrue
+	Case Else: Resume EndError		
+	End Select
+End Function
+Function bMsgIsMemberExactZZZ(session As notessession, sXML1In As String, sXML2In As String, tp As TypeParamZZZ,  sFlagControl As String) As Boolean
+%REM
+True, falls die Msg1 in Msg2 enthalten ist.
+%END REM
+	Dim tpcall As TypeParamZZZ
+	Dim vtemp As Variant, stemp As String, btemp As Boolean
+	On Error Goto errh
+	
+	'### Param-Check	
+	Dim sXML1 As String, sXML2 As String
+	If Len(sXML1In) = 0 Then
+		Goto EndFalse
+	Else
+		sXML1 =sXML1In
+	End If
+	If Len(sXML2In)= 0 Then
+		Goto EndFalse
+	Else
+		sXML2 = sXML2In
+	End If	
+	
+	
+	'####################
+	'1. +++ Enclosing Tags entfernen
+	sXML1 = strTagEnclosingRemoveZZZ(session, sXML1,tpcall, "")
+	If tpcall.ierr > 0 Then Error iERR_FUNCTION_CALL, tpcall.serr
+	'Msgbox  "ZBasic.DataType.Lang.Markup\" & Getthreadinfo(LSI_THREAD_PROC) & Chr(13) & sXML1
+	
+	sXML2 =  strTagEnclosingRemoveZZZ(session, sXML2,tpcall, "")
+	If tpcall.ierr > 0 Then Error iERR_FUNCTION_CALL, tpcall.serr
+	'Msgbox  "ZBasic.DataType.Lang.Markup\" & Getthreadinfo(LSI_THREAD_PROC) & Chr(13) & sXML2
+	
+	'2. +++ Den ersten Tag Namen von XML1 ermitteln
+	Dim sTag As String
+	Dim tNode As TypeXMLNodeZZZ
+	btemp = bTagDetailFirstGetZZZ(session, sXML1, tNode, "", tpcall,"")
+	If tpcall.ierr > 0 Then Error iERR_FUNCTION_CALL, tpcall.serr
+	sTag = tNode.sName
+	
+%REM
+	sTag = strTagNameFirstGetZZZ(session, sXML1, sinfo, iCode,"")
+	If iCode > 0 Then Error iERR_FUNCTION_CALL, sinfo
+	If Len(sTag) = 0 Then Error iERR_PARAM_VALUE, "no tag found in the XML1 string." & Chr(13) & sXML1In
+%ENDREM
+	
+	'3. +++ Dieser Tag Name ist das Kriterium die Strings zu untersuchen
+	'a, Merke: Hier wieder den Eingangswert sXML1 verwenden und diesen in Untertags aufsplitten
+	Dim iNrOfTag1 As Integer, saTag1() As String
+	'Msgbox  "ZBasic.DataType.Lang.Markup\" & Getthreadinfo(LSI_THREAD_PROC) & Chr(13) & sXML1
+	iNrOfTag1 = iTagDetailFirstByNameSplitZZZ(session, sXML1, sTag, saTag1, "", False, tpcall, "")
+	If tpcall.ierr > 0 Then Error iERR_FUNCTION_CALL, tpcall.serr
+	
+	'b
+	Dim iNrOfTag2 As Integer, saTag2() As String 
+	'Msgbox  "ZBasic.DataType.Lang.Markup\" & Getthreadinfo(LSI_THREAD_PROC) & Chr(13) & sXML2
+	iNrOfTag2 = iTagDetailFirstByNameSplitZZZ(session, sXML2, sTag, saTag2, "", False, tpcall, "")
+	If tpcall.ierr > 0 Then Error iERR_FUNCTION_CALL, tpcall.serr
+	
+	'4. +++ Vergleichen
+	If iNrOfTag2 <= -1 Or iNrOfTag1 <= -1 Then 
+		Goto EndFalse
+	Else
+		Dim iCount1 As Integer, iCount2 As Integer
+		For iCount1 = 0 To iNrOfTag1
+			For iCount2 = 0 To iNrOfTag2								
+				'Msgbox sScript & Chr(13) & "Array-Eintrag " & Cstr(iCount1) & Chr(13)  & "'" & Trim(saTag1(iCount1)) & "'"
+				'Msgbox sScript & Chr(13) & "Vergleichswert " & Cstr(iCount2) & Chr(13) & "'" & Trim(saTag2(iCount2)) & "'"
+				If Trim(saTag1(iCount1)) = Trim(saTag2(iCount2)) Then Goto EndTrue
+			Next iCount2
+		Next iCount1
+	End If
+	Goto EndFalse
+	
+	'####################
+EndTrue:
+	tp.ierr = 0
+	bMsgIsMemberExactZZZ = True
+	Exit Function	
+endFalse:
+	tp.ierr = 0
+	bMsgIsMemberExactZZZ = False
+	Exit Function
+EndError:
+	stemp = MSG2FileSendZZZ(Nothing, "", tp.serr, 1, tpcall, "")
+	If tpcall.ierr > 0 Then Msgbox tpcall.sErr   'Fehler im Errorhandling sofort ans Frontend/Serverlog ausgeben
+	Msgbox "Es ist ein Fehler aufgetreten. Mehr in folgender Datei: " & Chr(13) & stemp
+	bMsgIsMemberExactZZZ = False
+	Exit Function
+ErrH:
+	Dim sScript As String
+	sScript = "ZBasic.DataType.Lang.Markup\" & Getthreadinfo(LSI_THREAD_PROC)
+	tp.iErr = Err 'Beim wiederholten Aufruf (d.h. zwei Zeilen hintereinanger ' Error iERR_NEXT, "das ist ein text" ' aufrufen) verliert Err zwei Stellen von rechts nach dem Aufruf der MEthode objMe.MessageAppend(..) !!!! 
+	tp.serr = strMsgZZZ(Nothing,  tp.sErr, sScript, Erl, Error$, Err, tpcall, "")
+	If tpcall.iErr > 0 Then
+		Msgbox tpcall.serr
+		Resume EndError
+	End If
+	Select Case tp.ierr
+	Case iMSG_NEXT, iERR_NEXT: Resume Next
+	Case iMSG_FALSE, iERR_FALSE: Resume EndFalse
+	Case iMSG_TRUE, iERR_TRUE: Resume EndTrue
+	Case Else: Resume EndError		
+	End Select
+End Function
+Function strCDataReplaceZZZ(session As notessession, sXMLIn As String,tp As TypeParamZZZ, sFlagControl As String) As String
+	Dim sReturn As String, tpcall As TypeParamZZZ
+	On Error Goto errh
+	
+	'### Param
+	If Len(sXMLIn) = 0 Then 
+		Goto EndFalse
+	Else 
+		sReturn = sXMLIn
+	End If 
+	
+	'### Alle möglicherweise schon vorhandenen CDATA Abschnitt entfernen
+	sReturn = strReplaceAllSubstringZZZ(session, sReturn, "<![CDATA[", "<P>Another CDATA-Section</P><BR><plaintext>", tpcall, "")
+	If tpcall.ierr > 0 Then Error iERR_FUNCTION_CALL, tpcall.serr
+	
+	'###Alle möglicherweise schon vorhandenen ]] Zeichenfolgen entferen
+	sReturn = strReplaceAllSubstringZZZ(session, sReturn, "]]>", "</plaintext>", tpcall, "")
+	If tpcall.ierr > 0 Then Error iERR_FUNCTION_CALL, tpcall.serr
+	
+	'### Nun den String mit dem Tag und EndTag umgeben 
+	sReturn = strCDATAZZZ(session, sReturn, tpcall, "")
+	If tpcall.ierr > 0 Then Error iERR_FUNCTION_CALL, tpcall.serr
+	
+	'####################
+EndTrue:
+	tp.ierr = 0
+	strCDataReplaceZZZ = sReturn
+	Exit Function	
+endFalse:
+	tp.ierr = 0
+	strCDataReplaceZZZ = ""
+	Exit Function
+EndError:
+	strCDataReplaceZZZ = ""
+	Exit Function
+ErrH:
+	Dim sScript As String
+	sScript = "ZBasic.DataType.Lang.Markup\" & Getthreadinfo(LSI_THREAD_PROC)
+	tp.iErr = Err 'Beim wiederholten Aufruf (d.h. zwei Zeilen hintereinanger ' Error iERR_NEXT, "das ist ein text" ' aufrufen) verliert Err zwei Stellen von rechts nach dem Aufruf der MEthode objMe.MessageAppend(..) !!!! 
+	tp.serr = strMsgZZZ(Nothing,  tp.sErr, sScript, Erl, Error$, Err, tpcall, "")
+	If tpcall.iErr > 0 Then
+		Msgbox tpcall.serr
+		Resume EndError
+	End If
+	Select Case tp.ierr
+	Case iMSG_NEXT, iERR_NEXT: Resume Next
+	Case iMSG_FALSE, iERR_FALSE: Resume EndFalse
+	Case iMSG_TRUE, iERR_TRUE: Resume EndTrue
+	Case Else: Resume EndError		
+	End Select
+End Function

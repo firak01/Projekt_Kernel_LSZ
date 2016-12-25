@@ -1,0 +1,398 @@
+'%INCLUDE "C:\1fgl\workspace\Eclipse3FGL\LSZKernel\libkernel\ZAPI.Basic.Asset.lss" 
+'Use "ZBasic.DataType.."
+
+
+
+'Private Const sLibZZZ = "ZZZBasicDocumentArray"
+'Private Const sVerZZZ = "2005-07-25"
+
+Function ArrayDocFromVWColZZZ(session As notessession, vwCol As notesviewentrycollection, saDoc() As notesdocument, tp As TypeParamZZZ, sFlagControl As String) As Integer
+	Dim lDocCounter As Long	
+	On Error Goto errhNoCall
+	lDocCounter = -1	
+	
+	
+	If vwcol Is Nothing Then Goto EndFalse
+	If vwcol.count = 0 Then Goto EndFalse
+	
+	Dim ve As notesviewentry	
+	Set ve = vwcol.getfirstentry
+	
+	Dim lCounter As Long
+	For lCounter = 1 To vwcol.count
+		If ve.isdocument And ve.isvalid Then
+			lDocCounter = lDocCounter + 1
+			Redim Preserve saDoc(lDocCounter) As notesdocument
+			Set saDoc(lDocCounter) = ve.document
+		End If		
+		Set ve = vwcol.getnextentry(ve)
+	Next lCounter
+EndTrue:
+	tp.ierr = 0
+	ArrayDocFromVWColZZZ = lDocCounter
+	Exit Function
+EndFalse:
+	tp.ierr = 0
+	ArrayDocFromVWColZZZ = -1
+	Exit Function
+EndError:
+	ArrayDocFromVWColZZZ = - 1
+	Exit Function
+ErrHNoCall:
+	Dim sScript As String, tpcall As TypePAramZZZ
+	sScript = "ZBasic.Document.Array\" & Getthreadinfo(LSI_THREAD_PROC)
+	tp.iErr = Err 'Beim wiederholten Aufruf (d.h. zwei Zeilen hintereinanger ' Error iERR_NEXT, "das ist ein text" ' aufrufen) verliert Err zwei Stellen von rechts nach dem Aufruf der MEthode objMe.MessageAppend(..) !!!! 
+	tp.serr = strMsgZZZ(Nothing, tp.sErr, sScript, Erl, Error$, Err, tpcall, "")
+	If tpcall.iErr > 0 Then
+		Msgbox tpcall.serr
+		Resume EndError
+	End If
+	Select Case tp.ierr
+	Case iMSG_NEXT, iERR_NEXT: Resume Next
+	Case iMSG_FALSE, iERR_FALSE: Resume EndFalse
+	Case iMSG_TRUE, iERR_TRUE: Resume EndTrue
+	Case Else: Resume EndError		
+	End Select
+End Function
+
+
+Function ArrayDocSortQuickZZZ(session As notessession, docaPos As Variant, _
+iVonin As Integer, iBisin As Integer, sNameItemin As String, tp As TypeParamZZZ, sFlagControlin As String) As Boolean
+%REM
+Diese Funktion sortiert das Array der Positionsdokumente.
+Der verwendete Sortieralgorithmus ist "Quicksort"	
+%END REM
+	Dim tpCall As TypeParamZZZ
+	On Error Goto errh
+	
+	'### Param-check
+	Dim sFlagControl As String
+	Dim snameitem As String	
+	Dim ivon As Integer, ibis As Integer
+	
+	sFlagControl = Ucase(sFlagControlIn)
+	If sFlagControl <> "NOPROOF" Then
+		'MErke: Das ist u.a. wg. der Rekursion wichtig
+		If Not Isarray(docapos) Then Goto EndFalse				
+		
+		If Len(sNameitemin) = 0 Then
+			Goto EndFalse
+		Else
+			snameitem = sNameitemin
+		End If
+		
+		ivon = ivonin
+		If ivon = 0 Then
+			ivon = Lbound(docapos)	
+		End If
+		
+		ibis = ibisin
+		If ibis = 0 Then
+			ibis = Ubound(docapos)
+		End If
+	End If 'sflagControl <> NOPROOF
+	
+	
+	'### Main
+	Dim docTemp As notesdocument
+	Dim docTest As notesdocument
+	Dim itemTest As notesitem	
+	Dim itemTest2 As notesitem		
+	Dim iMitte As Integer
+	Dim i As Integer
+	Dim j As Integer
+	
+	
+	If iVon < iBis Then
+		iMitte = (iVon + iBis) \ 2
+		Set docTest = docaPos(iMitte)
+		Set itemTest = docTest.getfirstitem(sNameItem)
+		
+		i = iVon
+		j = iBis
+		
+		Do 
+			
+			Set itemTest2 = docaPos(i).getfirstitem(sNameItem)
+			Do While itemTest2.Values(0) < itemTest.Values(0)				
+				i = i + 1				
+				Set itemTest2 = docaPos(i).getfirstitem(sNameItem)
+			Loop
+			Set itemTest2 = docaPos(j).getfirstitem(sNameItem)
+			Do While itemTest2.Values(0) > itemTest.Values(0)
+				j = j - 1
+				Set itemTest2 = docaPos(j).getfirstitem(sNameItem)
+			Loop
+			If i <= j Then
+				Set docTemp = docaPos(j)
+				Set docaPos(j) = docaPos(i)
+				Set docaPos(i) = docTemp
+				
+				i = i +1
+				j = j - 1
+			End If
+			
+		Loop Until i > j
+		
+		If j <= iMitte Then
+			Call ArrayDocSortQuickZZZ(session, docaPos, iVon, j, sNameItem, tpcall, "NOPROOF")
+			If tpcall.ierr > 0 Then Error iERR_FUNCTION_CALL, tpcall.serr
+			Call ArrayDocSortQuickZZZ(session, docaPos, i, iBis, sNameItem, tpcall, "NOPROOF")
+			If tpcall.iErr > 0 Then Error iERR_FUNCTION_CALL, tpcall.serr
+		Else
+			Call ArrayDocSortQuickZZZ(session, docaPos, i, iBis, sNameItem, tpcall, "NOPROOF")
+			If tpcall.iErr > 0 Then Error iERR_FUNCTION_CALL, tpcall.serr
+			Call ArrayDocSortQuickZZZ(session, docaPos, iVon, j, sNameItem, tpcall, "NOPROOF")
+			If tpcall.iErr > 0 Then Error iERR_FUNCTION_CALL, tpcall.serr
+		End If		
+	End If
+	
+EndTrue:
+	tp.ierr = 0
+	ArrayDocSortQuickZZZ = True
+	Exit Function
+endfalse:
+	tp.ierr = 0
+	ArrayDocSortQuickZZZ = False
+	Exit Function
+enderror:
+	ArrayDocSortQuickZZZ = False
+	Exit Function
+ErrH:
+	Dim sScript As String
+	sScript = "ZBasic.Document.Array\" & Getthreadinfo(LSI_THREAD_PROC)
+	tp.iErr = Err 'Beim wiederholten Aufruf (d.h. zwei Zeilen hintereinanger ' Error iERR_NEXT, "das ist ein text" ' aufrufen) verliert Err zwei Stellen von rechts nach dem Aufruf der MEthode objMe.MessageAppend(..) !!!! 
+	tp.serr = strMsgZZZ(Nothing, tp.sErr, sScript, Erl, Error$, Err, tpcall, "")
+	If tpcall.iErr > 0 Then
+		Msgbox tpcall.serr
+		Resume EndError
+	End If
+	Select Case tp.ierr
+	Case iMSG_NEXT, iERR_NEXT: Resume Next
+	Case iMSG_FALSE, iERR_FALSE: Resume EndFalse
+	Case iMSG_TRUE, iERR_TRUE: Resume EndTrue
+	Case Else: Resume EndError		
+	End Select
+End Function
+Function ArrayDocFromColZZZ(session As notessession, colin As notesdocumentcollection, doca As Variant , tp As TypePAramZZZ, sFlagcontrol As String) As Long
+	Dim lReturn As Long
+	On Error Goto errhNoCall
+	lReturn = -1
+	
+	'### Parameter check
+	Dim vtemp As Variant, itemp As Integer, stemp As String
+	Dim col As notesdocumentcollection
+	If colin Is Nothing Then 
+		Error iERR_PARAM_MISSING, "'Notesdocumentcollection'"
+	Else
+		If colin.count <= 0 Then
+			Goto EndFalse
+		Else
+			Set col = colin
+		End If				
+	End If
+	
+	
+	'### Main
+	Dim doctemp As notesdocument
+	Redim doca(col.count - 1) As notesdocument
+	
+	Set doctemp = col.getfirstdocument
+	Dim lcount As Long
+	lReturn = -1
+	For lcount = 0 To col.count -1
+		lReturn = lReturn + 1
+		Set doca(lReturn) = doctemp		
+		Set doctemp = col.getnextdocument(doctemp)   'das ist immer schneller als getnthdocument
+	Next
+	
+	
+	'#######################################
+EndTrue:
+	tp.ierr = 0
+	ArrayDocFromColZZZ = lReturn
+	Exit Function
+EndFalse:
+	ArrayDocFromColZZZ  = -1
+	Exit Function
+EndError:
+	ArrayDocFromColZZZ  = -1
+	Exit Function
+ErrHNoCall:
+	Dim sScript As String, tpcall As TypeParamZZZ
+	sScript = "ZBasic.Document.Array\" & Getthreadinfo(LSI_THREAD_PROC)
+	tp.iErr = Err 'Beim wiederholten Aufruf (d.h. zwei Zeilen hintereinanger ' Error iERR_NEXT, "das ist ein text" ' aufrufen) verliert Err zwei Stellen von rechts nach dem Aufruf der MEthode objMe.MessageAppend(..) !!!! 
+	tp.serr = strMsgZZZ(Nothing, tp.sErr, sScript, Erl, Error$, Err, tpcall, "")
+	If tpcall.iErr > 0 Then
+		Msgbox tpcall.serr
+		Resume EndError
+	End If
+	Select Case tp.ierr
+	Case iMSG_NEXT, iERR_NEXT: Resume Next
+	Case iMSG_FALSE, iERR_FALSE: Resume EndFalse
+	Case iMSG_TRUE, iERR_TRUE: Resume EndTrue
+	Case Else: Resume EndError		
+	End Select
+End Function
+
+Function ArrayDocTrimZZZ(session As notessession, vX As Variant, tp As TypePAramZZZ, sFlagcontrol As String) As Variant
+%REM
+Diese Funktion hängt an ein DocumentArray ein anderes an.
+Dabei werden Array-Elemente, die nothing sind entfernt.
+Das erste docArray wir unter das zweite gehängt
+%ENDREM	
+	Dim docaReturn() As notesdocument
+	Dim tpcall As TypeParamZZZ
+	On Error Goto errh
+	
+	'### Übergabeparameter prüfen
+%REM
+true = ok
+false = Array nicht initialisiert, ubound schlägt also fehl
+empty = 1
+null = 2
+Einzelwert = 3
+%END REM
+	
+	Dim iproofX As Integer
+	iproofX = ArrayInitProofZZZ(session, vX, tpcall,"")
+	If tpcall.iErr > 0 Then Error iERR_FUNCTION_CALL, tpcall.serr
+	If iProofX >= False Then Goto EndFalse 'Fall: ArrayX ist nicht initialisiert, empty oder null
+	
+	'### Merke: Die Reihenfolge der Abfragen ist so gewählt, wie die Häufigkeit des Falls eingeschätzt wird
+	Dim iCounterAll As Integer	
+	If iProofX = True Then
+		Dim iCounter As Integer, itemp As Integer
+		
+		'Fall: ArrayX in das neue Array kopieren, aber nothing werte weglassen		
+		'Erst die neue Größe des Arrays ermitteln und dann einmal das neue Array dimensionieren, das ist performanter als immer redim preserve !!!				
+		For iCounter = 0 To Ubound(vX)			
+			If vX(iCounter) Is Nothing Then iCounterAll = iCounterAll + 1
+		Next iCounter
+		If iCounterAll = 0 Then Goto EndvX   'Es gibt also nix zu trimmen
+		
+		'Das Zielarray dimensionieren
+		itemp = Ubound(vX) - iCounterAll
+		If itemp < 0 Then Goto endfalse 'Es bleibt also nix übrig, weil alle Werte nothing waren !!!
+		Redim docaReturn(itemp) As NotesDocument
+		
+		'Nun das Trimmen durch kopieren in das neue temporäre Array, nicht Rückwärts arbeiten, da wir die Reihenfolge im Array nicht verändern dürfen
+		iCounterAll = -1    'Positionszähler wieder zurücksetzen
+		For iCounter = 0 To Ubound(vX)
+			If Not vX(iCounter) Is Nothing Then
+				iCounterAll = iCounterAll +1
+				Set docaReturn(iCounterAll) = vX(iCounter)
+			End If
+		Next iCounter
+		Goto EndTrue
+	End If
+	
+	If iProofX=-2  Then
+		'Fall: Einzelwert
+		If vX Is Nothing Then Goto EndFalse
+		
+		Redim docaReturn(0) As notesdocument
+		Set docaReturn(0) = vX
+		Goto EndTrue
+	End If
+	
+	
+	
+	'###########
+EndTrue:
+	tp.ierr = 0
+	ArrayDocTrimZZZ = docaReturn
+	Exit Function
+EndvX:
+	tp.ierr = 0
+	ArrayDocTrimZZZ = vX
+	Exit Function	
+EndFalse:
+	tp.ierr = 0
+	ArrayDocTrimZZZ = Null
+	Exit Function
+EndError:
+	ArrayDocTrimZZZ = Null
+	Exit Function
+ErrH:
+	Dim sScript As String
+	sScript = "ZBasic.Document.Array\" & Getthreadinfo(LSI_THREAD_PROC)
+	tp.iErr = Err 'Beim wiederholten Aufruf (d.h. zwei Zeilen hintereinanger ' Error iERR_NEXT, "das ist ein text" ' aufrufen) verliert Err zwei Stellen von rechts nach dem Aufruf der MEthode objMe.MessageAppend(..) !!!! 
+	tp.serr = strMsgZZZ(Nothing, tp.sErr, sScript, Erl, Error$, Err, tpcall, "")
+	If tpcall.iErr > 0 Then
+		Msgbox tpcall.serr
+		Resume EndError
+	End If
+	Select Case tp.ierr
+	Case iMSG_NEXT, iERR_NEXT: Resume Next
+	Case iMSG_FALSE, iERR_FALSE: Resume EndFalse
+	Case iMSG_TRUE, iERR_TRUE: Resume EndTrue
+	Case Else: Resume EndError		
+	End Select
+End Function
+Function ArrayDocFromVariantZZZ(session As notessession, vX As Variant, vArray As Variant, tp As TypeParamZZZ, sflagcontrol As String) As Integer
+	Dim iReturn As Integer, tpcall As TypeParamZZZ
+	On Error Goto errh
+	
+	'### Übergabeparameter Prüfen
+%REM
+true = ok
+false = Array nicht initialisiert, ubound schlägt also fehl
+empty = 1
+null = 2
+Einzelwert = 3
+%END REM 
+	Dim iproofX As Integer
+	iproofX = ArrayInitProofZZZ(session, vX, tpcall,"")
+	If tpcall.iErr > 0 Then Error iERR_FUNCTION_CALL, tpcall.serr
+	If iproofX >= False Then Error iMSG_FALSE, "Inputarray not initialised, empty or null."
+	
+	'##############
+	'Fall: Array
+	If iproofx = True Then
+		iReturn = Ubound(vX)
+		Redim vArray(iReturn) As notesdocument
+		
+		Dim iCount As Integer
+		For iCount = 0 To iReturn
+			Set vArray(iCount) = vX(iCount)
+		Next iCount
+		Goto Endtrue
+	End If
+	
+	'Fall: Einzelwert
+	If iproofx = -2 Then
+		Redim vArray(0) As NotesDocument
+		Set vArray(0) = vX
+		iReturn = 0 
+		Goto EndTrue
+	End If
+	
+	'#########################
+EndTrue:
+	tp.ierr = 0
+	ArrayDocFromVariantZZZ = iReturn
+	Exit Function	
+EndFalse:
+	tp.ierr = 0
+	ArrayDocFromVariantZZZ = -1
+	Exit Function	
+EndError:
+	ArrayDocFromVariantZZZ = -99
+	Exit Function
+ErrH: 
+	Dim sScript As String
+	sScript = "ZBasic.Document.Array\" & Getthreadinfo(LSI_THREAD_PROC)
+	tp.iErr = Err 'Beim wiederholten Aufruf (d.h. zwei Zeilen hintereinanger ' Error iERR_NEXT, "das ist ein text" ' aufrufen) verliert Err zwei Stellen von rechts nach dem Aufruf der MEthode objMe.MessageAppend(..) !!!! 
+	tp.serr = strMsgZZZ(Nothing, tp.sErr, sScript, Erl, Error$, Err, tpcall, "")
+	If tpcall.iErr > 0 Then
+		Msgbox tpcall.serr
+		Resume EndError
+	End If
+	Select Case tp.ierr
+	Case iMSG_NEXT, iERR_NEXT: Resume Next
+	Case iMSG_FALSE, iERR_FALSE: Resume EndFalse
+	Case iMSG_TRUE, iERR_TRUE: Resume EndTrue
+	Case Else: Resume EndError		
+	End Select
+End Function

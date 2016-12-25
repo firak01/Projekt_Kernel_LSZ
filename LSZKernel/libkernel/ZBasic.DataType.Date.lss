@@ -1,0 +1,397 @@
+'%INCLUDE "C:\1fgl\workspace\Eclipse3FGL\LSZKernel\libkernel\ZAPI.Basic.Asset.lss" 
+'Use "ZAPI.Basic.."   
+'Use "ZBasic.BasicType.String"
+'Use "ZBasic.DataType.AllPrimitive"      
+'Leider ist es bei Verwendung von %Include nicht möglich, dass mehrere private konstanten mit dem gleichen Namen verwendet werden.
+'Private Const sLibZZZ = "ZZZBasicDatatypeAllPrimitive"
+'Private Const sVerZZZ = "2005-06-22"
+
+Function ndateStringZZZ(session As notessession, sStringIn As String, sFormatIn As String, tp As TypeParamZZZ, sFlag As String) As notesdatetime	
+%REM
+FGL 20051107
+Das einzige Format, dass derzeit geht ist YYYYMMDD
+
+Merke: Weil diese Funktion auch zur Validierung von Lizenzen verwendet wird, sollen Falsche Formate des Eingabestrings nicht als Fehler sondern als Info zurückgegeben werden.
+%END REM
+'%REM
+	Dim objReturn As NotesDateTime
+	Dim btemp, itemp, stemp
+	On Error Goto errh
+	
+	'### Übergabeparameter prüfen				
+	Dim sString As String, sFormat As String
+	
+	If Len(sStringIn) = 0 Then Error iMSG_FALSE, "No date string provided" 
+	If Len(sFormatIn) = 0 Then Error iERR_PARAM_MISSING, "Format-String"
+	
+	sString = sStringIn
+	sFormat = sFormatin
+	
+	'####
+	Dim iYearStart As Integer, iYearLength As Integer, sYear As String
+	Dim iMonthStart As Integer, iMonthLength As Integer, sMonth As String
+	Dim iDayStart As Integer, iDayLength As Integer, sDay As String
+	
+	'1. Formatstring untersuchen
+	itemp = Instr(1, sFormat, "YYYY", 5) 
+	If itemp > 0 Then
+		iYearStart = itemp
+		iYearLength = 4
+	End If
+	
+	itemp = Instr(1, sFormat, "MM", 5) 
+	If itemp > 0 Then
+		iMonthStart = itemp
+		iMonthLength = 2
+	End If
+	
+	itemp = Instr(1, sFormat, "DD", 5) 
+	If itemp > 0 Then
+		iDayStart = itemp
+		iDayLength = 2
+	End If
+	
+	If iYearStart = 0 Or iMonthStart = 0 Or iDayStart = 0 Then Error iERR_PARAM_VALUE, "Unexpected format-string: '" & sFormatIn & "'"
+	
+	'2. Die Positionen aus dem Inputstring auslesen
+	sYear = Mid$(sString, iYearStart, iYearLength)
+	sMonth = Mid$(sString, iMonthStart, iMonthLength)
+	sDay = Mid$(sString, iDayStart, iDayLength)
+	
+	'TODO: Monatsnamen und Wochentage als String eingebbar und auslesbar machen
+	If Not Isnumeric(sYear) Then Error iMSG_FALSE, "No numeric year-string found ('" & sYear & "') in '" & sStringIn & "' at position described by format-string '" & sFormatIn & "'"
+	If Cint(sYear) < 0 Then Error iMSG_FALSE, "Invalid year-string found ('" & sYear & "')  in '" & sStringIn & "' at position described by format-string '" & sFormatIn & "'"
+	
+	If Not Isnumeric(sMonth) Then Error iMSG_FALSE, "No numeric month-string found in '" & sStringIn & "' at position described by format-string '" & sFormatIn & "'"
+	If Cint(sMonth) <= 0 Or Cint(sMonth) >= 13 Then  Error iMSG_FALSE, "Invalid month-string found ('" & sMonth & "')  in '" & sStringIn & "' at position described by format-string '" & sFormatIn & "'"
+	
+	If Not Isnumeric(sDay) Then Error iMSG_FALSE, "No numeric day-string found in '" & sStringIn & "' at position described by format-string '" & sFormatIn & "'"
+	If Cint(sMonth) <= 0 Or Cint(sMonth) >= 13 Then  Error iMSG_FALSE, "Invalid month-string found ('" & sMonth & "')  in '" & sStringIn & "' at position described by format-string '" & sFormatIn & "'"
+	'TODO: Überprüfung der Anzahl Tage pro Monat, inklusive Berücksichtigung eines Schaltjahrs
+	
+	'3. aus dem String ein gültiges Notes-Datetime-Objekt machen
+	Set objReturn = New NotesDateTime(sDay & "." & sMonth & "." & sYear)
+	
+'######################################	
+EndTrue:
+	tp.ierr = 0
+	Set ndateStringZZZ = objReturn
+	Exit Function
+EndFalse:
+	tp.ierr = 0
+	Set ndateStringZZZ = Nothing
+	Exit Function	 
+EndError:
+	Set ndateStringZZZ = Nothing
+	Exit Function
+'###########################################################################################################################################################################
+'REM: Bibliotheksfunktionen, die in .lss Dateien aufgenommen werden sollen, müssen die private Konstante sLIBZZZ durch den Bibliotheksnamen als konstanten String ersetzten. 
+ErrhNext:
+	'Fehler als Message entgegennehmen. Fehler tritt auf, wenn die neue DB schon exisitert
+	On Error Goto Errh
+	tp.iErr = Err 'Beim wiederholten Aufruf (d.h. zwei Zeilen hintereinanger ' Error iERR_NEXT, "das ist ein text" ' aufrufen) verliert Err zwei Stellen von rechts nach dem Aufruf der MEthode objMe.MessageAppend(..) !!!! 	
+	Dim sScripterrhnext As String, tperrhnext As TypeParamZZZ, sessionerrhnext As New notessession
+	sScripterrhnext = "ZBasic.DataType.Date" & "\" & Getthreadinfo(LSI_THREAD_PROC)
+	
+	Dim sinfoerrhnext As String
+	sinfoerrhnext = Error$
+	tp.serr = strMsgZZZ(sessionerrhnext,  tp.sErr, sScripterrhnext, Erl, sinfoerrhnext, tp.iErr, tperrhnext, "")
+	If tperrhnext.iErr > 0 Then Error iERR_FUNCTION_CALL, tperrhnext.serr
+	
+	On Error Goto Errhnext
+	Resume Next
+ErrH:
+	tp.iErr = Err 'Beim wiederholten Aufruf (d.h. zwei Zeilen hintereinanger ' Error iERR_NEXT, "das ist ein text" ' aufrufen) verliert Err zwei Stellen von rechts nach dem Aufruf der MEthode objMe.MessageAppend(..) !!!! 	
+	Select Case tp.iErr
+	Case iASSERT_FALSE, iASSERT_TRUE: Resume Next  'd.h. es soll keine Information über den Message oder den Error Kanals ausgegeben werden.
+	Case iASSERT_FALSE_CRITICAL: Resume EndFalse
+	End Select
+	
+	Dim sinfoerrh As String
+	If tp.iErr = iMSG_ASSERT_TRUE Or tp.iErr = iERR_ASSERT_TRUE Then 'Or tp.iErr = iERR_ASSERT_TRUE_CRITICAL Then 
+		sinfoerrh = "Assertion negative: '" & Error$ & "'"
+	Else
+		sinfoerrh = Error$
+	End If
+	
+	Dim sScripterrh As String, tperrh As TypeParamZZZ, sessionerrh As New notessession
+	sScripterrh = "ZBasic.DataType.Date" & "\" & Getthreadinfo(LSI_THREAD_PROC)
+	tp.serr = strMsgZZZ(sessionerrh,  tp.sErr, sScripterrh, Erl, sinfoerrh, tp.iErr, tperrh, "")
+	If tperrh.iErr > 0 Then
+		Msgbox sScripterrh & "#" & tperrh.serr
+		Resume EndError
+	End If
+	Select Case tp.ierr
+	Case iMSG_NEXT, iERR_NEXT, iMSG_AGENT_NEXT, iERR_AGENT_NEXT, iMSG_ASSERT_TRUE, iERR_ASSERT_TRUE, iMSG_ASSERT_FALSE, iERR_ASSERT_FALSE: Resume Next
+	Case iMSG_TRUE, iERR_TRUE, iMSG_AGENT_TRUE, iERR_AGENT_TRUE: Resume EndTrue  ', iMSG_ASSERT_TRUE_CRITICAL, iERR_ASSERT_TRUE_CRITICAL: Resume EndTrue
+	Case iMSG_FALSE, iERR_FALSE, iMSG_AGENT_FALSE, iERR_AGENT_FALSE, iMSG_ASSERT_FALSE_CRITICAL, iERR_ASSERT_FALSE_CRITICAL: Resume EndFalse
+	Case iERR_OBJECT_ERR, iERR_OBJECT_CUR, iERR_AGENT_CALL, iERR_FUNCTION_CALL, iERR_PARAM_VALUE, iERR_PARAM_MISSING, iERR_PROPERTY_VALUE, iERR_PROPERTY_MISSING, iERR_DESIGN_MISSING: Resume EndError 'Ziel: Nicht jeden Fehler ins Log stellen
+	Case Else: Resume EndError
+	End Select
+'%ENDREM
+End Function
+Function sdateFormatZZZ(session As notessession, ndatein As NotesDateTime, sFormatIn As String, tp As TypeParamZZZ, sFlag As String) As String
+'%REM
+	Dim sReturn As String, tpcall As TypeParamZZZ
+	Dim btemp, itemp, stemp
+	On Error Goto errh
+	
+	'### Übergabeparameter prüfen				
+	Dim ndate As notesdatetime
+	
+	If Len(sFormatIn) = 0 Then Error iERR_PARAM_MISSING, "Format-String"
+	sReturn = sFormatin
+	If ndatein Is Nothing Then
+		Set ndate = New NotesDateTime(Now)
+	Else
+		Set ndate = ndatein
+	End If
+	
+	
+	'####	
+	'1. Werte aus dem Datum holen
+	Dim sYear As String, sMonth As String, sDay As String	
+	sYear = sdateZZZ(session, ndate, 3, tpcall, "")
+	If tpcall.ierr > 0 Then Error iERR_FUNCTION_CALL, tpcall.serr
+	
+	sMonth = sdateZZZ(session, ndate, 2, tpcall, "")
+	If tpcall.ierr > 0 Then Error iERR_FUNCTION_CALL, tpcall.serr
+	
+	sDay =  sdateZZZ(session, ndate, 1, tpcall, "")
+	If tpcall.ierr > 0 Then Error iERR_FUNCTION_CALL, tpcall.serr
+	
+	
+	
+	'2. Formatstring untersuchen und die "Platzhalter" im Formatstring durch die Werte aus dem Datum ersetzen
+	itemp = Instr(1, sReturn, "YYYY", 5) 
+	If itemp > 0 Then
+		sReturn = strReplaceAllSubstringZZZ(session, sReturn, "YYYY", sYear, tpcall, "")
+		If tpcall.ierr > 0 Then Error iERR_FUNCTION_CALL, tpcall.serr
+	End If
+	
+	itemp = Instr(1, sReturn, "MM", 5) 
+	If itemp > 0 Then
+		sReturn = strReplaceAllSubstringZZZ(session, sReturn, "MM", sMonth, tpcall, "")
+		If tpcall.ierr > 0 Then Error iERR_FUNCTION_CALL, tpcall.serr
+	End If
+	
+	itemp = Instr(1, sReturn, "DD", 5) 
+	If itemp > 0 Then
+		sReturn = strReplaceAllSubstringZZZ(session, sReturn, "DD", sDay, tpcall, "")
+		If tpcall.ierr > 0 Then Error iERR_FUNCTION_CALL, tpcall.serr
+	End If
+	
+	
+'######################################	
+EndTrue:
+	tp.ierr = 0
+	sdateFormatZZZ = sReturn
+	Exit Function
+EndFalse:
+	tp.ierr = 0
+	sdateFormatZZZ = ""
+	Exit Function	 
+EndError:
+	sdateFormatZZZ = ""
+	Exit Function
+'###########################################################################################################################################################################
+'REM: Bibliotheksfunktionen, die in .lss Dateien aufgenommen werden sollen, müssen die private Konstante sLIBZZZ durch den Bibliotheksnamen als konstanten String ersetzten. 
+ErrhNext:
+	'Fehler als Message entgegennehmen. Fehler tritt auf, wenn die neue DB schon exisitert
+	On Error Goto Errh
+	tp.iErr = Err 'Beim wiederholten Aufruf (d.h. zwei Zeilen hintereinanger ' Error iERR_NEXT, "das ist ein text" ' aufrufen) verliert Err zwei Stellen von rechts nach dem Aufruf der MEthode objMe.MessageAppend(..) !!!! 	
+	Dim sScripterrhnext As String, tperrhnext As TypeParamZZZ, sessionerrhnext As New notessession
+	sScripterrhnext = "ZBasic.DataType.Date" & "\" & Getthreadinfo(LSI_THREAD_PROC)
+	
+	Dim sinfoerrhnext As String
+	sinfoerrhnext = Error$
+	tp.serr = strMsgZZZ(sessionerrhnext,  tp.sErr, sScripterrhnext, Erl, sinfoerrhnext, tp.iErr, tperrhnext, "")
+	If tperrhnext.iErr > 0 Then Error iERR_FUNCTION_CALL, tperrhnext.serr
+	
+	On Error Goto Errhnext
+	Resume Next
+ErrH:
+	tp.iErr = Err 'Beim wiederholten Aufruf (d.h. zwei Zeilen hintereinanger ' Error iERR_NEXT, "das ist ein text" ' aufrufen) verliert Err zwei Stellen von rechts nach dem Aufruf der MEthode objMe.MessageAppend(..) !!!! 	
+	Select Case tp.iErr
+	Case iASSERT_FALSE, iASSERT_TRUE: Resume Next  'd.h. es soll keine Information über den Message oder den Error Kanals ausgegeben werden.
+	Case iASSERT_FALSE_CRITICAL: Resume EndFalse
+	End Select
+	
+	Dim sinfoerrh As String
+	If tp.iErr = iMSG_ASSERT_TRUE Or tp.iErr = iERR_ASSERT_TRUE Then 'Or tp.iErr = iERR_ASSERT_TRUE_CRITICAL Then 
+		sinfoerrh = "Assertion negative: '" & Error$ & "'"
+	Else
+		sinfoerrh = Error$
+	End If
+	
+	Dim sScripterrh As String, tperrh As TypeParamZZZ, sessionerrh As New notessession
+	sScripterrh = "ZBasic.DataType.Date" & "\" & Getthreadinfo(LSI_THREAD_PROC)
+	tp.serr = strMsgZZZ(sessionerrh,  tp.sErr, sScripterrh, Erl, sinfoerrh, tp.iErr, tperrh, "")
+	If tperrh.iErr > 0 Then
+		Msgbox sScripterrh & "#" & tperrh.serr
+		Resume EndError
+	End If
+	Select Case tp.ierr
+	Case iMSG_NEXT, iERR_NEXT, iMSG_AGENT_NEXT, iERR_AGENT_NEXT, iMSG_ASSERT_TRUE, iERR_ASSERT_TRUE, iMSG_ASSERT_FALSE, iERR_ASSERT_FALSE: Resume Next
+	Case iMSG_TRUE, iERR_TRUE, iMSG_AGENT_TRUE, iERR_AGENT_TRUE: Resume EndTrue  ', iMSG_ASSERT_TRUE_CRITICAL, iERR_ASSERT_TRUE_CRITICAL: Resume EndTrue
+	Case iMSG_FALSE, iERR_FALSE, iMSG_AGENT_FALSE, iERR_AGENT_FALSE, iMSG_ASSERT_FALSE_CRITICAL, iERR_ASSERT_FALSE_CRITICAL: Resume EndFalse
+	Case iERR_OBJECT_ERR, iERR_OBJECT_CUR, iERR_AGENT_CALL, iERR_FUNCTION_CALL, iERR_PARAM_VALUE, iERR_PARAM_MISSING, iERR_PROPERTY_VALUE, iERR_PROPERTY_MISSING, iERR_DESIGN_MISSING: Resume EndError 'Ziel: Nicht jeden Fehler ins Log stellen
+	Case Else: Resume EndError
+	End Select
+'%ENDREM
+End Function
+Function sdateZZZ(session As notessession, ndatein As NotesDateTime, iDatePosIn As Integer, tp As TypeParamZZZ, sFlag As String) As String
+'%REM
+	Dim sReturn As String, tpcall As TypeParamZZZ
+	Dim btemp, itemp, stemp
+	On Error Goto errh
+	
+	'### Übergabeparameter prüfen				
+	Dim ndate As notesdatetime, iDatePos As Integer
+	
+	If iDatePosIn < 1 Or iDAtePosIn > 3 Then Error iERR_PARAM_MISSING, "DatePosition = '" & Cstr(iDatePosIn) & "'" & ", but exptedes 1,2,3"
+	iDatePos = iDatePosIn
+	
+	If ndatein Is Nothing Then
+		Set ndate = New NotesDateTime(Now)
+	Else
+		Set ndate = ndatein
+	End If 
+	
+	
+	'####
+	sReturn = strWordZZZ(session, ndate.DateOnly, sDELIM_DATE, iDatePos, tpcall, "")
+	If tpcall.ierr > 0 Then Error iERR_FUNCTION_CALL, tpcall.serr
+	
+	
+	
+'######################################	
+EndTrue:
+	tp.ierr = 0
+	sdateZZZ = sReturn
+	Exit Function
+EndFalse:
+	tp.ierr = 0
+	sdateZZZ = ""
+	Exit Function	 
+EndError:
+	sdateZZZ = ""
+	Exit Function
+'###########################################################################################################################################################################
+'REM: Bibliotheksfunktionen, die in .lss Dateien aufgenommen werden sollen, müssen die private Konstante sLIBZZZ durch den Bibliotheksnamen als konstanten String ersetzten. 
+ErrhNext:
+	'Fehler als Message entgegennehmen. Fehler tritt auf, wenn die neue DB schon exisitert
+	On Error Goto Errh
+	tp.iErr = Err 'Beim wiederholten Aufruf (d.h. zwei Zeilen hintereinanger ' Error iERR_NEXT, "das ist ein text" ' aufrufen) verliert Err zwei Stellen von rechts nach dem Aufruf der MEthode objMe.MessageAppend(..) !!!! 	
+	Dim sScripterrhnext As String, tperrhnext As TypeParamZZZ, sessionerrhnext As New notessession
+	sScripterrhnext = "ZBasic.DataType.Date" & "\" & Getthreadinfo(LSI_THREAD_PROC)
+	
+	Dim sinfoerrhnext As String
+	sinfoerrhnext = Error$
+	tp.serr = strMsgZZZ(sessionerrhnext,  tp.sErr, sScripterrhnext, Erl, sinfoerrhnext, tp.iErr, tperrhnext, "")
+	If tperrhnext.iErr > 0 Then Error iERR_FUNCTION_CALL, tperrhnext.serr
+	
+	On Error Goto Errhnext
+	Resume Next
+ErrH:
+	tp.iErr = Err 'Beim wiederholten Aufruf (d.h. zwei Zeilen hintereinanger ' Error iERR_NEXT, "das ist ein text" ' aufrufen) verliert Err zwei Stellen von rechts nach dem Aufruf der MEthode objMe.MessageAppend(..) !!!! 	
+	Select Case tp.iErr
+	Case iASSERT_FALSE, iASSERT_TRUE: Resume Next  'd.h. es soll keine Information über den Message oder den Error Kanals ausgegeben werden.
+	Case iASSERT_FALSE_CRITICAL: Resume EndFalse
+	End Select
+	
+	Dim sinfoerrh As String
+	If tp.iErr = iMSG_ASSERT_TRUE Or tp.iErr = iERR_ASSERT_TRUE Then 'Or tp.iErr = iERR_ASSERT_TRUE_CRITICAL Then 
+		sinfoerrh = "Assertion negative: '" & Error$ & "'"
+	Else
+		sinfoerrh = Error$
+	End If
+	
+	Dim sScripterrh As String, tperrh As TypeParamZZZ, sessionerrh As New notessession
+	sScripterrh = "ZBasic.DataType.Date" & "\" & Getthreadinfo(LSI_THREAD_PROC)
+	tp.serr = strMsgZZZ(sessionerrh,  tp.sErr, sScripterrh, Erl, sinfoerrh, tp.iErr, tperrh, "")
+	If tperrh.iErr > 0 Then
+		Msgbox sScripterrh & "#" & tperrh.serr
+		Resume EndError
+	End If
+	Select Case tp.ierr
+	Case iMSG_NEXT, iERR_NEXT, iMSG_AGENT_NEXT, iERR_AGENT_NEXT, iMSG_ASSERT_TRUE, iERR_ASSERT_TRUE, iMSG_ASSERT_FALSE, iERR_ASSERT_FALSE: Resume Next
+	Case iMSG_TRUE, iERR_TRUE, iMSG_AGENT_TRUE, iERR_AGENT_TRUE: Resume EndTrue  ', iMSG_ASSERT_TRUE_CRITICAL, iERR_ASSERT_TRUE_CRITICAL: Resume EndTrue
+	Case iMSG_FALSE, iERR_FALSE, iMSG_AGENT_FALSE, iERR_AGENT_FALSE, iMSG_ASSERT_FALSE_CRITICAL, iERR_ASSERT_FALSE_CRITICAL: Resume EndFalse
+	Case iERR_OBJECT_ERR, iERR_OBJECT_CUR, iERR_AGENT_CALL, iERR_FUNCTION_CALL, iERR_PARAM_VALUE, iERR_PARAM_MISSING, iERR_PROPERTY_VALUE, iERR_PROPERTY_MISSING, iERR_DESIGN_MISSING: Resume EndError 'Ziel: Nicht jeden Fehler ins Log stellen
+	Case Else: Resume EndError
+	End Select
+'%ENDREM
+End Function
+Function ndateAdjustZZZ(session As notessession, ndatetemp As NotesDateTime, lDateDifferencetemp As Long, tp As TypeParamZZZ, sFlag As String) As NotesDateTime 
+	On Error Goto Errh
+	Dim ndatereturn As NotesDateTime 
+	Set ndatereturn = New NotesDateTime(ndatetemp.LSLocalTime) 
+	
+	Dim iDifSecond As Integer, idifhour As Integer, idifday As Integer 
+	idifday = lDatedifferencetemp / 86400                         
+	lDateDifferencetemp = lDatedifferencetemp - (idifday * 86400) 
+	idifhour = lDateDifferencetemp / 3600                         
+	lDatedifferencetemp = lDatedifferencetemp - (idifhour * 3600) 
+	idifsecond = lDatedifferencetemp 
+	
+	Call ndateReturn.AdjustDay(iDifday) 
+	Call ndateReturn.AdjustHour(iDifhour)  
+	Call ndatereturn.AdjustSecond(iDifSecond)                         
+	
+EndTrue:
+	tp.iERR = 0
+	Set ndateAdjustZZZ = ndatereturn 
+	Exit Function
+endFalse:
+	tp.iErr = 0
+	Set ndateAdjustZZZ = Nothing
+	Exit Function
+EndError:
+	Set ndateAdjustZZZ = Nothing
+	Exit Function
+'###########################################################################################################################################################################
+'REM: Bibliotheksfunktionen, die in .lss Dateien aufgenommen werden sollen, müssen die private Konstante sLIBZZZ durch den Bibliotheksnamen als konstanten String ersetzten. 
+ErrhNext:
+	'Fehler als Message entgegennehmen. Fehler tritt auf, wenn die neue DB schon exisitert
+	On Error Goto Errh
+	tp.iErr = Err 'Beim wiederholten Aufruf (d.h. zwei Zeilen hintereinanger ' Error iERR_NEXT, "das ist ein text" ' aufrufen) verliert Err zwei Stellen von rechts nach dem Aufruf der MEthode objMe.MessageAppend(..) !!!! 	
+	Dim sScripterrhnext As String, tperrhnext As TypeParamZZZ, sessionerrhnext As New notessession
+	sScripterrhnext = "ZBasic.DataType.Date" & "\" & Getthreadinfo(LSI_THREAD_PROC)
+	
+	Dim sinfoerrhnext As String
+	sinfoerrhnext = Error$
+	tp.serr = strMsgZZZ(sessionerrhnext,  tp.sErr, sScripterrhnext, Erl, sinfoerrhnext, tp.iErr, tperrhnext, "")
+	If tperrhnext.iErr > 0 Then Error iERR_FUNCTION_CALL, tperrhnext.serr
+	
+	On Error Goto Errhnext
+	Resume Next
+ErrH:
+	tp.iErr = Err 'Beim wiederholten Aufruf (d.h. zwei Zeilen hintereinanger ' Error iERR_NEXT, "das ist ein text" ' aufrufen) verliert Err zwei Stellen von rechts nach dem Aufruf der MEthode objMe.MessageAppend(..) !!!! 	
+	Select Case tp.iErr
+	Case iASSERT_FALSE, iASSERT_TRUE: Resume Next  'd.h. es soll keine Information über den Message oder den Error Kanals ausgegeben werden.
+	Case iASSERT_FALSE_CRITICAL: Resume EndFalse
+	End Select
+	
+	Dim sinfoerrh As String
+	If tp.iErr = iMSG_ASSERT_TRUE Or tp.iErr = iERR_ASSERT_TRUE Then 'Or tp.iErr = iERR_ASSERT_TRUE_CRITICAL Then 
+		sinfoerrh = "Assertion negative: '" & Error$ & "'"
+	Else
+		sinfoerrh = Error$
+	End If
+	
+	Dim sScripterrh As String, tperrh As TypeParamZZZ, sessionerrh As New notessession
+	sScripterrh = "ZBasic.DataType.Date" & "\" & Getthreadinfo(LSI_THREAD_PROC)
+	tp.serr = strMsgZZZ(sessionerrh,  tp.sErr, sScripterrh, Erl, sinfoerrh, tp.iErr, tperrh, "")
+	If tperrh.iErr > 0 Then
+		Msgbox sScripterrh & "#" & tperrh.serr
+		Resume EndError
+	End If
+	Select Case tp.ierr
+	Case iMSG_NEXT, iERR_NEXT, iMSG_AGENT_NEXT, iERR_AGENT_NEXT, iMSG_ASSERT_TRUE, iERR_ASSERT_TRUE, iMSG_ASSERT_FALSE, iERR_ASSERT_FALSE: Resume Next
+	Case iMSG_TRUE, iERR_TRUE, iMSG_AGENT_TRUE, iERR_AGENT_TRUE: Resume EndTrue  ', iMSG_ASSERT_TRUE_CRITICAL, iERR_ASSERT_TRUE_CRITICAL: Resume EndTrue
+	Case iMSG_FALSE, iERR_FALSE, iMSG_AGENT_FALSE, iERR_AGENT_FALSE, iMSG_ASSERT_FALSE_CRITICAL, iERR_ASSERT_FALSE_CRITICAL: Resume EndFalse
+	Case iERR_OBJECT_ERR, iERR_OBJECT_CUR, iERR_AGENT_CALL, iERR_FUNCTION_CALL, iERR_PARAM_VALUE, iERR_PARAM_MISSING, iERR_PROPERTY_VALUE, iERR_PROPERTY_MISSING, iERR_DESIGN_MISSING: Resume EndError 'Ziel: Nicht jeden Fehler ins Log stellen
+	Case Else: Resume EndError
+	End Select
+End Function

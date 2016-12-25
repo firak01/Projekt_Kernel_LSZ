@@ -1,0 +1,10 @@
+'%INCLUDE "C:\fglKernel\KernelCode\LS\Dev\current\ZAPI.Basic.Asset.lss"
+'Use "ZCore.Element.."
+'Use "ZCore.Global.Crypt.Simple"
+'%INCLUDE "C:\fglKernel\KernelCode\LS\Dev\current\ZCore.Global.Crypt.Simple.lss"
+
+'Private Const sLibZZZ="ZZZBasicInheritStructListHash
+Public Class CryptSimpleZZZ As KernelCryptSimpleZZZ
+	Sub new(session As notessession, sCryptKey As String, vFlagToSet As Variant, sFlagControl As String)
+	End Sub
+End Class

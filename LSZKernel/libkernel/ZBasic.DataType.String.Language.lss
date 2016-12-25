@@ -1,0 +1,345 @@
+'raus, wird in ZBasic.DataType.. eingebunden %INCLUDE "C:\1fgl\workspace\Eclipse3FGL\LSZKernel\libkernel\ZAPI.Basic.Asset.lss"
+'raus, wird in ZBasic.DataType.. eingebunden Use "ZAPI.Basic.."
+'raus, wird in ZBasic.DataType.. eingebunden Use "ZBasic.DataType.Array.String"
+
+Function listUmlautInitZZZ(session As NotesSession, listUmlaut List As String, tp As TypeparamZZZ, sFlagControl As String) As Boolean
+	On Error Goto errhNoCall
+	
+	'### Übergabeparameter prüfen
+	
+	'####################
+	
+	listUmlaut("ä") = "ae"
+	listUmlaut("ö") = "oe"
+	listUmlaut("ü") = "ue"
+	listUmlaut("ß") = "ss"
+	listUmlaut("Ä") = "Ae"
+	listUmlaut("Ö") = "Oe"
+	listUmlaut("Ü") = "Ue"
+	
+	
+'######################################	
+EndTrue:
+	tp.ierr = 0
+	listUmlautInitZZZ = True
+	Exit Function
+EndFalse:
+	tp.ierr = 0
+	listUmlautInitZZZ = False
+	Exit Function	 
+EndError:
+	listUmlautInitZZZ = False
+	Exit Function
+ErrHNoCall:
+	Dim sScript As String, tpcall As TypeParamZZZ
+	sScript = "ZBasic.DataType.Date\" & Getthreadinfo(LSI_THREAD_PROC)
+	tp.iErr = Err 'Beim wiederholten Aufruf (d.h. zwei Zeilen hintereinanger ' Error iERR_NEXT, "das ist ein text" ' aufrufen) verliert Err zwei Stellen von rechts nach dem Aufruf der MEthode objMe.MessageAppend(..) !!!! 
+	tp.serr = strMsgZZZ(Nothing,  tp.sErr, sScript, Erl, Error$, Err, tpCall, "")
+	If tpcall.iErr > 0 Then
+		Msgbox tpcall.serr
+		Resume EndError
+	End If
+	Select Case tp.ierr
+	Case iMSG_NEXT, iERR_NEXT: Resume Next
+	Case iMSG_FALSE, iERR_FALSE: Resume EndFalse
+	Case iMSG_TRUE, iERR_TRUE: Resume EndTrue
+	Case Else: Resume EndError		
+	End Select
+End Function
+
+Function saUmlautReplaceZZZ(session As NotesSession, vString As Variant, bUppercaseProof As Boolean, tp As TypeparamZZZ, sFlagControl As String) As Variant
+	Dim saReturn() As String, tpcall As TypeParamZZZ
+	Dim stemp As String, btemp As Boolean
+	On Error Goto errh
+	
+	'### Übergabeparameter prüfen
+	If Isnull(vString)  Then Goto EndFalse
+	If Isempty(vString) Then Goto EndFalse
+	
+	Dim iNrOfString As Integer
+	iNrOfString = ArrayStringFromVariantZZZ( session, vString, saReturn, tPCall, "")
+	If tpcall.ierr > 0 Then Error iERR_FUNCTION_CALL, tpcall.serr
+	
+	'####################
+	Dim listUmlaut List As String
+	Call listUmlautInitZZZ(session, listUmlaut, tpcall, "") 
+	If tpcall.ierr > 0 Then Error iERR_FUNCTION_CALL, tpcall.serr
+	
+	Dim icount As Integer, bReplaceuppercase As Boolean, sReplacement As String
+	For icount = 0 To iNrOfString
+		If bUppercaseProof = True Then
+			'Wenn alle Buchstaben Großbuchsteben sind, dann soll nur mit Größbuchstaben gearbeitet werden
+			btemp = bStringIsUppercaseZZZ(session, saReturn(icount), tpcall, "") 
+			If tpcall.ierr > 0 Then Error iERR_FUNCTION_CALL, tpcall.serr
+			
+			bReplaceuppercase = btemp
+		End If
+		
+		Forall element In listUmlaut
+			If bReplaceuppercase = True Then
+				'TODO: Nun kann es sein, dass man die Listenelemente doppelt durchgeht, dies könnte durch eine Abstimmung listtag(Element) = GROSSBUCHSTABE und bReplaceUppercase abgefangen werden
+				btemp = bStringIsUppercaseZZZ(session, Listtag(element), tpcall, "") 
+				If tpcall.ierr > 0 Then Error iERR_FUNCTION_CALL, tpcall.serr
+				If btemp = False Then Goto elementNext
+				sReplacement = Ucase(element)  'Damit aus 'Ae' der Wert 'AE' wird
+			Else
+				sReplacement = element
+			End If
+			
+			'Das eigentliche Ersetzen
+			stemp = strReplaceAllSubstringZZZ( session, saReturn(iCount), Listtag(element), sReplacement, tpcall, "")
+			If tpcall.ierr > 0 Then Error iERR_FUNCTION_CALL, tpcall.serr
+			
+			saReturn(icount) = stemp
+elementNext:
+		End Forall		
+	Next icount
+	
+	
+'######################################	
+EndTrue:
+	tp.ierr = 0
+	saUmlautReplaceZZZ = saReturn
+	Exit Function
+EndFalse:
+	tp.ierr = 0
+	saUmlautReplaceZZZ = Null
+	Exit Function	 
+EndError:
+	saUmlautReplaceZZZ = ""
+	Exit Function
+ErrH:
+	Dim sScript As String
+	sScript = "ZBasic.DataType.Date\" & Getthreadinfo(LSI_THREAD_PROC)
+	tp.iErr = Err 'Beim wiederholten Aufruf (d.h. zwei Zeilen hintereinanger ' Error iERR_NEXT, "das ist ein text" ' aufrufen) verliert Err zwei Stellen von rechts nach dem Aufruf der MEthode objMe.MessageAppend(..) !!!! 
+	tp.serr = strMsgZZZ(Nothing,  tp.sErr, sScript, Erl, Error$, Err, tpCall, "")
+	If tpcall.iErr > 0 Then
+		Msgbox tpcall.serr
+		Resume EndError
+	End If
+	Select Case tp.ierr
+	Case iMSG_NEXT, iERR_NEXT: Resume Next
+	Case iMSG_FALSE, iERR_FALSE: Resume EndFalse
+	Case iMSG_TRUE, iERR_TRUE: Resume EndTrue
+	Case Else: Resume EndError		
+	End Select
+End Function
+
+Function bStringMatchZZZ(session As notessession, sInputin As String, vMatch As Variant, tp As TypeParamZZZ, sFlagControlin As String) As Boolean
+%REM
+'Diese Funktion faked die Umwandlung eines Strings in einen boolean Wert,
+was etwas über CBool() hinausgeht.
+%END REM
+	Dim bReturn, tpcall As TypePAramZZZ
+	On Error Goto errh
+	
+      '### Parameter check
+	Dim sinput As String
+	If Len(sinputin) = 0 Then
+		Goto EndFalse
+	Else
+		sinput = Ucase(sInputIn)
+	End If
+	
+	Dim icount As Integer
+	Dim iNrOfMatch As Integer
+	Dim saMatch() As String
+	
+	'Merke: Versuchen in der Schleife keine weiteren Abfragen zu haben !!!
+	If Isnull(vMatch) Then
+		Redim saMatch(3) As String
+		saMatch(0) = "1"
+		saMatch(1) = "-1"
+		saMatch(2) = "YES"
+		saMatch(3) = "TRUE"
+		iNrOfMatch = 3
+		
+		'Nun vergleichen. Merke: Hier sparen wir das Ucase()
+		For icount = 0 To iNrOfMatch
+			If sInput = saMatch(iCount) Then Goto EndTrue
+		Next iCount
+	Else		
+		iNrOfMatch = ArrayStringFromVariantZZZ(session, vMatch, saMatch, tpcall, "")
+		If tpcall.ierr > 0 Then Error iERR_FUNCTION_CALL, tpcall.sErr
+		
+		'Nun vergleichen. Den Ucase() hier nicht vergessen
+		For icount = 0 To iNrOfMatch
+			If sInput = Ucase(saMatch(iCount)) Then Goto EndTrue
+		Next iCount
+	End If
+	
+      '##########################
+EndFalse:
+	tp.ierr = 0
+	bStringMatchZZZ= False
+	Exit Function
+EndTrue:
+	tp.ierr = 0
+	bStringMatchZZZ =True
+	Exit Function
+EndError:
+	bStringMatchZZZ= False
+	Exit Function
+ErrH:
+	Dim sScript As String
+	sScript = "ZBasic.DataType.String.Language\" & Getthreadinfo(LSI_THREAD_PROC)
+	tp.iErr = Err 'Beim wiederholten Aufruf (d.h. zwei Zeilen hintereinanger ' Error iERR_NEXT, "das ist ein text" ' aufrufen) verliert Err zwei Stellen von rechts nach dem Aufruf der MEthode objMe.MessageAppend(..) !!!! 
+	tp.serr = strMsgZZZ(Nothing,  tp.sErr, sScript, Erl, Error$, Err, tpcall, "")
+	If tpcall.iErr > 0 Then
+		Msgbox tpcall.serr
+		Resume EndError
+	End If
+	Select Case tp.ierr
+	Case iMSG_NEXT, iERR_NEXT: Resume Next
+	Case iMSG_FALSE, iERR_FALSE: Resume EndFalse
+	Case iMSG_TRUE, iERR_TRUE: Resume EndTrue
+	Case Else: Resume EndError		
+	End Select
+End Function
+Function strAscii2AnsiFakeZZZ(session As NotesSession, sInput As String,  tp As TypeParamZZZ, sFlag) As String
+%REM 
+natürlich sind hier nicht alle Zeichen enthalten, das wäre imperformant
+Ziel war es beim Tree-Befehl alle Zeichen sauber zu bekommen
+%END REM
+'%REM
+	Dim sReturn As String
+	On Error Goto ErrHNoCall
+	
+	'### Param-check
+	If Len(sInput) = 0 Then Goto EndFalse
+	
+	'##########################
+	Dim inputChars(34) As String 'ASCII Codes
+	Dim outputChars(34) As String 	'ANSI Chars/Codes
+	
+	
+	'!!! Wichtig: Erst die gefakten Werte ersetzten, dann die Regulären
+	inputChars(0) = Chr(142)
+	outputChars(0) = "Ä"
+	inputChars(1) = Chr(153)
+	outputChars(1) = "Ö"
+	inputChars(2) = Chr(154)
+	outputChars(2) = "Ü"
+	inputChars(3) = Chr(132)
+	outputChars(3) = "ä"
+	inputChars(4) = Chr(148)
+	outputChars(4) = "ö"
+	inputChars(5) = Chr(129)
+	outputChars(5) = "ü"
+	inputChars(6) = Chr(225)
+	outputChars(6) = "ß"
+	
+	'Die folgenden Werte werden gefaked um Tree sinnvoll darzustellen !!!
+	inputChars(7) = Chr(179)
+	outputChars(7) = "l" 'das el also das kleine L
+	inputChars(8) = Chr(195) 
+	outputChars(8) = "|"  'Taste < > |
+	inputChars(9) = Chr(196)
+	outputChars(9) = "-"
+	inputChars(10) = Chr(192)
+	outputChars(10) = "L"
+	
+	'weitere spezielle Striche und Winkel, denen man einen normalen Ersatz geben könnte
+	inputChars(11) = Chr(212)
+	outputChars(11) = "t" 
+	inputChars(12) = Chr(194)
+	outputChars(12) = "T"
+	inputChars(13) = Chr(173)
+	outputChars(13) = "i"
+	'es gilt:chr(252) = 14 auf meinem System, darum dies nicht ersetzen inputChars(14) = Chr(252)
+	inputChars(14) = Chr(152)
+	outputChars(14) = "_"
+	inputChars(15) = Chr(213)
+	outputChars(15) = "F"
+	
+	'Zeichen, bei denen man auf der dt.Tastatur 2 Zeichen braucht, weiss nicht ob das funktioniert
+	inputChars(16) = Chr(133)
+	outputChars(16) = "à"
+	inputChars(17) = Chr(131)
+	outputChars(17) = "â"
+	inputChars(18) = Chr(130)
+	outputChars(18) = "é"
+	inputChars(19) = Chr(136)
+	outputChars(19) = "ê"	
+	inputChars(20) = Chr(138)
+	outputChars(20) = "è"
+	inputChars(21) = Chr(140)
+	outputChars(21) = "î"
+	inputChars(22) = Chr(141)
+	outputChars(22) = "ì"          'i graphe
+	inputChars(23) = Chr(144)
+	outputChars(23) = "É"
+	inputChars(24) = Chr(147)
+	outputChars(24) = "ô"
+	inputChars(25) = Chr(149)
+	outputChars(25) = "ò"
+	inputChars(26) = Chr(150)
+	outputChars(26) = "û"
+	inputChars(27) = Chr(156)
+	outputChars(27) = "ù"
+	
+	'152 wird ausgelassen
+	'156 wird augelassen Zeichen für britischens Pfund
+	'...
+	
+	inputChars(28) = Chr(160)
+	outputChars(28) = "á"
+	inputChars(29) = Chr(161)
+	outputChars(29) = "í"      'i de gü
+	inputChars(30) = Chr(162)
+	outputChars(30) = "ó"
+	inputChars(31) = Chr(163)
+	outputChars(31) = "ú"
+	inputChars(32) = Chr(167)
+	outputChars(32) = "°"
+	'168 gekipptes Fragezeichen	
+	inputChars(33) = Chr(230)
+	outputChars(33) = "µ"
+	inputChars(34) = Chr(253)
+	outputChars(34) = "²"
+	
+	
+	Dim i,x As Integer
+	Dim dummy1 As String, dummy2 As String
+	
+	sReturn = sInput
+	For i = Lbound(inputChars) To Ubound(inputChars)	
+		If i= 5 Then Stop
+		x = Instr(1,sReturn,inputChars(i))
+		While x  <> 0
+			dummy1 = Left$(sReturn, x - 1)
+			dummy2 = Right$(sReturn, Len(sReturn)-x)
+			sReturn = dummy1 & outputChars(i) & dummy2
+			x = Instr(1,sReturn,inputChars(i))
+		Wend		
+	Next
+	
+		'##########################
+EndTrue:
+	tp.ierr = 0
+	strAscii2AnsiFakeZZZ = sReturn
+	Exit Function
+EndFalse:
+	tp.ierr = 0
+	strAscii2AnsiFakeZZZ = ""
+	Exit Function
+EndError:
+	strAscii2AnsiFakeZZZ = "" 
+	Exit Function 
+ErrHNoCall:
+	Dim sScript As String, tpcall As TypePAramZZZ
+	sScript = "ZBasic.DataType.String.Language\" & Getthreadinfo(LSI_THREAD_PROC)
+	tp.iErr = Err 'Beim wiederholten Aufruf (d.h. zwei Zeilen hintereinanger ' Error iERR_NEXT, "das ist ein text" ' aufrufen) verliert Err zwei Stellen von rechts nach dem Aufruf der MEthode objMe.MessageAppend(..) !!!! 
+	tp.serr = strMsgZZZ(Nothing,  tp.sErr, sScript, Erl, Error$, Err, tpCall, "")
+	If tpcall.iErr > 0 Then
+		Msgbox tpcall.serr
+		Resume EndError
+	End If
+	Select Case tp.ierr
+	Case iMSG_NEXT, iERR_NEXT: Resume Next
+	Case iMSG_FALSE, iERR_FALSE: Resume EndFalse
+	Case iMSG_TRUE, iERR_TRUE: Resume EndTrue
+	Case Else: Resume EndError		
+	End Select
+'%ENDREM
+End Function

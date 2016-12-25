@@ -1,0 +1,106 @@
+'%INCLUDE "C:\1fgl\workspace\Eclipse3FGL\LSZKernel\libkernel\ZAPI.Basic.Asset.lss" 
+'Use "ZBasic.DataType.."    
+
+%REM 
+FGL 20081111
+Wird noch niergendwo eingesetzt. Muss für Kernel überarbeitet werden
+%ENDREM
+
+
+
+Function bFilenameIsNotesDBZZZ(session As NotesSession, sFilepathin As String, tp As TypeParamZZZ, sFlag As String) As Boolean
+	On Error Goto errhNoCall
+	Dim stemp As String
+	
+	Dim sFilepath As String
+	If Len(sFilepathin) = 0 Then
+		Error iERR_PARAM_MISSING, sFilepathin
+	Else
+		sFilepath = sFilepathin
+	End If
+	
+	'Prüfen, ob es sich um eine Notes-Datenbank handelt
+	stemp = Lcase(Strright(Trim(sFilePath), "."))
+	If stemp = "nsf" Or stemp = "ns1" Or stemp = "ns2" Or stemp = "ns3" Or stemp = "ns4" Or stemp = "ns5" Or stemp = "ns6" Or stemp = "ns7" Or stemp = "ns8" Or stemp = "ns9" Then
+		Goto endtrue
+	Else
+		Error iMSG_FALSE, "This is not a valid notes-database filename." & strcrlfzzz(1) & "A notes-database filename must end like 'nsf', 'ns6', ..."
+	End If						
+	
+'######################################	
+EndTrue:
+	tp.ierr = 0
+	bFilenameIsNotesDBZZZ = True
+	Exit Function 
+EndFalse:
+	tp.ierr = 0
+	bFilenameIsNotesDBZZZ = False
+	Exit Function	 
+EndError:
+	bFilenameIsNotesDBZZZ = False
+	Exit Function
+ErrHNoCall:
+	Dim sScript As String, tpcall As TypeParamZZZ
+	sScript = "ZBasic.File.Logic\" & Getthreadinfo(LSI_THREAD_PROC)
+	tp.iErr = Err 'Beim wiederholten Aufruf (d.h. zwei Zeilen hintereinanger ' Error iERR_NEXT, "das ist ein text" ' aufrufen) verliert Err zwei Stellen von rechts nach dem Aufruf der MEthode objMe.MessageAppend(..) !!!! 
+	tp.serr = strMsgZZZ(Nothing,  tp.sErr, sScript, Erl, Error$, Err, tpCall, "")
+	If tpcall.iErr > 0 Then
+		Msgbox tpcall.serr
+		Resume EndError
+	End If
+	Select Case tp.ierr
+	Case iMSG_NEXT, iERR_NEXT: Resume Next
+	Case iMSG_FALSE, iERR_FALSE: Resume EndFalse
+	Case iMSG_TRUE, iERR_TRUE: Resume EndTrue
+	Case Else: Resume EndError		
+	End Select
+End Function
+
+Function bFilenameIsNotesTemplateZZZ(session As NotesSession, sFilepathin As String, tp As TypeParamZZZ, sFlag As String) As Boolean
+	On Error Goto errhNoCall
+	Dim stemp As String
+	
+	Dim sFilepath As String
+	If Len(sFilepathin) = 0 Then
+		Error iERR_PARAM_MISSING, sFilepathin
+	Else
+		sFilepath = sFilepathin
+	End If
+	
+	'Prüfen, ob es sich um eine Notes-Datenbank handelt
+	stemp = Lcase(Strright(Trim(sFilePath), "."))
+	If stemp = "ntf" Or stemp = "nt1" Or stemp = "nt2" Or stemp = "nt3" Or stemp = "nt4" Or stemp = "nt5" Or stemp = "nt6" Or stemp = "nt7" Or stemp = "nt8" Or stemp = "nt9" Then
+		Goto endtrue
+	Else
+		Error iMSG_FALSE, "This is not a valid notes-template filename." & strcrlfzzz(1) & "A notes-template filename must end like 'ntf', 'nt6', ..."
+	End If						
+	
+	
+'######################################	
+EndTrue:
+	tp.ierr = 0
+	bFilenameIsNotesTemplateZZZ = True
+	Exit Function 
+EndFalse:
+	tp.ierr = 0
+	bFilenameIsNotesTemplateZZZ = False
+	Exit Function	 
+EndError:
+	bFilenameIsNotesTemplateZZZ = False
+	Exit Function
+ErrHNoCall:
+	Dim sScript As String, tpcall As TypeParamZZZ
+	sScript = "ZBasic.File.Logic\" & Getthreadinfo(LSI_THREAD_PROC)
+	tp.iErr = Err 'Beim wiederholten Aufruf (d.h. zwei Zeilen hintereinanger ' Error iERR_NEXT, "das ist ein text" ' aufrufen) verliert Err zwei Stellen von rechts nach dem Aufruf der MEthode objMe.MessageAppend(..) !!!! 
+	tp.serr = strMsgZZZ(Nothing,  tp.sErr, sScript, Erl, Error$, Err, tpCall, "")
+	If tpcall.iErr > 0 Then
+		Msgbox tpcall.serr
+		Resume EndError
+	End If
+	Select Case tp.ierr
+	Case iMSG_NEXT, iERR_NEXT: Resume Next
+	Case iMSG_FALSE, iERR_FALSE: Resume EndFalse
+	Case iMSG_TRUE, iERR_TRUE: Resume EndTrue
+	Case Else: Resume EndError		
+	End Select
+End Function

@@ -1,0 +1,210 @@
+'muss rein, damit alle Funktionen global erreichbar sind. Als .lss Datei raus, wie auch alle Use-Einbindungen
+'%INCLUDE "C:\1fgl\workspace\Eclipse3FGL\LSZKernel\libkernel\ZAPI.Basic.Asset.lss" 
+
+
+
+
+
+
+
+
+Declare Function W32SendNotifyMessage Lib "user32" Alias "SendNotifyMessageA" ( Byval hWnd As Long,Byval msg As Long,Byval wParam As Long, lParam As Any) As Long
+Declare Function W32GetProfileString Lib "kernel32" Alias "GetProfileStringA" ( Byval lpAppName As String, Byval lpKeyName As String, Byval lpDefault As String, Byval lpReturnedString As String, Byval nSize As Long ) As Long
+Declare Function W32EnumPrinters Lib "winspool.drv" Alias "EnumPrintersA" ( Byval flags As Long, Byval pName As String, Byval level As Long, pPrinterEnum As Long, Byval cdBuf As Long, pcbNeeded As Long, pcReturned As Long ) As Long
+Declare Function lstrcpy Lib "kernel32.dll" Alias "lstrcpyA" ( Byval lpString1 As String, Byval lpString2 As Long ) As Long
+Declare Function lstrlen Lib "kernel32.dll" Alias "lstrlenA" ( Byval lpString As Long ) As Long
+Declare Function ClosePrinter Lib "winspool.drv" Alias "ClosePrinterA"  (Byval hPrinter As Long) As Long
+Type printerInfoOneTYPE
+	flags As Long
+	pDescription As String
+	pName As String
+	pComment As String
+End Type
+Declare Function OpenPrinter Lib "winspool.drv" Alias "OpenPrinterA" ( Byval pPrinterName As String, phPrinter As Long, pDefault As Any) As Long
+Declare Function EnumJobs Lib "winspool.drv" Alias "EnumJobsA" ( Byval hPrinter As Long, Byval FirstJob As Long, Byval NoJobs As Long, Byval Level As Long, pJob As Any, Byval cdBuf As Long, pcbNeeded As Long, pcReturned As Long) As Long
+Dim hPrinter As Long
+Dim lNeeded As Long
+Dim lReturned As Long
+Dim lJobCount As Long
+
+Public Function IsPrinterDefaultZZZ(sPrinter As String) As Boolean
+	
+	' Activate exception Handler
+	On Error Goto ExceptionHandler
+	
+	' Constanst
+	Const cAppName = "Windows"
+	Const cKeyName = "Device"
+	Const cMaxSize = 128
+	
+	' Declarations
+	Dim lResult As Long
+	Dim sDefPrinter As String * cMaxSize
+	
+	' Init return value
+	IsPrinterDefaultZZZ= False
+	sPrinter = ""
+	
+	' Get default printer 
+	lResult = W32GetProfileString(cAppName,cKeyName,"",sDefPrinter,cMaxSize-1)
+	If Not(lResult = 0) Then
+		
+		' Extract printer name
+		sDefPrinter = Strleft(sDefPrinter, Chr(0))
+		sPrinter    = Strtoken(sDefPrinter,",",1)
+		
+		' Successful execution
+		IsPrinterDefaultZZZ= True
+		
+	End If
+	
+Done:
+	
+	' Exit function
+	Exit Function
+	
+ExceptionHandler:
+	
+	' Print error message and resume
+	Print "Error: " & Error & " [" & Cstr(Err) & "] - Line " & Cstr(Erl) 
+	Resume Done
+	
+End Function
+Public Function SetPrinterDefaultZZZ(sPrinterName As String) As Boolean
+	
+	' Activate exception handling
+	On Error Goto ExceptionHandler
+	
+	'
+	Const WSH_OBJ_NAME = "WScript.Network"
+	Const WM_WININICHANGE = &H1A
+	Const HWND_BROADCAST = &HFFFF
+	Dim lngRC As Long
+	Dim wshNet As Variant
+	
+	' Init return value
+	SetPrinterDefaultZZZ = False
+	
+	' 
+	Set wshNet = CreateObject(WSH_OBJ_NAME)
+	Call wshNet.SetDefaultPrinter(sPrinterName)
+	
+	'// This doesn't always seem to be necessary - in most(?) cases it works without broadcasting the change
+	lngRC& = W32SendNotifyMessage(HWND_BROADCAST, WM_WININICHANGE, 0&, "WINDOWS")
+	
+	setPrinterDefaultZZZ = Not(lngRC& = 0)
+	
+Done:
+	
+	Set wshNet = Nothing
+	Exit Function
+	
+ExceptionHandler:
+	'Call FormatErrorEvent()
+	Resume Done
+	
+End Function 
+
+
+Public Function GetPrinterAllZZZ(pstrPrinterNameArray() As String) As Boolean
+	
+	On Error Goto errorHandler
+	
+	Const PRINTER_ENUM_LOCAL = &H2
+	Dim lngBuffArray() As Long
+	Dim printInfoArray() As printerInfoOneTYPE '// values from lngBuffArray are written here
+	Dim lngBytes As Long '// size in bytes of lngBuffArray
+	Dim lngBytesReq As Long '// receives number of bytes necessary if lngBuffArray happens to be too small
+	Dim lngPrintersFound As Long '// receives number of printers found
+	Dim lngRC As Long
+	Dim i As Integer
+	
+	GetPrinterAllZZZ = False
+	
+'// Attempt to get printer information
+	lngBytes& = (1024 * 3) + 4 '// this is usually large enough, but occasionally it may not be
+	Redim lngBuffArray(0 To lngBytes& / 4) As Long '// resize the array (one Long = 4 bytes)
+	
+	lngRC& = W32EnumPrinters(PRINTER_ENUM_LOCAL, "", 1, lngBuffArray(0), lngBytes&, lngBytesReq&, lngPrintersFound&)
+	If lngRC& = 0 Then '// enlarge lngBuffArray and try one more time with a bigger array
+		
+		lngBytes& = lngBytesReq&
+		Redim lngBuffArray(0 To lngBytes& / 4) As Long
+		
+		lngRC& = W32EnumPrinters(PRINTER_ENUM_LOCAL, "", 1, lngBuffArray(0), lngBytes&, lngBytesReq&, lngPrintersFound&)
+		If lngRC& = 0 Then '// it failed again
+			Msgbox "Unable to determine available printers.", , "Error encountered . . ."
+			Goto functionExit
+		End If
+	End If
+	
+	If lngPrintersFound& = 0 Then
+		Msgbox "Unable to find any available printers.", , "No available printers . . ."
+		Goto functionExit
+	End If
+	
+'// If we get this far, we need to convert data in lngBuffArray to an array of the printerInfoOneTYPE
+	Redim printInfoArray(0 To lngPrintersFound& - 1) As printerInfoOneTYPE
+	For i = 0 To lngPrintersFound& - 1 '// populate each element of the array with printer info
+'// For each printer, create a buffer and then the copy the string
+		printInfoArray(i).flags& = lngBuffArray(4 * i)
+		
+		printInfoArray(i).pDescription$ = Space(lstrlen(lngBuffArray(4 * i + 1)))
+		lngRC& = lstrcpy(printInfoArray(i).pDescription$, lngBuffArray(4 * i + 1))
+		
+		printInfoArray(i).pName$ = Space(lstrlen(lngBuffArray(4 * i + 2)))
+		lngRC& = lstrcpy(printInfoArray(i).pName$, lngBuffArray(4 * i + 2))
+		
+		printInfoArray(i).pComment$ = Space(lstrlen(lngBuffArray(4 * i + 3)))
+		lngRC& = lstrcpy(printInfoArray(i).pComment$, lngBuffArray(4 * i + 3))
+	Next i
+	
+'// Copy the name of each printer into the output array
+	Redim pstrPrinterNameArray(0 To lngPrintersFound& - 1) As String
+	For i = 0 To lngPrintersFound& - 1
+		pstrPrinterNameArray(i) = printInfoArray(i).pName
+	Next i
+	
+	If lngPrintersFound& > 0 Then
+		If Not(pstrPrinterNameArray(0) = "") Then
+			GetPrinterAllZZZ = True
+		End If
+	End If
+	
+functionExit:
+	
+	Exit Function
+	
+errorHandler:
+	Msgbox "Error & " & Err & ": " & Error$ & " encountered at line " & Erl & " of " & Getthreadinfo(1) & ".", , "Error encountered . . ."
+	Print "Error & " & Err & ": " & Error$ & " encountered at line " & Erl & " of " & Getthreadinfo(1) & " . . ."
+	Resume functionExit
+End Function
+
+
+Public Function EnumJobsByPrinter (sPrinter As String)
+	
+	Dim hPrinter As Long
+	Dim lNeeded As Long
+	Dim lReturned As Long
+	Dim lJobCount As Long
+	
+	lJobCount = 1
+	Call OpenPrinter(sPrinter,hPrinter,Byval 0&)
+	
+	Do Until lJobCount = 0
+		Call EnumJobs (hPrinter, 0, 99, 1, Byval 0&, 0, lNeeded, lReturned) 
+		If lNeeded > 0 Then
+			Redim byteJobsBuffer( lNeeded - 1 ) As Byte
+			Call EnumJobs(hPrinter,0,99,1,byteJobsBuffer( 0 ), lNeeded, lNeeded, lReturned)
+			If lReturned > 0 Then
+				lJobCount = lReturned
+			Else
+				lJobCount = 0
+			End If
+		Else
+			lJobCount = 0
+		End If
+	Loop
+	
+End Function

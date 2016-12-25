@@ -1,0 +1,163 @@
+'%INCLUDE "C:\1fgl\workspace\Eclipse3FGL\LSZKernel\libkernel\ZAPI.Basic.Asset.lss" 
+'Use "ZBasic.DataType.."    
+
+Function IsPasswordQualitySufficient(Password As String, MinLength As Integer, MinSpecialChars As Integer, allowedSpecialChars As Variant) As Variant
+	
+     '// Checks if a password has the required quality
+     '// Returns true if the quality is ok and false if not
+     '// Parameters: Password - the password to check; MinLength - the minimum length that allows the password to pass the check
+     '// MinSpecialChars - the minimum number of required special characters (characters which ASCII Value is outside the range of 65 to 122) 
+	'// allowedSpecialChars - gültige Sonderzeichen
+	
+	On Error Goto errHandlerWeb
+	
+	Dim i As Integer 
+	Dim SpecialCharacterCount As Integer
+	Dim CurrentCharacter As String
+	Dim Temp As String
+	Dim spezChar As Variant
+	
+	IsPasswordQualitySufficient = False
+     '// Loop through every character through of the password to check for special characters
+	For i = 1 To Len(Password)
+		CurrentCharacter = Mid$(Password, i, 1)
+          '// Checks if the Current Character is a Special Character
+		
+		spezChar  = Arraygetindex ( allowedSpecialChars , CurrentCharacter , 4  )	
+		If Not Isnull(spezChar) Then
+			SpecialCharacterCount = SpecialCharacterCount + 1
+		Else
+			If (Uni(CurrentCharacter) < 65) Or (Uni(CurrentCharacter) > 122) Then
+				IsPasswordQualitySufficient = False
+				Exit Function
+			End If
+		End If
+		
+	Next
+     '// If more or equal Special Characters are in the password and the password is longer or equal than then required length, the Password Quality is sufficient
+	If (SpecialCharacterCount >= MinSpecialChars) And (Len(Password) >= MinLength) Then
+		On Error Resume Next
+		Temp = Evaluate("@Password(""" +Password + """)")
+		On Error Goto 0
+		Err = 0
+		If Not Err Then IsPasswordQualitySufficient = True
+	End If
+	
+	Exit Function
+	
+errHandlerWeb:
+	Print "<h1>Error" + Str(Err) + " in IsPasswordQualitySufficient: " + Error$&+"in line "+Cstr(Erl)+"</h1>"
+	Exit Function
+	
+End Function
+
+Function isUsernameValid(username As String) As String
+	On Error Goto errHandlerWeb
+	
+       '// Loop through every character through of theusername to check for unsupportet characters
+	
+	Dim SpecialCharacterCount, i As Integer
+	Dim CurrentCharacter As String
+	
+	SpecialCharacterCount =0
+	
+	For i = 1 To Len(username)
+		CurrentCharacter = Mid$(username, i, 1)
+          '// Checks if the Current Character is a unsupportet Special Character
+		If ((Uni(CurrentCharacter) < 65) And Uni(CurrentCharacter) <> 45) Or ( (Uni(CurrentCharacter) > 90) And (Uni(CurrentCharacter) < 97) ) Or Uni(CurrentCharacter) > 122 Then
+			SpecialCharacterCount = SpecialCharacterCount + 1
+		End If
+	Next
+	
+	If SpecialCharacterCount >0 Then
+		isUsernameValid="0"
+	Else
+		isUsernameValid="1"
+	End If
+	
+	Exit Function
+	
+errHandlerWeb:
+	Print "<h1>Error" + Str(Err) + "in isUsernameValid: " + Error$&+"in line "+Cstr(Erl)+"</h1>"
+	Exit Function
+End Function
+
+Function isValidMailaddress(mail As String) As String
+	
+	On Error Goto errHandlerWeb	
+	
+     '// Loop through every character through the mailaddress to check it
+	  '// This loop is partially copied from IsPasswordQualitySufficient-Function
+	'// Dies schleife prüft, ob die Emailadresse mit einem buchstaben beginnt, ein @ symbol enthält und die domain
+	'// einen Punkt enthält.
+	
+	Dim hasAt, hasTwoAt, hasValidDomain, hasCahrAfterAt, hasCahrAfterPoint, CurrentCharacter As String
+	Dim startDomain, mailLength, startCountry, i As Integer
+	Dim firstIsChar As Boolean
+	
+	hasAt="0"
+	hasTwoAt="0"
+	hasValidDomain="0"
+	hasCahrAfterAt="0"
+	hasCahrAfterPoint="0"
+	startDomain=0
+	mailLength=Len(mail)
+	
+	'test ob mail mit buchstaben beginnt
+	firstIsChar=isUsernameValid(Mid$(mail, 1, 1))
+	
+	'test ob ein @-symbol folgt
+	If Len(mail) >=2 Then
+		For i = 2 To Len(mail)
+			CurrentCharacter = Mid$(mail, i, 1)
+               '// Checks if the Current Character is a @. Wenn zei @s vorhanden (fehler), hasTwoAt="1"
+			If Uni(CurrentCharacter) = 64 And hasAt="1" Then
+				hasTwoAt="1"
+			End If
+			
+			If Uni(CurrentCharacter) = 64 Then
+				hasAt="1"
+				startDomain=i+1
+			End If			
+		Next
+	End If
+	
+	'test ob buchstaben nach @
+	If startDomain>0 Then
+		hasCahrAfterAt=isUsernameValid(Mid$(mail,startDomain , 1))
+		startDomain=startDomain+1
+	End If
+	
+	'test ob ein punkt folgt
+	If hasAt="1" And hasCahrAfterAt="1" And Len(mail) >= startDomain  Then
+		For i =  startDomain To Len(mail)
+			CurrentCharacter = Mid$(mail, i, 1)
+			
+          '// Checks if the Current Character is a "."  
+			If Uni(CurrentCharacter) = 46 Then
+				hasValidDomain="1"
+				startCountry = i+1
+			End If			
+		Next
+	End If
+	
+	'test ob buchstaben nach "."
+	If startDomain>0 And hasAt="1" And hasCahrAfterAt="1" And hasValidDomain="1"  And startCountry <= Len(mail) Then
+		hasCahrAfterPoint=isUsernameValid(Mid$(mail,startCountry  , 1))
+	End If
+	
+	
+	If hasCahrAfterPoint="1" And hasCahrAfterAt="1"And  firstIsChar="1" And hasAt="1" And hasValidDomain="1"  And hasTwoAt="0" Then
+		isValidMailaddress="1"
+	Else
+		isValidMailaddress="0"
+	End If
+	
+	Exit Function
+errHandlerWeb:
+	Print "<h1>Error" + Str(Err) + " in isValidMailaddress: " + Error$&+"in line "+Cstr(Erl)+"</h1>"
+	Exit Function
+	
+End Function
+
+

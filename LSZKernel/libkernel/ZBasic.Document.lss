@@ -1,0 +1,1947 @@
+'%INCLUDE "C:\1fgl\workspace\Eclipse3FGL\LSZKernel\libkernel\ZAPI.Basic.Asset.lss" 
+'Use "ZBasic.DataType.."   
+'Private Const sLibZZZ = "ZZZBasicDocument"
+'Private Const sVerZZZ = "2005-06-22" 
+
+
+
+
+
+
+Function ArrayFieldnameFromDocZZZ(session As notessession, doc As notesdocument, _
+saFieldname() As String,tP As TypeParamZZZ, sFlagControl As String) As Long
+	Dim lReturn As Long
+	On Error Goto errhNoCall
+	lReturn = -1
+	
+	If doc Is Nothing Then Goto EndFalse 
+	If Isempty(doc.items) Then Goto EndFalse
+	
+	'############
+	
+	Redim saFieldname(Ubound(doc.items)) As String
+	Forall item In doc.items
+		lReturn = lReturn + 1
+		saFieldname(lReturn) = item.name
+	End Forall
+	
+	'############
+EndTrue:
+	tp.ierr = 0
+	ArrayFieldnameFromDocZZZ = lReturn
+	Exit Function
+EndFalse:
+	tp.ierr = 0
+	ArrayFieldnameFromDocZZZ = -1
+	Exit Function
+EndError:
+	ArrayFieldnameFromDocZZZ = - 1
+	Exit Function
+ErrHNoCall:
+	Dim sScript As String, tpcall As TypeParamZZZ
+	sScript = "ZBasic.Document\" & Getthreadinfo(LSI_THREAD_PROC)
+	tp.iErr = Err 'Beim wiederholten Aufruf (d.h. zwei Zeilen hintereinanger ' Error iERR_NEXT, "das ist ein text" ' aufrufen) verliert Err zwei Stellen von rechts nach dem Aufruf der MEthode objMe.MessageAppend(..) !!!! 
+	tp.serr = strMsgZZZ(Nothing, tp.sErr, sScript, Erl, Error$, Err, tpcall, "")
+	If tpcall.iErr > 0 Then
+		Msgbox tpcall.serr
+		Resume EndError
+	End If
+	Select Case tp.ierr
+	Case iMSG_NEXT, iERR_NEXT: Resume Next
+	Case iMSG_FALSE, iERR_FALSE: Resume EndFalse
+	Case iMSG_TRUE, iERR_TRUE: Resume EndTrue
+	Case Else: Resume EndError		
+	End Select
+End Function
+Function docItemIndexRemoveZZZ(session As notessession, doc As notesdocument, saFieldName As Variant, _
+iIndex As Integer, tP As TypeParamZZZ, sFlagControl As String) As Boolean
+	Dim tpcall As TypeParamZZZ
+	On Error Goto errh
+	
+	'### Übergabeparameter prüfen
+	If doc Is Nothing Then Goto endFalse
+	If  Isnull(saFieldname) Then Goto EndFalse
+	If Isempty(saFieldname) Then Goto EndFalse
+	
+	'#######################################	
+	Dim item As notesitem	
+	Dim iCounter As Integer
+	Dim itemp As Integer
+	
+	If Isarray(saFieldname) Then
+		If iIndex < Lbound(saFieldname) Then Goto EndFalse		
+		
+		For iCounter = 0 To Ubound(saFieldName)
+			Set item = doc.getfirstitem(saFieldName(iCounter))
+			itemp = ItemIndexRemoveZZZ(session, item, iIndex, tpcall, "")
+			If tpcall.iErr > 0 Then Error iERR_FUNCTION_CALL, tpcall.serr
+		Next iCounter
+	Else
+		Set item = doc.GetFirstItem(saFieldname)
+		itemp = ItemIndexRemoveZZZ(session, item, 0, tpcall,"")
+		If tpcall.iErr > 0 Then Error iERR_FUNCTION_CALL, tpcall.serr
+	End If
+	
+	'#######################################
+EndTrue:
+	tp.ierr = 0
+	docItemIndexRemoveZZZ = True
+	Exit Function
+EndFalse:
+	tp.ierr = 0
+	docItemIndexRemoveZZZ = False
+	Exit Function
+EndError:
+	docItemIndexRemoveZZZ = False
+	Exit Function
+ErrH:
+	Dim sScript As String
+	sScript = "ZBasic.Document\" & Getthreadinfo(LSI_THREAD_PROC)
+	tp.iErr = Err 'Beim wiederholten Aufruf (d.h. zwei Zeilen hintereinanger ' Error iERR_NEXT, "das ist ein text" ' aufrufen) verliert Err zwei Stellen von rechts nach dem Aufruf der MEthode objMe.MessageAppend(..) !!!! 
+	tp.serr = strMsgZZZ(Nothing, tp.sErr, sScript, Erl, Error$, Err, tpcall, "")
+	If tpcall.iErr > 0 Then
+		Msgbox tpcall.serr
+		Resume EndError
+	End If
+	Select Case tp.ierr
+	Case iMSG_NEXT, iERR_NEXT: Resume Next
+	Case iMSG_FALSE, iERR_FALSE: Resume EndFalse
+	Case iMSG_TRUE, iERR_TRUE: Resume EndTrue
+	Case Else: Resume EndError		
+	End Select
+End Function
+Function DocGetByIDDBZZZ(sessionIn As notessession, dbToSearchIn As notesdatabase, sIDString As String, _
+tp As TypeParamZZZ, sFlagControlin As String) As Notesdocument
+	On Error Goto errhNoCall
+	
+	'### Variablen ###
+	Dim view As notesview	
+	Dim docToFind As notesdocument
+	Dim itemtemp As notesitem
+	'###############
+	
+	
+	'### Übergabeparameter prüfen
+	Dim session As notessession	
+	Dim dbtosearch As NotesDatabase
+	Dim sFlagControl As String
+	
+	If Len(sIDString) = 0 Then	Goto EndFalse		
+	If Len(sFlagControl) > 0 Then
+		sFlagControl = Ucase(sFlagControlin)
+		If sFlagControl <> "NOVIEW" Then Error iERR_PARAM_VALUE, "Wrong parameter sFlagControl = '" & sFlagControlin & "', but expected 'NOVIEW'"
+	End If
+	
+	If dbToSearchIn Is Nothing Then
+		If sessionIn Is Nothing Then
+			Set session = New NotesSession
+		Else
+			Set session = sessionin
+		End If
+		Set dbToSearch = session.currentdatabase			
+	Else
+		Set dbToSearch = dbToSearchIn
+	End If
+	If dbToSearch.isOpen = False Then Error iERR_PARAM_VALUE, "No access to database '" & dbToSearch.Title & "' in the path '" & dbtosearch.filepath & "'."
+	
+	If sFlagControl = "NOVIEW" Then
+		'### Suche in Datenbank		
+		Set docToFind = dbToSearch.GetDocumentByUNID(sIDString)	
+	Else
+		'### Suchansicht
+		Set view = dbToSearch.getview("viwDocIDZZZ")
+		If view Is Nothing Then Error iERR_DESIGN_MISSING, "Internal view viwDocIDZZZ not available in the database '" & dbToSearch.Title & "' in the path '" & dbtosearch.filepath & "'."
+		view.refresh
+		
+		'### Das Dokument finden
+		Set docToFind = view.getdocumentbykey(sIDString)		
+	End If
+	
+'######################################	
+EndTrue:
+	tp.ierr = 0
+	Set DocGetByIDDBZZZ = docToFind
+	Exit Function	
+EndFalse:
+	tp.ierr = 0
+	Set DocGetByIDDBZZZ = Nothing
+	Exit Function	
+EndError:
+	Set DocGetByIDDBZZZ = Nothing
+	Exit Function
+ErrHNoCall:
+	Dim sScript As String, tpcall As TypeParamZZZ
+	sScript = "ZBasic.Document\" & Getthreadinfo(LSI_THREAD_PROC)
+	tp.iErr = Err 'Beim wiederholten Aufruf (d.h. zwei Zeilen hintereinanger ' Error iERR_NEXT, "das ist ein text" ' aufrufen) verliert Err zwei Stellen von rechts nach dem Aufruf der MEthode objMe.MessageAppend(..) !!!! 
+	tp.serr = strMsgZZZ(Nothing, tp.sErr, sScript, Erl, Error$, Err, tpcall, "")
+	If tpcall.iErr > 0 Then
+		Msgbox tpcall.serr
+		Resume EndError
+	End If
+	Select Case tp.ierr
+	Case iMSG_NEXT, iERR_NEXT: Resume Next
+	Case iMSG_FALSE, iERR_FALSE: Resume EndFalse
+	Case iMSG_TRUE, iERR_TRUE: Resume EndTrue
+	Case Else: Resume EndError		
+	End Select
+End Function
+Function DocItemInstanceAllRemoveZZZ(session As notessession, doc As notesdocument, sItemname As String, _
+tp As TypeParamZZZ, sFlagControl As String) As Boolean
+%REM
+	'Manche Items werden doppelt angelegt.
+	'die kann dann ein einfacher remove Befehl nicht erwischen, darum :
+%ENDREM	
+	On Error Goto errhNoCall
+	
+	'### Parameter check
+	If doc Is Nothing Then Goto endfalse
+	If Len(sItemname) < 0 Then Goto endfalse
+	If Len(sItemname) = 0 Then Goto endtrue
+	
+	'### Main
+	If doc.hasitem(sItemname) Then
+remover:
+		Call doc.removeitem(sItemname)
+		If doc.hasitem(sItemname) Then Goto remover 'aus der Not heraus geboren, while Schleifen sind so langsam
+	End If
+	
+	'#######################################
+EndTrue:
+	tp.ierr = 0
+	docItemInstanceAllRemoveZZZ = True
+	Exit Function
+EndFalse:
+	tp.ierr = 0
+	docItemInstanceAllRemoveZZZ = False
+	Exit Function
+EndError:
+	docItemInstanceAllRemoveZZZ = False
+	Exit Function
+ErrHNoCall:
+	Dim sScript As String, tpCall As TypeParamZZZ
+	sScript = "ZBasic.Document\" & Getthreadinfo(LSI_THREAD_PROC)
+	tp.iErr = Err 'Beim wiederholten Aufruf (d.h. zwei Zeilen hintereinanger ' Error iERR_NEXT, "das ist ein text" ' aufrufen) verliert Err zwei Stellen von rechts nach dem Aufruf der MEthode objMe.MessageAppend(..) !!!! 
+	tp.serr = strMsgZZZ(Nothing, tp.sErr, sScript, Erl, Error$, Err, tpcall, "")
+	If tpcall.iErr > 0 Then
+		Msgbox tpcall.serr
+		Resume EndError
+	End If
+	Select Case  tp.ierr
+	Case iMSG_NEXT, iERR_NEXT: Resume Next
+	Case iMSG_FALSE, iERR_FALSE: Resume EndFalse
+	Case iMSG_TRUE, iERR_TRUE: Resume EndTrue
+	Case Else: Resume EndError		
+	End Select
+End Function
+Function  ItemDocLinkAppendZZZ(session As notessession, doc As notesdocument, docReference As notesdocument, _
+sNameItem As String, tp As TypeParamZZZ, sFlagControl As String) As notesitem
+%REM
+Diese Funktion hängt ein DocLinkItem im Backend an das Dokument an und liefert es zurück.
+%END REM
+	On Error Goto errh
+	
+	'### Eingabeparemeter prüfen
+	If doc Is Nothing Or docReference Is Nothing Or Len(sNameItem) = 0 Then Goto EndFalse
+	
+	'### Variablen
+	Dim itemp As Integer
+	Dim itemReference As notesitem
+	Dim itemLinkDoc As notesitem
+	Dim doctemp As notesdocument
+	Dim db As NotesDatabase
+	
+	Set db = docreference.ParentDatabase
+	If db.IsOpen=False Then Error iERR_PARAM_VALUE, "unable to open parentdatabase of reference-document. Access restrictions ?"
+	Set doctemp = New notesdocument(db)
+	If Not doctemp Is Nothing Then
+		Call doctemp.makeresponse(docReference)
+		Set itemreference = doctemp.getfirstitem("$REF")			
+		If Not itemReference Is Nothing Then 
+			Set itemLinkDoc = itemReference.copyitemtodocument(doc,sNameItem)
+		Else
+			Error iERR_PARAM_VALUE, "unable to receive '$REF'-Field from temporary document."
+		End If
+	Else 
+		Error iERR_PARAM_VALUE, "unable to create temporary document in parentdatabase of document. Access restrictions ?"
+	End If	
+	
+EndTrue:
+	tp.ierr = 0
+	Set ItemDocLinkAppendZZZ = itemLinkDoc
+	Exit Function	
+EndFalse:
+	tp.ierr = 0
+	Set itemDocLinkAppendZZZ = Nothing
+EndError:
+	Set ItemDocLinkAppendZZZ = Nothing
+	Exit Function	
+ErrH:
+	Dim sScript As String, tpcall As TypeParamZZZ
+	sScript = "ZBasic.Document\" & Getthreadinfo(LSI_THREAD_PROC)
+	tp.iErr = Err 'Beim wiederholten Aufruf (d.h. zwei Zeilen hintereinanger ' Error iERR_NEXT, "das ist ein text" ' aufrufen) verliert Err zwei Stellen von rechts nach dem Aufruf der MEthode objMe.MessageAppend(..) !!!! 
+	tp.serr = strMsgZZZ(Nothing, tp.sErr, sScript, Erl, Error$, Err, tpcall, "")
+	If tpcall.iErr > 0 Then
+		Msgbox tpcall.serr
+		Resume EndError
+	End If
+	Select Case tp.ierr
+	Case iMSG_NEXT, iERR_NEXT: Resume Next
+	Case iMSG_FALSE, iERR_FALSE: Resume EndFalse
+	Case iMSG_TRUE, iERR_TRUE: Resume EndTrue
+	Case Else: Resume EndError		
+	End Select
+End Function
+Function ItemHasAnyValueZZZ(session As notessession, item As notesitem, _
+tp As TypeParamZZZ, sFlagControlIn As String) As Boolean
+	On Error Goto errh
+	
+	Dim sFlagControl As String
+	If item Is Nothing Then Goto EndFalse
+	If Len(sFlagcontrolIn) > 0 Then 
+		sFlagcontrol = Ucase(sFlagControlIn)
+		If sFlagControl <> "TRIM" Then Error iERR_PARAM_VALUE, "sFlagControl = '" & sFlagcontrolin & "', but expected 'TRIM'"
+	End If
+	
+	
+	Dim iCounter As Integer
+	If sFlagControl = "TRIM" Then
+		If Isarray(item.values) Then
+			For iCounter = 0 To Ubound(item.values)
+				If Len(Trim(Cstr(item.values(iCounter)))) > 0 Then Goto EndTrue
+			Next iCounter
+		Else
+			If Len(Trim(Cstr(item.values(0)))) > 0 Then Goto EndTrue
+		End If		
+	Else
+		If Isarray(item.values) Then
+			For iCounter = 0 To Ubound(item.values)
+				If Len(Cstr(item.values(iCounter))) > 0 Then Goto Endtrue
+			Next iCounter
+		Else
+			If Len(Cstr(item.values(0))) > 0 Then Goto EndTrue
+		End If				
+	End If
+	
+EndFalse:
+	tp.ierr = 0
+	ItemHasAnyValueZZZ = False
+	Exit Function
+EndTrue:
+	tp.ierr = 0
+	ItemHasAnyValueZZZ = True
+	Exit Function
+EndError:
+	ItemHasAnyValueZZZ = False
+	Exit Function
+ErrH:
+	Dim sScript As String, tpcall As TypeParamZZZ
+	sScript = "ZBasic.Document\" & Getthreadinfo(LSI_THREAD_PROC)
+	tp.iErr = Err 'Beim wiederholten Aufruf (d.h. zwei Zeilen hintereinanger ' Error iERR_NEXT, "das ist ein text" ' aufrufen) verliert Err zwei Stellen von rechts nach dem Aufruf der MEthode objMe.MessageAppend(..) !!!! 
+	tp.serr = strMsgZZZ(Nothing, tp.sErr, sScript, Erl, Error$, Err, tpcall, "")
+	If tpcall.iErr > 0 Then
+		Msgbox tpcall.serr
+		Resume EndError
+	End If
+	Select Case tp.ierr
+	Case iMSG_NEXT, iERR_NEXT: Resume Next
+	Case iMSG_FALSE, iERR_FALSE: Resume EndFalse
+	Case iMSG_TRUE, iERR_TRUE: Resume EndTrue
+	Case Else: Resume EndError		
+	End Select
+End Function
+
+Function ItemIndexRemoveZZZ(session As notessession, item As notesitem, iPosition As Integer, _
+tp As TypeParamZZZ, sFlagControl As String) As Boolean
+	Dim tpcall As TypeParamZZZ
+	On Error Goto errh
+	
+	'### Übergabeparameter prüfen	
+	If item Is Nothing Then Goto endFalse
+	If iPosition < 0 Then Goto endFalse
+	If iPosition > Ubound(item.values) Then Goto endFalse
+	
+	'#######################################
+	Dim doc As notesdocument
+	Dim itemtemp As notesitem
+	Dim sName As String
+	Dim iCounter As Integer
+	Dim btemp As Boolean, itemp As Integer, vtemp As Variant
+	Dim saTemp() As String, saNew() As String		
+	
+	Select Case Typename(item.values(iPosition))
+	Case "STRING":
+		btemp = ArrayStringFromVariantZZZ(session, item.values, saTemp, tpcall, "")
+		If tpcall.iErr > 0 Then Error iERR_FUNCTION_CALL, tpcall.serr
+		If btemp = False Then Goto endfalse
+		
+		itemp = ArrayStringIndexRemoveZZZ(session, saTemp, iPosition, saNew, tpcall, "")
+		If tpcall.iErr > 0 Then Error iERR_FUNCTION_CALL, tpcall.serr
+		If itemp = -1 Then  'dann existiert das Array nicht mehr richtig
+			Call item.remove	
+		Else			
+			Set doc = item.Parent
+			sName = item.Name
+			'Call item.remove
+			btemp = docItemInstanceAllRemoveZZZ(session, doc, sName, tpcall, "")
+			If tpcall.iErr > 0 Then Error iERR_FUNCTION_CALL, tpcall.serr
+			
+			Set item = New notesitem(doc, sName, saNew)
+			item.issummary = True
+		End If ' ubound = 0
+	Case "INTEGER", "LONG", "SINGLE", "DOUBLE", "DATE":
+		Dim sType As String	
+		sType = Typename(item.values(iPosition))		
+		
+		'+++ zu einem StringArray machen
+		btemp = ArrayStringFromVariantZZZ(session, item.values, saTemp, tpcall, "")
+		If tpcall.iErr > 0 Then Error iERR_FUNCTION_CALL, tpcall.serr
+		If btemp = False Then Goto endfalse
+		
+		'+++ Eintrag entfernen
+		itemp = ArrayStringIndexRemoveZZZ(session, saTemp, iPosition, saNew, tpcall, "")
+		If tpcall.iErr > 0 Then Error iERR_FUNCTION_CALL, tpcall.serr
+		If itemp = -1 Then  'das Array exisitert gar nicht mehr
+			Call item.remove	
+		Else					
+		'+++ Eintrag wieder in den alten Datentyp bringen, auch wenn hier der Datentyp variant verwendet wird
+			vtemp = ArrayDatatypeChangeZZZ(session, saNew, sType, tpcall,"")
+			If tpcall.iErr > 0 Then Error iERR_FUNCTION_CALL, tpcall.serr
+			
+		'+++ Item neu setzen
+			Set doc = item.Parent
+			sName = item.Name
+			'Call item.remove		
+			btemp = docItemInstanceAllRemoveZZZ(session, doc, sName, tpcall, "")
+			If tpcall.iErr > 0 Then Error iERR_FUNCTION_CALL, tpcall.serr
+			
+			Set item = New notesitem(doc, sName, vtemp)									
+			item.issummary = True		
+			
+		End If 'ubound = 0
+	Case Else
+		Error iERR_PARAM_VALUE, "Function cannot handle the datatype '" & Typename(item.values(iPosition)) & "' by now"
+	End Select
+	
+	'#######################################
+Endtrue:
+	tp.ierr = 0
+	ItemIndexRemoveZZZ = True
+	Exit Function
+EndFalse:
+	tp.ierr = 0
+	ItemIndexRemoveZZZ = False
+	Exit Function
+EndError:
+	ItemIndexRemoveZZZ = False
+	Exit Function
+ErrH:
+	Dim sScript As String
+	sScript = "ZBasic.Document\" & Getthreadinfo(LSI_THREAD_PROC)
+	tp.iErr = Err 'Beim wiederholten Aufruf (d.h. zwei Zeilen hintereinanger ' Error iERR_NEXT, "das ist ein text" ' aufrufen) verliert Err zwei Stellen von rechts nach dem Aufruf der MEthode objMe.MessageAppend(..) !!!! 
+	tp.serr = strMsgZZZ(Nothing, tp.sErr, sScript, Erl, Error$, Err, tpcall, "")
+	If tpcall.iErr > 0 Then
+		Msgbox tpcall.serr
+		Resume EndError
+	End If
+	Select Case  tp.ierr
+	Case iMSG_NEXT, iERR_NEXT: Resume Next
+	Case iMSG_FALSE, iERR_FALSE: Resume EndFalse
+	Case iMSG_TRUE, iERR_TRUE: Resume EndTrue
+	Case Else: Resume EndError		
+	End Select
+End Function
+Function DocItemArrayValueReorderZZZ(session As notessession, doc As notesdocument, vItemname As Variant,_
+laIndexNew() As Long, tp As TypeParamZZZ, sFlagControlin As String) As Integer
+	
+	'Sortiert alle Items (angegeben durch das Array der Itemnamen) so wie sie durch das IndexArray angegeben werden.
+	'ArrayDatatypeChangeZZZ(session As notessession, vArrayOld As Variant, sDatatypeNewIn As String, tp as TypeParamZZZ, sFlagcontrolin As String) As Variant
+'### Protocolling
+	Dim tpcall As TypeParamZZZ
+	On Error Goto errh
+	
+	'### Param-check
+	
+	
+	If Isnull(vItemname) Then Goto endfalse
+	If Isempty(vItemname) Then Goto EndFalse
+	If Isnull(laIndexnew) Then Goto endfalse
+	
+%REM
+'FGL 2005-03-02
+das Flag Nonewfield scheint überflüssig
+	'Dim sFlagControl As String
+	If Len(sFlagcontrolin) > 0  then
+	sflagcontrol = Ucase(sflagcontrolin)
+		if sFlagControl <> "NONEWFIELD" Then
+			sInfo = "The Parameter '" & sFlagcontrolin & "' is not allowed."
+		Goto enderror
+end if
+	End If
+%ENDREM
+	
+	'######################################
+	Dim item As notesitem
+	Dim vtemp As Variant, itemp As Integer, btemp As Boolean
+	
+	'1. aus dem variant Array ein string-array machen (auch aus einem einzelstring ein stringarray machen)
+	Dim saItemname() As String
+	btemp = ArrayStringFromVariantZZZ(session, vItemname, saItemname, tpcall, "")
+	If tpcall.iErr > 0 Then Error iERR_FUNCTION_CALL, tpcall.serr
+	If btemp = False Then Goto EndFalse
+	
+	'2. die Items im Document finden
+	Dim lcount As Long
+	For lCount = 0 To Ubound(saItemname)
+		If Len(saItemname(lCount)) > 0 Then
+			Set item = doc.getfirstitem(saItemname(lCount))
+			If Not item Is Nothing Then
+				
+				Select Case Typename(item.values(0))
+				Case "STRING":
+					Dim saSorted() As String
+					btemp = ArrayStringOrderByIndexZZZ(session, laIndexnew,  item.values, saSorted, tpcall, "")
+					If tpcall.iErr > 0 Then Error iERR_FUNCTION_CALL, tpcall.serr
+					If btemp = True Then 
+						btemp = DocItemValueSetZZZ(session, doc, saItemname(lCount), saSorted, tpcall, "")
+						If tpcall.iErr > 0 Then Error iERR_FUNCTION_CALL, tpcall.serr
+					End If
+				Case Else
+					Error iERR_PARAM_VALUE, "datatype '" & Typename(item.Values(0)) & "' is not yet handled in this function."
+				End Select
+			End If 'not item is nothing
+		End If 'len(saItemname)
+	Next lCount
+	
+	'#######################################
+EndTrue:
+	tp.ierr = 0
+	DocItemArrayValueReorderZZZ = True
+	Exit Function
+EndFalse:
+	tp.ierr = 0
+	DocItemArrayValueReorderZZZ = False
+	Exit Function
+EndError:
+	DocItemArrayValueReorderZZZ = False
+	Exit Function
+ErrH:
+	Dim sScript As String
+	sScript = "ZBasic.Document\" & Getthreadinfo(LSI_THREAD_PROC)
+	tp.iErr = Err 'Beim wiederholten Aufruf (d.h. zwei Zeilen hintereinanger ' Error iERR_NEXT, "das ist ein text" ' aufrufen) verliert Err zwei Stellen von rechts nach dem Aufruf der MEthode objMe.MessageAppend(..) !!!! 
+	tp.serr = strMsgZZZ(Nothing, tp.sErr, sScript, Erl, Error$, Err, tpcall, "")
+	If tpcall.iErr > 0 Then
+		Msgbox tpcall.serr
+		Resume EndError
+	End If
+	Select Case  tp.ierr
+	Case iMSG_NEXT, iERR_NEXT: Resume Next
+	Case iMSG_FALSE, iERR_FALSE: Resume EndFalse
+	Case iMSG_TRUE, iERR_TRUE: Resume EndTrue
+	Case Else: Resume EndError		
+	End Select
+End Function
+Function docItemArrayCopyZZZ(session As notessession, docsource As notesdocument, vItemNameSource As Variant, _
+doctarget As notesdocument, vItemNameTarget As Variant, tp As TypeParamZZZ, sFlagcontrolin As String) As Integer
+%REM
+Kopiere die Items aus dem Stringarray von einem Dokument zum anderen
+%END REM
+	Dim tpcall As TypeParamZZZ
+	Dim stemp As String, vtemp As Variant, itemp As Integer, btemp As Boolean
+	On Error Goto errh
+	
+	'### Parametercheck
+	Dim saItemNameSource() As String
+	Dim saItemNameTarget() As String
+	
+	If docsource Is Nothing Then Goto endfalse
+	If doctarget Is Nothing Then Goto endfalse
+	
+	If Isnull(vItemNameSource) Then Goto endFalse
+	If Isempty(vItemNameSource) Then Goto endfalse		
+	btemp = ArrayStringFromVariantZZZ(session, vItemNameSource, saItemNameSource, tpcall, "")
+	If tpcall.iErr > 0 Then Error iERR_FUNCTION_CALL, tpcall.serr
+	If btemp = False Then Goto endfalse 
+	
+	Dim bFlagNameReuse As Boolean
+	If Isnull(saItemNameTarget) Then
+		bFlagNameReuse = True	
+	Elseif Isempty(saItemNameTarget) Then
+		bFlagNameReuse = True
+	End If
+	If bFlagNameReuse = True Then
+		btemp = ArrayStringFromVariantZZZ(session, vItemNameSource, saItemNameTarget, tpcall, "")
+		If tpcall.iErr > 0 Then Error iERR_FUNCTION_CALL, tpcall.serr
+		If btemp = False Then Goto endfalse
+	Else
+		btemp = ArrayStringFromVariantZZZ(session, vItemNameTarget, saItemNameTarget, tpcall, "")
+		If tpcall.iErr > 0 Then Error iERR_FUNCTION_CALL, tpcall.serr
+		If btemp = False Then Goto endfalse 
+	End If
+	
+	If Ubound(saItemNameTarget) <> Ubound(saItemNameSource) Then Error iERR_PARAM_VALUE, "Length of source itemname-array is different compared to length of target itemname-array"
+	
+	'### Main	
+	Dim item As notesitem, itemtemp As notesitem
+	Dim iCount As Integer
+	Dim iItemCopied As Integer
+	
+	iItemCopied = -1
+	For iCount = 0 To Ubound(saItemNameTarget)
+		Set item = docsource.getfirstitem(saItemNameSource(iCount) )
+		If Not item Is Nothing Then
+			Set itemtemp = item.copyitemtodocument(doctarget, saItemNameTarget(iCount))			
+			itemtemp.IsSummary=True
+			iItemCopied = iItemCopied + 1
+		End If		
+	Next iCount
+	
+	'#######################################
+EndTrue:
+	tp.ierr = 0
+	docItemArrayCopyZZZ = iItemCopied
+	Exit Function
+EndFalse:
+	tp.ierr = 0
+	docItemArrayCopyZZZ = -1
+	Exit Function
+EndError:
+	docItemArrayCopyZZZ = -1
+	Exit Function
+ErrH:
+	Dim sScript As String
+	sScript = "ZBasic.Document\" & Getthreadinfo(LSI_THREAD_PROC)
+	tp.iErr = Err 'Beim wiederholten Aufruf (d.h. zwei Zeilen hintereinanger ' Error iERR_NEXT, "das ist ein text" ' aufrufen) verliert Err zwei Stellen von rechts nach dem Aufruf der MEthode objMe.MessageAppend(..) !!!! 
+	tp.serr = strMsgZZZ(Nothing, tp.sErr, sScript, Erl, Error$, Err, tpcall, "")
+	If tpcall.iErr > 0 Then
+		Msgbox tpcall.serr
+		Resume EndError
+	End If
+	Select Case  tp.ierr
+	Case iMSG_NEXT, iERR_NEXT: Resume Next
+	Case iMSG_FALSE, iERR_FALSE: Resume EndFalse
+	Case iMSG_TRUE, iERR_TRUE: Resume EndTrue
+	Case Else: Resume EndError		
+	End Select
+End Function
+Function  ItemIndexReplaceZZZ(session As notessession, item As notesitem, iPosition As Integer,vValue As Variant, _
+tp As TypeParamZZZ, sFlagControlin As String) As Boolean
+	Dim tpcall As TypeParamZZZ
+	Dim stemp As String, vtemp As Variant, itemp As Integer, btemp As Boolean
+	On Error Goto errh
+	
+	'### Übergabeparameter prüfen	
+	If item Is Nothing Then Goto endFalse
+	If iPosition < 0 Then Goto endFalse
+	If iPosition > Ubound(item.values) Then Goto endFalse
+	
+	'#######################################
+	Dim doc As notesdocument
+	Dim sName As String
+	
+	Select Case Typename(item.values(iPosition))
+	Case "STRING":
+		Dim saTemp() As String, saNew As Variant
+		itemp = ArrayStringFromVariantZZZ(session, item.values, saTemp, tpcall, "")
+		If tpcall.iErr > 0 Then Error iERR_FUNCTION_CALL, tpcall.serr
+		If itemp = False Then Goto endfalse
+		saNew = ArrayStringIndexReplaceZZZ(session, saTemp, iPosition, vValue, tpcall, "")
+		If tpcall.iErr > 0 Then Error iERR_FUNCTION_CALL, tpcall.serr
+		If Isnull(saNew) Then Goto EndFalse
+		
+		Set doc = item.Parent
+		sName = item.Name
+		'Call item.remove
+		btemp = DocItemInstanceAllRemoveZZZ(session, doc, sName, tpcall, "")
+		If tpcall.iErr > 0 Then Error iERR_FUNCTION_CALL, tpcall.serr
+		
+		Set item = New notesitem(doc, sName, saNew)
+		item.issummary = True
+		
+	Case Else
+		Error iERR_PARAM_VALUE, "Function not yet developed for the datatype '" & Typename(item.Values(iPosition)) & "'"
+	End Select
+	
+	
+	
+	'#######################################
+EndTrue:
+	tp.ierr = 0
+	ItemIndexReplaceZZZ = True
+	Exit Function
+EndFalse:
+	tp.ierr = 0
+	ItemIndexReplaceZZZ = False
+	Exit Function
+EndError:
+	ItemIndexReplaceZZZ = False
+	Exit Function
+ErrH:
+	Dim sScript As String
+	sScript = "ZBasic.Document\" & Getthreadinfo(LSI_THREAD_PROC)
+	tp.iErr = Err 'Beim wiederholten Aufruf (d.h. zwei Zeilen hintereinanger ' Error iERR_NEXT, "das ist ein text" ' aufrufen) verliert Err zwei Stellen von rechts nach dem Aufruf der MEthode objMe.MessageAppend(..) !!!! 
+	tp.serr = strMsgZZZ(Nothing, tp.sErr, sScript, Erl, Error$, Err, tpcall, "")
+	If tpcall.iErr > 0 Then
+		Msgbox tpcall.serr
+		Resume EndError
+	End If
+	Select Case tp.ierr
+	Case iMSG_NEXT, iERR_NEXT: Resume Next
+	Case iMSG_FALSE, iERR_FALSE: Resume EndFalse
+	Case iMSG_TRUE, iERR_TRUE: Resume EndTrue
+	Case Else: Resume EndError		
+	End Select
+End Function
+Function docItemValueSetZZZ(session As notessession, doc As notesdocument, sItemName As String, _
+vValue As Variant, tp As TypeParamZZZ, sFlagcontrol As String) As Boolean	
+	Dim tpcall As TypeParamZZZ
+	Dim stemp As String, vtemp As Variant, itemp As Integer, btemp As Boolean
+	On Error Goto errh
+	
+	'### Parameter check
+	If doc Is Nothing Then Goto endfalse
+	If Len(sItemname) = 0 Then Goto endTrue
+	If Isnull(vValue) Then Goto endTrue
+	If Isempty(vValue) Then Goto endTrue
+	
+	'######################		
+	Dim itemtemp As notesitem
+	
+	'1. Alle Einträge entfernen
+	itemp = DocItemInstanceAllRemoveZZZ(session, doc , sItemname, tpcall, "")
+	If tpcall.iErr > 0 Then Error iERR_FUNCTION_CALL, tpcall.serr
+	
+	'2. setzen
+	Set itemtemp = New notesitem(doc, sitemname, vValue)
+	
+	'#######################################
+EndTrue:
+	tp.ierr = 0
+	docItemValueSetZZZ = True
+	Exit Function
+EndFalse:
+	docItemValueSetZZZ  = False
+	Exit Function
+EndError:
+	docItemValueSetZZZ  = False
+	Exit Function
+ErrH:
+	Dim sScript As String
+	sScript = "ZBasic.Document\" & Getthreadinfo(LSI_THREAD_PROC)
+	tp.iErr = Err 'Beim wiederholten Aufruf (d.h. zwei Zeilen hintereinanger ' Error iERR_NEXT, "das ist ein text" ' aufrufen) verliert Err zwei Stellen von rechts nach dem Aufruf der MEthode objMe.MessageAppend(..) !!!! 
+	tp.serr = strMsgZZZ(Nothing, tp.sErr, sScript, Erl, Error$, Err, tpcall, "")
+	If tpcall.iErr > 0 Then
+		Msgbox tpcall.serr
+		Resume EndError
+	End If
+	Select Case  tp.ierr
+	Case iMSG_NEXT, iERR_NEXT: Resume Next
+	Case iMSG_FALSE, iERR_FALSE: Resume EndFalse
+	Case iMSG_TRUE, iERR_TRUE: Resume EndTrue
+	Case Else: Resume EndError		
+	End Select
+End Function
+Function ArrayDocAppendZZZ(session As notessession, vX As Variant , vY As Variant, tp As TypeParamZZZ, sFlagcontrol As String) As Variant
+%REM
+Diese Funktion hängt an ein DocumentArray ein anderes an.
+Dabei werden Array-Elemente, die nothing sind entfernt.
+Das erste docArray wir unter das zweite gehängt
+%ENDREM		
+	Dim tpcall As TypeParamZZZ
+	Dim stemp As String, vtemp As Variant, itemp As Integer, btemp As Boolean
+	On Error Goto errh
+	
+	'### Übergabeparameter prüfen
+%REM
+true = ok
+false = Array nicht initialisiert, ubound schlägt also fehl
+empty = 1
+null = 2
+Einzelwert = -2
+%END REM
+	
+	Dim iproofX As Integer
+	iproofX = ArrayInitProofZZZ(session, vX, tpcall,"")
+	If tpcall.iErr > 0 Then Error iERR_FUNCTION_CALL, tpcall.serr
+	
+	Dim iProofY As Integer
+	iproofY = ArrayInitProofZZZ(session, vY, tpcall,"")
+	If tpcall.iErr > 0 Then Error iERR_FUNCTION_CALL, tpcall.serr
+	
+	'### Merke: Die Reihenfolge der Abfragen ist so gewählt, wie die Häufigkeit des Falls eingeschätzt wird
+	Dim docaTemp() As notesdocument
+	Dim iCounterAll As Integer
+	Dim iCounterStart As Integer
+	Dim iCounterPos As Integer
+	If iProofX = True And iProofY = True Then
+		Dim iCounter As Integer
+		
+		'Fall: ArrayX um ArrayY erweitern
+		iCounterStart = Ubound(vX)
+		iCounterAll = iCounterStart + Ubound(vY) + 1		
+		Redim Preserve vX(iCounterAll) As notesdocument
+		
+		iCounterpos = iCounterStart
+		For iCounter = 0 To Ubound(vY)
+			iCounterPos = iCounterPos + 1
+			Set vX(iCounterPos) = vY(iCounter)
+		Next iCounter
+		Goto EndvX
+	End If
+	
+	If iProofX=-2 And iProofY=-2 Then
+		'Fall: Einzelwert um Einzelwert erweitern	
+		Redim docaTemp(1) As notesdocument
+		Set docaTemp(0) = vX
+		Set docaTemp(1) = vY
+		Goto EndNew
+	End If
+	
+		'Fall: ArrayX um Einzelwert Y erweitern
+	If iProofX = True And iProofY = -2 Then
+		
+		iCounterStart = Ubound(vX)
+		iCounterAll = iCounterstart + 1
+		Redim Preserve vX(iCounterAll) As notesdocument
+		iCounterPos = iCounterAll
+		
+		Set vX(iCounterPos) = vY
+		Goto endvX
+	End If
+	
+	'Fall: Einzelwert X um Array Y erweitern
+	If iProofY = True And iProofX = -2 Then
+		iCounterStart = Ubound(vY)		
+		iCounterAll = iCounterstart + 1
+		Redim docaTemp(iCounterAll) As notesdocument
+		Set docaTemp(0) = vX
+		For iCounter=1 To Ubound(docaTemp)
+			Set docatemp(iCounter)=vY(iCounter-1)
+		Next
+		Goto EndNew
+	End If
+	
+	'Fall: ArrayX ist nicht initialisiert, Y ist Einzelwert
+	If iProofX=False And iProofY = -2 Then
+		Redim docaTemp(0) As notesdocument
+		Set docaTemp(0) = vY
+		Goto EndNew
+	End If
+	
+	'Fall: ArrayY ist nicht initialisiert, X ist Einzelwert
+	If iProofY= False And iProofX = -2 Then
+		Redim docaTemp(0) As notesdocument
+		Set docaTemp(0) = vX
+		Goto EndNew
+	End If
+	
+	
+	
+	'Fall: ArrayY ist nicht initialisiert
+	If iProofX=True And iProofY = 0 Then Goto EndvX
+	
+	'Fall: ArrayX ist nicht initialisiert
+	If iProofY=True And iProofX = 0 Then Goto EndvY
+	
+	If iproofY = 1 Then Goto EndvX
+	If iProofX = 1 Then Goto EndvY
+	If iproofX=2 Or iProofY = 2 Then Goto EndNull
+	
+	
+	'Fall: Weder ArrayX noch ArrayY sind initialisiert
+	If iProofY = 0 And iProofX = 0 Then Goto EndNull
+	
+	'###########
+Endtrue:
+EndvX:
+	tp.ierr = 0
+	ArrayDocAppendZZZ = vX
+	Exit Function
+endvY:
+	tp.ierr = 0
+	ArrayDocAppendZZZ = vY
+	Exit Function
+EndNew:
+	tp.ierr = 0
+	ArrayDocAppendZZZ = docaTemp
+	Exit Function
+EndNull:
+	tp.ierr = 0
+	If Isnull(vX) Then
+		ArrayDocAppendZZZ = vY
+	End If
+	If Isnull(vY) Then 
+		ArrayDocAppendZZZ = vX
+	End If
+	Exit Function
+EndFalse:
+	tp.ierr = 0
+	ArrayDocAppendZZZ = Null
+	Exit Function
+EndError:
+	ArrayDocAppendZZZ = Null
+	Exit Function
+ErrH:
+	Dim sScript As String
+	sScript = "ZBasic.Document\" & Getthreadinfo(LSI_THREAD_PROC)
+	tp.iErr = Err 'Beim wiederholten Aufruf (d.h. zwei Zeilen hintereinanger ' Error iERR_NEXT, "das ist ein text" ' aufrufen) verliert Err zwei Stellen von rechts nach dem Aufruf der MEthode objMe.MessageAppend(..) !!!! 
+	tp.serr = strMsgZZZ(Nothing, tp.sErr, sScript, Erl, Error$, Err, tpcall, "")
+	If tpcall.iErr > 0 Then
+		Msgbox tpcall.serr
+		Resume EndError
+	End If
+	Select Case tp.ierr
+	Case iMSG_NEXT, iERR_NEXT: Resume Next
+	Case iMSG_FALSE, iERR_FALSE: Resume EndFalse
+	Case iMSG_TRUE, iERR_TRUE: Resume EndTrue
+	Case Else: Resume EndError		
+	End Select
+End Function
+Function docItemArrayAccessTypeChangeZZZ(session As notessession,  docin As notesdocument, vFieldname As Variant , iAccessLevelin As Integer, tp As TypeParamZZZ, sFlagcontrol As String) As Boolean
+%REM
+Feldwerte mit den Flags für Namens-/Leser-/Autorenfeld versehen
+über Accesslevel wird gesteuert welche Flags dort reinkommen	
+%END REM
+	
+	Dim tpcall As TypeParamZZZ
+	Dim stemp As String, vtemp As Variant, itemp As Integer, btemp As Boolean
+	On Error Goto errh
+	
+	'### Parameter check
+	Dim doc As notesdocument
+	Dim iAccessLevel As Integer
+	Dim saFieldname() As String
+	
+	If docin Is Nothing Then
+		Error iERR_PARAM_MISSING, "Notesdocument"
+	Else
+		Set doc = docin
+	End If
+	
+	If Isnull(vFieldname) Then Goto endFalse
+	itemp = ArrayStringFromVariantZZZ(session, vFieldname, saFieldname, tpcall, "")
+	If tpcall.iErr > 0 Then Error iERR_FUNCTION_CALL, tpcall.serr
+	If itemp = False Then Goto endfalse
+	
+	If iAccessLevelIn < 0 Or iAccessLevelIn >= 4 Then
+		Error iERR_PARAM_VALUE,  "AccessLevel = '" & Cstr(iAccessLevelIn) & "'. Expected 0 - 3 !"
+	Else
+		iAccessLEvel = iAccessLevelIn
+	End If
+	
+	'### Main
+	Dim iCounter As Integer
+	Dim item As notesitem
+	
+	For iCounter = 0 To Ubound(saFieldname)
+		If Len(saFieldname(iCounter)) > 0 Then
+			Set item = doc.getfirstitem(saFieldname(iCounter))
+			If Not item Is Nothing Then
+				Select Case iAccessLevel
+				Case 0:
+					item.isnames = False
+					item.isreaders = False
+					item.isauthors = False
+				Case 1:
+					item.isnames = True
+					item.isreaders = False
+					item.isauthors = False
+				Case 2:
+'				item.isnames = False
+					item.isreaders = True
+					item.isauthors = False
+				Case 3:
+'				item.isnames = False
+'				item.isreaders = False
+					item.isauthors = True				
+				End Select
+			End If 'item
+		End If 'len
+		
+	'sicherheitshalber
+		item.savetodisk = True
+		
+	Next
+	
+	
+	
+	'#######################################
+EndTrue:
+	tp.ierr = 0
+	docItemArrayAccessTypeChangeZZZ = True
+	Exit Function
+EndFalse:
+	tp.ierr = 0
+	docItemArrayAccessTypeChangeZZZ  = False
+	Exit Function
+EndError:
+	docItemArrayAccessTypeChangeZZZ  = False
+	Exit Function
+ErrH:
+	Dim sScript As String
+	sScript = "ZBasic.Document\" & Getthreadinfo(LSI_THREAD_PROC)
+	tp.iErr = Err 'Beim wiederholten Aufruf (d.h. zwei Zeilen hintereinanger ' Error iERR_NEXT, "das ist ein text" ' aufrufen) verliert Err zwei Stellen von rechts nach dem Aufruf der MEthode objMe.MessageAppend(..) !!!! 
+	tp.serr = strMsgZZZ(Nothing, tp.sErr, sScript, Erl, Error$, Err, tpcall, "")
+	If tpcall.iErr > 0 Then
+		Msgbox tpcall.serr
+		Resume EndError
+	End If
+	Select Case tp.ierr
+	Case iMSG_NEXT, iERR_NEXT: Resume Next
+	Case iMSG_FALSE, iERR_FALSE: Resume EndFalse
+	Case iMSG_TRUE, iERR_TRUE: Resume EndTrue
+	Case Else: Resume EndError		
+	End Select
+End Function
+Function docItemArrayRemainZZZ(session As notessession, docsourcein As notesdocument, vItemNameRemaining As Variant,tp As TypeParamZZZ, sFlagcontrolin As String) As Integer
+%REM
+Nur die Items, die in dem Array genannt werden, sollen im Dokument verbleiben, die anderen Items werden entfernt.
+!!! Falls die Liste der Items leer ist, dann wird das Dokument unverändert gelassen, also kein Item entfernt.
+%END REM
+	Dim tpcall As TypeParamZZZ
+	Dim stemp As String, vtemp As Variant, itemp As Integer, btemp As Boolean
+	On Error Goto errh
+	
+	'### Parameter check
+	Dim docSource As notesdocument
+	Dim saItemNameRemaining() As String
+	
+	If docSourcein Is Nothing Then 
+		Error iERR_PARAM_MISSING, "Notesdocument"
+	Else
+		Set docSource = docSourcein
+	End If
+	
+	itemp = ArrayStringHasAnyValueZZZ(Nothing, vItemNameRemaining, tpcall, "")
+	If tpcall.iErr > 0 Then Error iERR_FUNCTION_CALL, tpcall.serr
+	If itemp = False Then Goto EndTrue
+	itemp = ArrayStringFromVariantZZZ(Nothing, vItemNameRemaining, saItemNameRemaining, tpcall, "")
+	If tpcall.iErr > 0 Then Error iERR_FUNCTION_CALL, tpcall.serr
+	If itemp = False Then Goto EndFalse
+	
+	
+	'### Main
+	Dim lNumberOfItem As Long
+	Dim saFieldname() As String	
+	'1. Array aller items holen
+	lNumberOfItem = ArrayFieldnameFromDocZZZ(Nothing, docSource, saFieldname(), tpcall, "")
+	If tpcall.iErr > 0 Then Error iERR_FUNCTION_CALL, tpcall.serr
+	
+	'2. Davon die menge der items abziehen, die im Dokument verbleiben sollen
+	'Function ArrayStringReduceZZZ(session As notessession, saArray As Variant, vWhat As Variant, iCompMethod As Integer, bFlagExactSearch As Boolean, tp as TypeParamZZZ, sFlagControlin As String) As Variant
+	vtemp = ArrayStringReduceZZZ(Nothing, saFieldName, saItemNameRemaining,5, True ,tpcall, "")
+	If tpcall.iErr > 0 Then Error iERR_FUNCTION_CALL, tpcall.serr
+	
+	'3. Den Rest aus dem Dokument entfernen
+	itemp = docItemArrayRemoveZZZ(Nothing, docSource, vtemp, tpcall, "")
+	If tpcall.iErr > 0 Then Error iERR_FUNCTION_CALL, tpcall.serr
+	
+'#######################################
+EndTrue:
+	tp.ierr = 0
+	docItemArrayRemainZZZ = True
+	Exit Function
+EndFalse:
+	tp.ierr = 0
+	docItemArrayRemainZZZ  = False
+	Exit Function
+EndError:
+	docItemArrayRemainZZZ  = False
+	Exit Function
+ErrH:
+	Dim sScript As String
+	sScript = "ZBasic.Document\" & Getthreadinfo(LSI_THREAD_PROC)
+	tp.iErr = Err 'Beim wiederholten Aufruf (d.h. zwei Zeilen hintereinanger ' Error iERR_NEXT, "das ist ein text" ' aufrufen) verliert Err zwei Stellen von rechts nach dem Aufruf der MEthode objMe.MessageAppend(..) !!!! 
+	tp.serr = strMsgZZZ(Nothing, tp.sErr, sScript, Erl, Error$, Err, tpcall, "")
+	If tpcall.iErr > 0 Then
+		Msgbox tpcall.serr
+		Resume EndError
+	End If
+	Select Case  tp.ierr
+	Case iMSG_NEXT, iERR_NEXT: Resume Next
+	Case iMSG_FALSE, iERR_FALSE: Resume EndFalse
+	Case iMSG_TRUE, iERR_TRUE: Resume EndTrue
+	Case Else: Resume EndError		
+	End Select
+End Function
+Function docItemArrayRemoveZZZ(session As notessession, docin As notesdocument, vFieldname As Variant, tp As TypeParamZZZ, sFlagControlin As String) As Boolean
+%REM
+Die Items, die in dem Array genannt werden, werden entfernt.
+!!! Falls die Liste der Feldnamen leer ist, dann wird das Dokument unverändert gelassen, also kein Item entfernt.
+%END REM
+	Dim tpcall As TypeParamZZZ
+	Dim stemp As String, vtemp As Variant, itemp As Integer, btemp As Boolean
+	On Error Goto errh
+	
+	'### Parameter check
+	Dim doc As notesdocument
+	Dim saFieldname() As String
+	
+	If docin Is Nothing Then 
+		Error iERR_PARAM_MISSING,"Notesdocument"
+	Else
+		Set doc = docin
+	End If
+	If Isnull(vFieldname) Then Goto EndTrue
+	If Isempty(vFieldname) Then Goto EndTrue
+	itemp = ArrayStringFromVariantZZZ(Nothing, vFieldname, saFieldname, tpcall, "")
+	If tpcall.iErr > 0 Then Error iERR_FUNCTION_CALL, tpcall.serr
+	If itemp = False Then Goto endfalse
+	
+	'### Main
+	Dim iCount As Integer
+	Dim iNumberOfItem As Integer
+	iNumberOfItem = Ubound(saFieldname)
+	For iCount = 0 To iNumberOfItem		
+		itemp = DocItemInstanceAllRemoveZZZ(Nothing, doc, saFieldname(iCount), tpcall, "")
+		If tpcall.iErr > 0 Then Error iERR_FUNCTION_CALL, tpcall.serr
+	Next
+	
+'#######################################
+EndTrue:
+	tp.ierr = 0
+	docItemArrayRemoveZZZ = True
+	Exit Function
+EndFalse:
+	tp.ierr = 0
+	docItemArrayRemoveZZZ  = False
+	Exit Function
+EndError:
+	docItemArrayRemoveZZZ  = False
+	Exit Function
+ErrH:
+	Dim sScript As String
+	sScript = "ZBasic.Document\" & Getthreadinfo(LSI_THREAD_PROC)
+	tp.iErr = Err 'Beim wiederholten Aufruf (d.h. zwei Zeilen hintereinanger ' Error iERR_NEXT, "das ist ein text" ' aufrufen) verliert Err zwei Stellen von rechts nach dem Aufruf der MEthode objMe.MessageAppend(..) !!!! 
+	tp.serr = strMsgZZZ(Nothing, tp.sErr, sScript, Erl, Error$, Err, tpcall, "")
+	If tpcall.iErr > 0 Then
+		Msgbox tpcall.serr
+		Resume EndError
+	End If
+	Select Case tp.ierr
+	Case iMSG_NEXT, iERR_NEXT: Resume Next
+	Case iMSG_FALSE, iERR_FALSE: Resume EndFalse
+	Case iMSG_TRUE, iERR_TRUE: Resume EndTrue
+	Case Else: Resume EndError		
+	End Select
+End Function
+Function ArrayFieldnameFromDocByTypeZZZ(session As notessession, doc As notesdocument, saFieldname() As String, iTypein As Integer, tp As TypeParamZZZ, sFlagControlin As String) As Long
+%REM
+liefert ein Array der Feldnamen aus dem Dokument zurück, abhängig vom Typen
+iType =
+1: Names
+2: Reader
+3: Author
+%END REM
+	Dim lFunction As Long	
+	Dim tpcall As TypeParamZZZ
+	Dim stemp As String, vtemp As Variant, itemp As Integer, btemp As Boolean
+	On Error Goto errh
+	lFunction = -1
+	
+	'### Param-check
+	Dim iType As Integer
+	
+	If doc Is Nothing Then Goto EndFalse 
+	If Isempty(doc.items) Then Goto EndFalse
+	If iTypein < 0 Or iTypein > 3 Then
+		iType = 0 
+	Else
+		iType = iTypein
+	End If
+	
+	Redim saFieldname(Ubound(doc.items)) As String         'erst mal ein grosses Array
+	
+	
+	'######################################################
+	Select Case iType
+	Case 0:
+		lFunction = ArrayFieldnameFromDocZZZ(session, doc, saFieldname, tpcall, "")
+		If tpcall.iErr > 0 Then Error iERR_FUNCTION_CALL, tpcall.serr
+	Case 1:
+		Forall item In doc.items
+			If item.isnames Then
+				lFunction = lFunction + 1
+				saFieldname(lFunction) = item.name
+			End If
+		End Forall
+	Case 2:
+		Forall item In doc.items
+			If item.isreaders Then
+				lFunction = lFunction + 1
+				saFieldname(lFunction) = item.name
+			End If 
+		End Forall		 
+	Case 3: 
+		Forall item In doc.items 
+			If item.isauthors Then
+				lFunction = lFunction + 1
+				saFieldname(lFunction) = item.name
+			End If
+		End Forall				
+	End Select
+	If lFunction >= 0 Then
+		Redim Preserve saFieldname(lFunction) As String         'danach die Größe anpassen (ist performanter als das Array für jedes item zu erweitern
+	End If
+	
+EndTrue:
+	tp.ierr = 0
+	ArrayFieldnameFromDocByTypeZZZ = lFunction
+	Exit Function
+EndFalse:
+	tp.ierr = 0
+	ArrayFieldnameFromDocByTypeZZZ = -1
+	Exit Function
+EndError:
+	ArrayFieldnameFromDocByTypeZZZ = - 1
+	Exit Function
+ErrH:
+	Dim sScript As String
+	sScript = "ZBasic.Document\" & Getthreadinfo(LSI_THREAD_PROC)
+	tp.iErr = Err 'Beim wiederholten Aufruf (d.h. zwei Zeilen hintereinanger ' Error iERR_NEXT, "das ist ein text" ' aufrufen) verliert Err zwei Stellen von rechts nach dem Aufruf der MEthode objMe.MessageAppend(..) !!!! 
+	tp.serr = strMsgZZZ(Nothing, tp.sErr, sScript, Erl, Error$, Err, tpcall, "")
+	If tpcall.iErr > 0 Then
+		Msgbox tpcall.serr
+		Resume EndError
+	End If
+	Select Case  tp.ierr
+	Case iMSG_NEXT, iERR_NEXT: Resume Next
+	Case iMSG_FALSE, iERR_FALSE: Resume EndFalse
+	Case iMSG_TRUE, iERR_TRUE: Resume EndTrue
+	Case Else: Resume EndError		
+	End Select
+End Function
+Function ItemArray2TableRowStringArrayZZZ(session As NotesSession, aItem() As NotesItem, iRowNumber As Integer, tp As TypeParamZZZ, sFlagControl As String) As Variant
+	Dim saReturn() As String, tpcall As TypeparamZZZ
+	Dim stemp As String, vtemp As Variant, itemp As Integer, btemp As Boolean
+	On Error Goto errh
+	
+	'### Param-check
+	itemp = ArrayInitProofZZZ(session, aitem,  tpcall, "")
+	If itemp >= False Then Goto EndFalse
+	
+	'#####################################
+	If Isarray(aitem) Then
+		Redim saReturn(Ubound(aitem)) As String
+		
+		Dim item As NotesItem
+		Dim iCount As Integer	
+		For iCount = 0 To Ubound(aitem)  'Merke: Die Items sind in diesem Array schon nach ihrer Mapping-Bedeutung sortiert !!!
+			Set item = aitem(iCount)
+			If Not item Is Nothing Then
+				If Ubound(item.Values) >= iRowNumber Then 'D.h. das ende dieses ITems noch nicht erreicht
+					saReturn(iCount) = item.Values(iRowNumber)					
+				End If 'ubound(item.Values)
+			End If 'not item is nothing			
+		Next iCount
+	Else
+	'????
+	End If
+	
+		'##########################
+EndTrue:
+	tp.ierr = 0
+	ItemArray2TableRowStringArrayZZZ = saReturn
+	Exit Function
+EndFalse: 
+	tp.ierr = 0
+	ItemArray2TableRowStringArrayZZZ = Null
+	Exit Function
+EndError:
+	ItemArray2TableRowStringArrayZZZ = Null
+	Exit Function
+ErrH:
+	tp.iErr = Err 'Beim wiederholten Aufruf (d.h. zwei Zeilen hintereinanger ' Error iERR_NEXT, "das ist ein text" ' aufrufen) verliert Err zwei Stellen von rechts nach dem Aufruf der MEthode objMe.MessageAppend(..) !!!! 	
+	Select Case tp.iErr
+	Case iASSERT_FALSE, iASSERT_TRUE: Resume Next  'd.h. es soll keine Information über den Message oder den Error Kanals ausgegeben werden.
+	Case iASSERT_FALSE_CRITICAL: Resume EndFalse
+	End Select
+	
+	Dim sinfo As String
+	If tp.iErr = iMSG_ASSERT_TRUE Or tp.iErr = iERR_ASSERT_TRUE Then 'Or tp.iErr = iERR_ASSERT_TRUE_CRITICAL Then 
+		sinfo = "Assertion negative: '" & Error$ & "'"
+	Else
+		sinfo = Error$
+	End If
+	
+	Dim sScript, tperrh As TypeParamZZZ
+	sScript = "ZBasic.Document\" & Getthreadinfo(LSI_THREAD_PROC)
+	tp.serr = strMsgZZZ(Nothing,  tp.sErr, sScript, Erl, sinfo, tp.iErr, tperrh, "")
+	If tperrh.iErr > 0 Then
+		Msgbox tperrh.serr
+		Resume EndError
+	End If
+	Select Case tp.ierr
+	Case iMSG_NEXT, iERR_NEXT, iMSG_AGENT_NEXT, iERR_AGENT_NEXT, iMSG_ASSERT_TRUE, iERR_ASSERT_TRUE, iMSG_ASSERT_FALSE, iERR_ASSERT_FALSE: Resume Next
+	Case iMSG_TRUE, iERR_TRUE, iMSG_AGENT_TRUE, iERR_AGENT_TRUE: Resume EndTrue  ', iMSG_ASSERT_TRUE_CRITICAL, iERR_ASSERT_TRUE_CRITICAL: Resume EndTrue
+	Case iMSG_FALSE, iERR_FALSE, iMSG_AGENT_FALSE, iERR_AGENT_FALSE, iMSG_ASSERT_FALSE_CRITICAL, iERR_ASSERT_FALSE_CRITICAL: Resume EndFalse
+	Case iERR_OBJECT_ERR, iERR_OBJECT_CUR, iERR_AGENT_CALL, iERR_FUNCTION_CALL, iERR_PARAM_VALUE, iERR_PARAM_MISSING, iERR_PROPERTY_VALUE, iERR_PROPERTY_MISSING, iERR_DESIGN_MISSING: Resume EndError 'Ziel: Nicht jeden Fehler ins Log stellen
+	Case Else: Resume EndError
+	End Select
+End Function
+Function docItemArray2TableListZZZ(session As notessession, docSource As NotesDocument, vFieldName As Variant, iIndexOfKey As Integer, fieldlist List As Variant, tp As TypeParamZZZ, sFlagControl As String) As Integer
+	Dim iReturn As Integer	
+	Dim tpcall As TypeParamZZZ
+	Dim stemp As String, vtemp As Variant, itemp As Integer, btemp As Boolean
+	On Error Goto errh
+	
+	'### Param-check
+	If docSource Is Nothing Then Error iERR_PARAM_MISSING, "SourceDocument"
+	
+	Dim saFieldname() As String 'MErke: ArrayStringFromVariantZZZ führt die Prüfung auf initialiertes Array durch !!!
+	itemp = ArrayStringFromVariantZZZ(session, vFieldname, saFieldname, tpcall, "")
+	If tpcall.iErr > 0 Then Error iERR_FUNCTION_CALL, tpcall.serr
+	If itemp <= -1 Then Goto endfalse
+	
+	If iIndexOfKey > Ubound(saFieldname) Then
+		Error iERR_PARAM_VALUE, "Key Index is higher than the number of fields: " & Cstr(iIndexOfKey)  & ", but expected -1 -" & Cstr(Ubound(saFieldName)) & "'"
+	End If
+	If iIndexOfKey < -1 Then
+		Error iERR_PARAM_VALUE, "Key Index is lower than -1: " & Cstr(iIndexOfKey)  & ", but expected -1 -" & Cstr(Ubound(saFieldName)) & "'" 
+	End If
+	
+	
+	If iIndexOfKey = -1 Then
+		Dim iTagName As Integer
+		iTagName = -1
+	End If
+	
+	'#########################
+	Erase fieldlist  'Die Feldliste erst einmal leermachen
+	
+	'+++ Nur die gefüllten und gültigen Items holen
+	Dim iNrOfItem As Integer
+	iNrOfItem = -1
+	
+	Dim iMax As Integer
+	iMax = -1
+	
+	Dim item As notesitem, aitem() As NotesItem 'Array der Items
+	Redim aitem(Ubound(saFieldName)) As notesitem 'Erst mal vom Maximum ausgehen	
+	Dim iCount As Integer
+	For iCount = 0 To Ubound(saFieldName)
+		Set item = docSource.getfirstitem(saFieldName(iCount))		
+		If item Is Nothing Then Goto itemnext
+		
+		btemp = ItemHasAnyValueZZZ(Session, item, tpcall, "")
+		If tpcall.iErr > 0 Then Error iERR_FUNCTION_CALL, tpcall.serr
+		If btemp = False Then 
+			Set aitem(iCount) = Nothing
+		Else		
+			iNrOfItem = iNrOfItem+1
+			Set aitem(iCount) = item
+			
+			'Damit bekommt man die maximale Anzahl der Einträge in den Spalten
+			If Ubound(item.values) > iMax Then iMax = Ubound(item.values)			
+		End If	
+itemnext:
+	Next iCount
+	If iNrOfItem = - 1 Or iMax = -1 Then Goto EndFalse
+		'Redim Preserve aitem(iNrOfItem) As NotesItem 'nun zurechtstutzen, FGL: DAS NICHT MACHEN, DIE ITEMS SIND NÄMLICH NACH IRHER MAPPING BEDEUTUNG SORTIERT 
+	
+	
+	
+	'+++ Werte ermitteln
+	Dim vValue As Variant		
+'	Redim vValue(Ubound(saFieldname)) As Variant  'Dies ist das neue Array, was alle Werte enthalten soll und dann an die Fieldlist angehängt wird.
+	
+	Dim sTagName As String
+	Dim iPos As Integer
+	For iPos = 0 To iMax		
+		vValue = ItemArray2TableRowStringArrayZZZ(session, aItem, iPos, tpcall, "")
+		If tpcall.iErr > 0 Then Error iERR_FUNCTION_CALL, tpcall.serr
+		
+		'+++ Wert in fieldlist ablegen
+		If iIndexOfKey = -1 Then
+			iTagName = iTagName + 1
+			sTagName = Cstr(iTagName)
+		Else
+			sTagName = Cstr(vValue(iIndexOfKey))		
+		End If
+		
+		fieldlist(sTagName) = vValue	
+	Next iPos
+	
+	
+	'##########################
+EndTrue:
+	tp.ierr = 0
+	docItemArray2TableListZZZ = iReturn
+	Exit Function
+EndFalse:
+	tp.ierr = 0
+	docItemArray2TableListZZZ = -1
+	Exit Function
+EndError:
+	docItemArray2TableListZZZ = -99
+	Exit Function
+ErrH: 
+	Dim sScript As String
+	sScript = "ZBasic.Document\" & Getthreadinfo(LSI_THREAD_PROC)
+	tp.iErr = Err 'Beim wiederholten Aufruf (d.h. zwei Zeilen hintereinanger ' Error iERR_NEXT, "das ist ein text" ' aufrufen) verliert Err zwei Stellen von rechts nach dem Aufruf der MEthode objMe.MessageAppend(..) !!!! 
+	tp.serr = strMsgZZZ(Nothing, tp.sErr, sScript, Erl, Error$, Err, tpcall, "")
+	If tpcall.iErr > 0 Then
+		Msgbox tpcall.serr
+		Resume EndError
+	End If
+	Select Case  tp.ierr
+	Case iMSG_NEXT, iERR_NEXT: Resume Next
+	Case iMSG_FALSE, iERR_FALSE: Resume EndFalse
+	Case iMSG_TRUE, iERR_TRUE: Resume EndTrue
+	Case Else: Resume EndError		
+	End Select
+End Function
+Function docItemArrayIndexMaxZZZ(session As notessession, doc As notesdocument, vItemname As Variant, _
+tp As TypeParamZZZ, sFlagControl As String) As Integer
+%REM 
+	Liefert die maximale Indexnummer der übergebenen Felder.
+	Das ist z.B. bei der Tabellenverarbeitung sinnvoll
+%ENDREM	
+	Dim iReturn As Integer
+	iReturn = -1
+	Dim  tpCall As TypeParamZZZ
+	On Error Goto errh
+	
+	'### Parameter check
+	If doc Is Nothing Then Goto endfalse
+	
+	Dim saItemname() As String, iNrOfItem As Integer
+	iNrOfItem = ArrayStringFromVariantZZZ(session, vitemname, saitemname, tPcall,"") 'MErke Array wird darin auch auf initialisierung geprüft
+	If tpcall.ierr > 0 Then Error iERR_FUNCTION_CALL, tpcall.serr
+	If iNrOfItem <= -1 Then Goto EndFalse
+	
+	'### Main
+	Dim item As NotesItem
+	Dim icount As Integer
+	For icount = 0 To iNrOfItem
+		If Len(saitemname(icount))  = 0 Then Goto itemnext
+		Set item = doc.GetFirstItem(saitemname(icount))
+		If item Is Nothing Then Goto itemnext
+		
+		If Ubound(item.values) > iReturn Then iReturn = Ubound(item.values)
+		
+itemnext:
+	Next
+	
+	'#######################################
+EndTrue:
+	tp.ierr = 0
+	docItemArrayIndexMaxZZZ = ireturn
+	Exit Function
+EndFalse:
+	tp.ierr = 0
+	docItemArrayIndexMaxZZZ = -1
+	Exit Function
+EndError:
+	docItemArrayIndexMaxZZZ = -99
+	Exit Function
+ErrH:
+	Dim sScript As String
+	sScript = "ZBasic.Document\" & Getthreadinfo(LSI_THREAD_PROC)
+	tp.iErr = Err 'Beim wiederholten Aufruf (d.h. zwei Zeilen hintereinanger ' Error iERR_NEXT, "das ist ein text" ' aufrufen) verliert Err zwei Stellen von rechts nach dem Aufruf der MEthode objMe.MessageAppend(..) !!!! 
+	tp.serr = strMsgZZZ(Nothing,  tp.sErr, sScript, Erl, Error$, Err, tpcall, "")
+	If tpcall.iErr > 0 Then
+		Msgbox tpcall.serr
+		Resume EndError
+	End If
+	Select Case tp.ierr
+	Case iMSG_NEXT, iERR_NEXT: Resume Next
+	Case iMSG_FALSE, iERR_FALSE: Resume EndFalse
+	Case iMSG_TRUE, iERR_TRUE: Resume EndTrue
+	Case Else: Resume EndError		
+	End Select
+End Function
+Function ItemRTAppendZZZ(session As notessession, rtitemResult As NotesRichTextItem, rtitemAppending As NotesRichTextItem, bFlagNotReattachEmbedded As Boolean, sFilePathTempIn As String, tp As TypeParamZZZ, sFlagIn As String) As NotesRichTextItem
+	Dim rtItemReturn As notesrichtextitem, iErl As Integer
+	Dim btemp As Boolean, vtemp As Variant, stemp As String, itemp As Integer
+	On Error Goto errhNoCall
+	
+	If rtitemResult Is Nothing And rtitemAppending Is Nothing Then Goto EndFalse
+	If rtitemResult Is Nothing Then
+		Set rtitemReturn = rtitemAppending
+		Goto EndTrue
+	End If
+	
+	Set rtitemReturn = rtitemResult
+	If rtitemAppending Is Nothing Then Goto EndTrue
+	'#######################################
+%REM
+	Error iERR_NEXT, "TestEintrag1"
+	Print "ZBasic.Document\" & Getthreadinfo(LSI_THREAD_PROC) & "#Line1: " & Cstr(iErl)
+	Error iERR_NEXT, "TestEintrag2"
+	Print "ZBasic.Document\" & Getthreadinfo(LSI_THREAD_PROC) & "#Line2: " & Cstr(iErl)  'Das sind aufeinmal 100e von Zielen später !!!
+%ENDREM
+	'Print "ZBasic.Document\" & Getthreadinfo(LSI_THREAD_PROC) & "#Line1: " & Cstr(Getthreadinfo(LSI_THREAD_LINE)) 'Gibt in der .lss - File - Version 0 aus
+	'Print "ZBasic.Document\" & Getthreadinfo(LSI_THREAD_PROC) & "#Line2: " & Cstr(Getthreadinfo(LSI_THREAD_LINE)) 'Gibt in der .lss - File - Version 0 aus
+	'########################################
+	Dim  icountfileplus As Integer
+	icountfileplus = -1
+	If bFlagNotReattachEmbedded = False Then
+		If Not Isnull(rtitemappending.Embeddedobjects) Then
+			If Not Isempty(rtitemappending.Embeddedobjects) Then
+				Print "ZBasic.Document\" & Getthreadinfo(LSI_THREAD_PROC) & "#Handling embedded objects."
+				
+				'+++ 1. ggf. alle Attachments abhängen		
+				Dim sFilepathTemp As String
+				If Len(sFilepathtempin) = 0 Then
+					sFilepathtemp = session.GetEnvironmentString("Directory")
+					If Len(sFilepathtemp) = 0 Then Error iERR_PARAM_MISSING, "Filepath"
+				Else
+					sFilepathTemp = sFilepathtempin
+				End If
+				
+				Dim docParentAppending As NotesDocument, sUnidappending As String
+				Set docParentAppending =  rtitemAppending.parent
+				If Not docParentAppending Is Nothing Then sUnidAppending = docParentAppending.UniversalID
+				
+				Dim sName As String, saName() As String, sFile As String, saFile() As String						
+				Forall o In rtitemappending.EmbeddedObjects
+					
+%REM
+EMBED_ATTACHMENT (1454)
+EMBED_OBJECT (1453)
+EMBED_OBJECTLINK (1452)
+%END REM
+					Select Case o.Type
+					Case EMBED_ATTACHMENT:
+						sName = o.Name
+			'+++ Künstlichen Dateinamen erstellen, für temporär
+						iCountFileplus = iCountFileplus + 1
+						sFile = sFilepathTemp & sSEPDIRECTORYZZZ & sUnidAppending & "_" & Cstr(iCountFilePlus) & "_" & sName		
+						Redim Preserve saFile(iCountFilePlus) As String
+						saFile(iCountFilePlus) = sFile
+						
+						Redim Preserve saName(iCountFilePlus) As String
+						saName(iCountFilePlus) = sName
+						
+						Print "ZBasic.Document\" & Getthreadinfo(LSI_THREAD_PROC) & "#Extracting attachment to file: '" & sFile & "'"
+						Call o.ExtractFile(sFile)
+					End Select		
+				End Forall
+			End If 'not isempty
+		End If 'If not isnull
+	End If ' bFlagNotReattachEmbedded = False Then
+	
+	
+	'+++ 2. Das anhängen
+	Call rtitemReturn.AppendRTItem(rtitemAppending)
+	
+	'+++ 3, ggf. die Attachments wieder anhängen
+	If  bFlagNotReattachEmbedded = False And icountfileplus >= 0 Then
+		Dim icount As Integer
+		For icount = 0 To Ubound(saFile)
+			
+			'+++ ggf vorhandene alt bestände löschen
+			Kill saName(icount)
+			
+			'+++ In alten Dateinamen umbenennen
+			Filecopy saFile(icount), saName(icount)
+			
+			'Embedobject(byval type as integer, byval class as string, byval source as string, optional byval objectname as string) as notesembeddedobject
+			Call rtitemreturn.EmbedObject(EMBED_ATTACHMENT, "", saName(icount), saName(icount))				
+			
+			'+++ Temporäre files entfernen, dies ggf. konfigurierbar machen !!!
+			Kill saFile(icount)
+		Next icount
+	Else
+		Print "ZBasic.Document\" & Getthreadinfo(LSI_THREAD_PROC) & "#No old attachments found to be reattached."
+	End If ' bFlagNotReattachEmbedded = False Then
+	
+	
+	
+	''''########################################
+EndTrue:
+	tp.ierr = 0
+	Set ItemRTAppendZZZ = rtitemReturn
+	Exit Function
+EndFalse:
+	tp.ierr = 0
+	Set ItemRTAppendZZZ = Nothing
+	Exit Function
+EndError:
+	Set ItemRTAppendZZZ = Nothing
+	Exit Function
+ErrHNoCall:
+	Dim sScript, tpcall As TypeParamZZZ
+	sScript = "ZBasic.Document\" & Getthreadinfo(LSI_THREAD_PROC)
+	tp.iErr = Err 'Beim wiederholten Aufruf (d.h. zwei Zeilen hintereinanger ' Error iERR_NEXT, "das ist ein text" ' aufrufen) verliert Err zwei Stellen von rechts nach dem Aufruf der MEthode objMe.MessageAppend(..) !!!! 
+	iErl = Erl
+	tp.serr = strMsgZZZ(Nothing,  tp.sErr, sScript, Erl, Error$, Err, tpcall, "")
+	If tpcall.iErr > 0 Then
+		Msgbox tpcall.serr
+		Resume EndError
+	End If
+	Select Case tp.ierr
+	Case iMSG_NEXT, iERR_NEXT: Resume Next
+	Case iMSG_FALSE, iERR_FALSE: Resume EndFalse
+	Case iMSG_TRUE, iERR_TRUE: Resume EndTrue
+	Case Else: Resume EndError		
+	End Select
+End Function
+Function docItemArrayValueProofZZZ(session As notessession, doc As notesdocument, vItemName As Variant, valueproof As Variant, position As String, tp As TypeParamZZZ, sFlagin As String) As Boolean	
+	Dim  tpCall As TypeParamZZZ
+	On Error Goto errh
+	If doc Is Nothing Then Error iERR_PARAM_MISSING, "Notesdocument"
+	
+	Dim itemp As Integer
+	Dim saItemName() As String, sItemName As String, iBoundOfName As Integer
+	iBoundOfName = ArrayStringFromVariantZZZ(session, vItemName, saItemName, tpcall, "")
+	If tpcall.ierr > 0 Then Error iERR_FUNCTION_CALL, tpcall.serr	
+	If iBoundOfName <= -1 Then Error iERR_PARAM_MISSING, "Itemname (Array)"
+	
+	Dim itemdoc As notesitem
+	Dim saValue() As String, iaValue() As Integer, iBoundOfValue As Integer
+	Dim vValue As Variant
+	Dim icount As Integer, icount2 As Integer
+	
+	For icount2 = 0 To iBoundOfName
+		sItemName = saItemName(icount2)
+		If Len(sItemName)=0 Then Goto itemnext
+		
+		Set itemdoc = doc.getfirstitem(sItemName)	
+		If itemdoc Is Nothing Then Goto itemnext	
+		
+		If itemdoc.Type = TEXT Then
+			Erase saValue
+			iBoundOfValue = ArrayStringFromVariantZZZ(session, itemdoc.Values, saValue, tpcall, "")
+			If tpcall.ierr > 0 Then Error iERR_FUNCTION_CALL, tpcall.serr
+			If iBoundOfValue <= -1 Then Goto itemnext
+			
+			If position = "first" Then
+				vValue = saValue(0)
+				If vValue = Cstr(valueproof) Then Goto EndTrue
+			Elseif position = "last" Then
+				vValue = saValue(Ubound(saValue))
+				If vValue = Cstr(valueproof) Then Goto EndTrue
+			Else
+				For icount = 0 To iBoundOfValue
+					vValue = Cstr(saValue(icount))
+					If vValue = Cstr(valueproof) Then Goto EndTrue
+				Next
+			End If		
+			
+		Elseif itemdoc.Type = NUMBERS Then
+			If Not Isnumeric(valueproof) Then Goto itemnext
+			
+			Erase iaValue
+			iBoundOfValue = ArrayIntegerFromVariantZZZ(session, itemdoc.Values, iaValue, tpcall, "")
+			If tpcall.ierr > 0 Then Error iERR_FUNCTION_CALL, tpcall.serr
+			
+			If position = "first" Then
+				vValue = iaValue(0)
+				If vValue = Cint(valueproof) Then Goto EndTrue
+			Elseif position = "last" Then
+				vValue = iaValue(Ubound(iaValue))
+				If vValue = Cint(valueproof) Then Goto EndTrue
+			Else
+				For icount = 0 To iBoundOfValue
+					vValue = iaValue(icount)
+					If vValue = Cint(valueproof) Then Goto EndTrue
+				Next 
+			End If
+		End If
+itemnext:		
+	Next icount2
+	Goto EndFalse
+	
+	'############################
+EndTrue:
+	docItemArrayValueProofZZZ = True
+	Exit Function	
+EndFalse:
+	docItemArrayValueProofZZZ = False
+	Exit Function
+EndError:
+	docItemArrayValueProofZZZ = False
+	Exit Function
+ErrH:
+	Dim sScript As String
+	sScript = "ZBasic.Document\" & Getthreadinfo(LSI_THREAD_PROC)
+	tp.iErr = Err 'Beim wiederholten Aufruf (d.h. zwei Zeilen hintereinanger ' Error iERR_NEXT, "das ist ein text" ' aufrufen) verliert Err zwei Stellen von rechts nach dem Aufruf der MEthode objMe.MessageAppend(..) !!!! 
+	tp.serr = strMsgZZZ(Nothing,  tp.sErr, sScript, Erl, Error$, Err, tpcall, "")
+	If tpcall.iErr > 0 Then
+		Msgbox tpcall.serr
+		Resume EndError
+	End If
+	Select Case tp.ierr
+	Case iMSG_NEXT, iERR_NEXT: Resume Next
+	Case iMSG_FALSE, iERR_FALSE: Resume EndFalse
+	Case iMSG_TRUE, iERR_TRUE: Resume EndTrue
+	Case Else: Resume EndError		
+	End Select
+End Function
+
+Function docItemArrayExistsZZZ(session As notessession, doc As NotesDocument, vItemname As Variant, sFlagALL_OR_ANYIn As String, tp As TypeParamZZZ, sFlag As String) As Boolean
+	Dim bReturn As Boolean
+	Dim  tpCall As TypeParamZZZ
+	On Error Goto errh
+	Dim itemp As Integer, stemp As String
+	
+	If doc Is Nothing Then Error iERR_PARAM_MISSING, "Notesdocument"
+	
+	Dim saItemName() As String, sItemName As String, iBoundOfName As Integer
+	iBoundOfName = ArrayStringFromVariantZZZ(session, vItemName, saItemName, tpcall, "")
+	If tpcall.ierr > 0 Then Error iERR_FUNCTION_CALL, tpcall.serr	
+	If iBoundOfName <= -1 Then Error iERR_PARAM_MISSING, "Itemname (Array)"
+	
+	
+	Dim sFlagAll_or_any As String
+	If Len(sFlagAll_or_anyIn) = 0 Then
+		sFlagAll_or_any = "ALL"
+	Else
+		sFlagAll_or_any = Ucase(sFlagAll_or_anyIn)
+		If sFlagAll_or_any <> "ALL" And sFlagAll_or_any <> "ANY" Then Error iERR_PARAM_VALUE, "sFlagAll_or_any='" & sFlagAll_or_anyIn & "', but expected 'ALL', 'ANY'"
+	End If
+	
+	Dim icount As Integer
+	
+	If sFlagAll_or_any = "ALL" Then
+		For icount = 0 To iBoundOfName
+			stemp = saItemname(icount)
+			If Len(stemp) > 0 Then 
+				If Not doc.HasItem(stemp) Then Goto EndFalse
+			End If
+		Next
+		
+	Elseif sFlagAll_or_any = "ANY" Then
+		For icount = 0 To iBoundOfName
+			stemp = saItemname(icount)
+			If Len(stemp) > 0 Then		
+				If doc.HasItem(stemp) Then
+					bReturn = True
+					Goto Endtrue			
+				End If
+			End If
+		Next
+	End If
+	
+	
+endtrue:
+	docItemArrayExistsZZZ = bReturn  'Damit negativ, wenn z.B. alle itemnamen leer sind
+	Exit Function
+endfalse:
+	docItemArrayExistsZZZ = False
+	Exit Function
+endError:
+	docItemArrayExistsZZZ = False
+	Exit Function
+ErrH:
+	Dim sScript As String
+	sScript = "ZBasic.Document\" & Getthreadinfo(LSI_THREAD_PROC)
+	tp.iErr = Err 'Beim wiederholten Aufruf (d.h. zwei Zeilen hintereinanger ' Error iERR_NEXT, "das ist ein text" ' aufrufen) verliert Err zwei Stellen von rechts nach dem Aufruf der MEthode objMe.MessageAppend(..) !!!! 
+	tp.serr = strMsgZZZ(Nothing,  tp.sErr, sScript, Erl, Error$, Err, tpcall, "")
+	If tpcall.iErr > 0 Then
+		Msgbox tpcall.serr
+		Resume EndError
+	End If
+	Select Case tp.ierr
+	Case iMSG_NEXT, iERR_NEXT: Resume Next
+	Case iMSG_FALSE, iERR_FALSE: Resume EndFalse
+	Case iMSG_TRUE, iERR_TRUE: Resume EndTrue
+	Case Else: Resume EndError		
+	End Select
+End Function
+Function removeFieldMatchedZZZ(session As NotesSession, docNew As Notesdocument, sMatch As String, iMatchSensitive As Integer, tp As TypeParamZZZ, sFlagIn As String) As Boolean
+%REM
+MatchSensitive
+0 	case-sensitive, pitch-sensitive
+1 	case-insensitive, pitch-sensitive
+4 	case-sensitive, pitch-insensitive
+5 	case-insensitive, pitch-insensitive
+%END REM
+	On Error Goto errh
+	If docnew Is Nothing Then Error iERR_PARAM_MISSING, "Notesdocument"
+	If Len(sMatch) = 0 Then Error iERR_PARAM_VALUE, "Match-String ist leer"
+	If iMatchSensitive <> 0 And iMatchSensitive <> 1 And iMatchSensitive <> 4 And iMatchSensitive <> 5 Then Error iERR_PARAM_VALUE, "MatchSensitive value expected like the instr(..) parameter 0,1,4,5"
+	
+	Dim sFlag As String, stemp As String
+	If sFlagin="" Then
+		sFlag = "LEFT"
+	Else 
+		sFlag = Ucase(Trim(sFlagIn))				
+	End If
+	
+	'#################################
+	Dim icountItem As Integer, icountremove As Integer
+	Redim saItemName2Remove(Ubound(docNew.Items)) As String
+	Dim itemtemp As NotesItem, iLenMatch As Integer
+	
+	iLenMatch = Len(sMatch)
+	
+	Select Case sFlag
+	Case "LEFT":
+		If iMAtchSensitive = 0 Then
+			For icountItem = 0 To Ubound(docNew.Items)
+				Set itemtemp = docNew.Items(icountitem)
+				stemp = Left$(itemtemp.Name, iLenMatch)
+				If  stemp = sMatch And Len(itemtemp.Name) >= iLenMatch Then   'damit hat man sichergestellt, das items, die genauso heisen wie der Matchstring nicht gelöscht werden.
+					
+				'+++ Item gefunden
+					icountRemove = icountRemove + 1
+					saItemName2Remove(icountRemove) = itemtemp.Name					
+				End If
+			Next icountItem
+		Else
+			sMatch=Lcase(sMAtch)
+			For icountItem = 0 To Ubound(docNew.Items)
+				Set itemtemp = docNew.Items(icountitem)
+				stemp = Lcase(Left$(itemtemp.Name, iLenMatch))
+				If  stemp = sMatch And Len(itemtemp.Name) >= iLenMatch Then   'damit hat man sichergestellt, das items, die genauso heisen wie der Matchstring nicht gelöscht werden.				
+				'+++ Item gefunden
+					icountRemove = icountRemove + 1
+					saItemName2Remove(icountRemove) = itemtemp.Name					
+				End If
+			Next icountItem			
+		End If
+		
+		'### Nun erst das endgültige Entfernen
+		For icountItem = 0 To icountRemove
+			
+			'Löschen der Items in einer Schleife, damit ggf. doppelt erzeugte ITems auch komplett gelöscht werden
+			Call DocItemInstanceAllRemoveZZZ(session, docnew, saItemName2Remove(icountItem), tp, "")
+			If tp.ierr > 0 Then Error iERR_FUNCTION_CALL, tp.serr	
+		Next
+		
+		
+	Case Else:
+		Error iERR_PARAM_VALUE, "Flag is '" & sFlagIn & "', expected 'LEFT'"
+	End Select
+	'##########################################
+endtrue:	
+	tp.ierr = 0
+	removeFieldMatchedZZZ = True
+	Exit Function
+endfalse:	
+	tp.ierr = 0
+	removeFieldMatchedZZZ = False
+	Exit Function
+enderr:	
+	removeFieldMatchedZZZ = False
+	Exit Function
+ErrH:
+	Dim sScript As String, tpCall As TypeParamZZZ
+	sScript = "ZBasic.Document\" & Getthreadinfo(LSI_THREAD_PROC)
+	tp.iErr = Err 'Beim wiederholten Aufruf (d.h. zwei Zeilen hintereinanger ' Error iERR_NEXT, "das ist ein text" ' aufrufen) verliert Err zwei Stellen von rechts nach dem Aufruf der MEthode objMe.MessageAppend(..) !!!! 
+	tp.serr = strMsgZZZ(Nothing,  tp.sErr, sScript, Erl, Error$, Err, tpcall, "")
+	If tpcall.iErr > 0 Then
+		Msgbox tpcall.serr
+		Resume EndErr
+	End If
+	Select Case tp.ierr
+	Case iMSG_NEXT, iERR_NEXT: Resume Next
+	Case iMSG_FALSE, iERR_FALSE: Resume EndFalse
+	Case iMSG_TRUE, iERR_TRUE: Resume EndTrue
+	Case Else: Resume EndErr
+	End Select
+End Function
+Function saveFieldFromRemovePrepareZZZ(session As NotesSession, docnew As NotesDocument, vItemName As Variant, baUseitemtemp() As Boolean, tp As TypeParamZZZ, sFlag As String) As Boolean
+	'++++++++++++++++++++++++
+	'### Wenn ein cur... Feld "gerettet" werden soll, dann muss es in dieses Array ###################
+	Dim icount As Integer
+	Dim sitemname As String
+	Dim itemtemp As notesitem
+	
+	Dim saItemname() As String, iBound As Integer
+	iBound = ArrayStringFromVariantZZZ(session, vItemName, saItemName, tP, "")
+	If tp.ierr > 0 Then Error iERR_FUNCTION_CALL, tp.serr
+	If ibound <= -1 Then Goto endfalse
+	
+	Redim baUseItemtemp(iBound) As Boolean
+	
+	'+++ Sichern des Feldwertes
+	For icount = 0 To iBound
+		sitemname = Trim(saItemname(icount))
+		If Len(sItemname) > 0 Then
+			Set itemtemp = docnew.GetFirstItem(sitemname)		
+			If Not itemtemp Is Nothing Then
+				baUseitemtemp(icount) = True
+				Call itemtemp.CopyItemToDocument(docnew, "_" & sitemname)
+			End If
+		End If 'len(sItemName)
+	Next icount
+	
+	
+	'#############################################################
+	
+endtrue:	
+	tp.ierr = 0
+	saveFieldFromRemovePrepareZZZ = True
+	Exit Function
+endfalse:	
+	tp.ierr = 0
+	saveFieldFromRemovePrepareZZZ = False
+	Exit Function
+enderr:	
+	saveFieldFromRemovePrepareZZZ = False
+	Exit Function
+ErrH:
+	Dim sScript As String, tpCall As TypeParamZZZ
+	sScript = "ZBasic.Document\" & Getthreadinfo(LSI_THREAD_PROC)
+	tp.iErr = Err 'Beim wiederholten Aufruf (d.h. zwei Zeilen hintereinanger ' Error iERR_NEXT, "das ist ein text" ' aufrufen) verliert Err zwei Stellen von rechts nach dem Aufruf der MEthode objMe.MessageAppend(..) !!!! 
+	tp.serr = strMsgZZZ(Nothing,  tp.sErr, sScript, Erl, Error$, Err, tpcall, "")
+	If tpcall.iErr > 0 Then
+		Msgbox tpcall.serr
+		Resume EndErr
+	End If
+	Select Case tp.ierr
+	Case iMSG_NEXT, iERR_NEXT: Resume Next
+	Case iMSG_FALSE, iERR_FALSE: Resume EndFalse
+	Case iMSG_TRUE, iERR_TRUE: Resume EndTrue
+	Case Else: Resume EndErr
+	End Select
+End Function
+Function saveFieldFromRemoveRestoreZZZ(session As NotesSession, docnew As NotesDocument, vItemName As Variant,baUseItemTemp() As Boolean, tp As TypeParamZZZ, sFlag As String) As Boolean
+	'++++++++++++++++++++++++
+	'### Wenn ein cur... Feld "gerettet" werden soll, dann muss es in dieses Array ###################
+	Dim icount As Integer
+	Dim sitemname As String
+	Dim itemtemp As notesitem
+	
+	Dim saItemname() As String, iBound As Integer
+	iBound = ArrayStringFromVariantZZZ(session, vItemName, saItemName, tP, "")
+	If tp.ierr > 0 Then Error iERR_FUNCTION_CALL, tp.serr
+	If ibound <= -1 Then Goto endfalse
+	
+	'+++ Zurückholen des Feldwertes
+	For icount = 0 To iBound
+		If baUseitemtemp(icount) Then
+			sitemname = Trim(saItemName(icount)) '"curinsStreetNo" 	'!!! Besonders Feld sichern 'FLi 2009-02-24: Die Hausnummer des Installateurs fehlt		
+			If Len(sItemname) > 0 Then
+				Set itemtemp = docnew.GetFirstitem("_" & sitemname)
+				If Not itemtemp Is Nothing Then
+					Call itemtemp.CopyItemToDocument(docnew, sitemname)	
+					Call DocItemInstanceAllRemoveZZZ(session, docnew, "_" & sItemname, tp, "")
+					If tp.ierr > 0 Then Error iERR_FUNCTION_CALL, tp.serr
+				End If
+			End If	
+		End If 'len(sItemName)
+	Next icount			
+	'#############################################################
+	
+endtrue:	
+	tp.ierr = 0
+	saveFieldFromRemoveRestoreZZZ = True
+	Exit Function
+endfalse:	
+	tp.ierr = 0
+	saveFieldFromRemoveRestoreZZZ = False
+	Exit Function
+enderr:	
+	saveFieldFromRemoveRestoreZZZ = False
+	Exit Function
+ErrH:
+	Dim sScript As String, tpCall As TypeParamZZZ
+	sScript = "ZBasic.Document\" & Getthreadinfo(LSI_THREAD_PROC)
+	tp.iErr = Err 'Beim wiederholten Aufruf (d.h. zwei Zeilen hintereinanger ' Error iERR_NEXT, "das ist ein text" ' aufrufen) verliert Err zwei Stellen von rechts nach dem Aufruf der MEthode objMe.MessageAppend(..) !!!! 
+	tp.serr = strMsgZZZ(Nothing,  tp.sErr, sScript, Erl, Error$, Err, tpcall, "")
+	If tpcall.iErr > 0 Then
+		Msgbox tpcall.serr
+		Resume EndErr
+	End If
+	Select Case tp.ierr
+	Case iMSG_NEXT, iERR_NEXT: Resume Next
+	Case iMSG_FALSE, iERR_FALSE: Resume EndFalse
+	Case iMSG_TRUE, iERR_TRUE: Resume EndTrue
+	Case Else: Resume EndErr
+	End Select
+End Function
+

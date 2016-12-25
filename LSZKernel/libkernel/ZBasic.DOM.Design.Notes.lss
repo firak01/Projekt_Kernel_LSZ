@@ -1,0 +1,732 @@
+'%INCLUDE "C:\1fgl\workspace\Eclipse3FGL\LSZKernel\libkernel\ZAPI.Basic.Asset.lss" 
+'Use "ZBasic.DataType.."  
+
+Function saFileResourceGetZZZ(session As notessession, dbin As notesdatabase, sSharedFileAliasIn As String, tp As TypeParamZZZ, sFlag As String) As Variant
+%REM
+Merke: 
+Die Resourcen sind in speziellen Notes-Dokumenten gespeichert. Die folgende Felder enthalten
+$Title - enhält den Dateinamen und alle Aliasse
+$FileName - enthält nur den Dateinamen
+$Comment - enthält Komentare
+$FileSize - enthält die Größe der Resource
+%END REM
+	Dim vReturn As Variant,  tpcall As TypeParamZZZ
+	Dim btemp, itemp, stemp
+	On Error Goto errh
+	
+	'### Übergabeparameter prüfen				
+	Dim sSharedFileAlias As String
+	If Len(sSharedFileAliasIn) = 0 Then
+		Error iERR_PARAM_MISSING, "Filename to be searched for: SharedFileAlias"
+	Else
+		sSharedFileAlias = sSharedFileAliasIn
+	End If
+	
+	Dim db As NotesDatabase
+	If dbin Is Nothing Then
+		If session Is Nothing Then 
+			Dim sessionnew As New NotesSession
+			Set db = sessionnew.CurrentDatabase
+		Else
+			Set db = session.CurrentDatabase
+		End If
+	Else
+		Set db = dbin
+	End If
+	
+	'####
+	Stop
+	Dim sFormula As String
+	sFormula =  |@IsMember(@uppercase("| & sSharedFileAlias & |"); @uppercase($TITLE))|
+	
+	vReturn = saFileResourceByFormulaGetZZZ(session,  db,sFormula, tpcall, "")
+	If tpcall.ierr > 0 Then Error iERR_FUNCTION_CALL, tpcall.serr
+	
+'######################################	
+EndTrue:
+	tp.ierr = 0
+	saFileResourceGetZZZ = vReturn
+	Exit Function
+EndFalse:
+	tp.ierr = 0
+	saFileResourceGetZZZ = Null
+	Exit Function	 
+EndError:
+	saFileResourceGetZZZ = Null
+	Exit Function
+ErrH:
+	Dim sScript As String
+	sScript = "ZBasic.DOM.Design.Notes\" & Getthreadinfo(LSI_THREAD_PROC)
+	tp.iErr = Err 'Beim wiederholten Aufruf (d.h. zwei Zeilen hintereinanger ' Error iERR_NEXT, "das ist ein text" ' aufrufen) verliert Err zwei Stellen von rechts nach dem Aufruf der MEthode objMe.MessageAppend(..) !!!! 
+	tp.serr = strMsgZZZ(Nothing,  tp.sErr, sScript, Erl, Error$, Err, tpCall, "")
+	If tpcall.iErr > 0 Then
+		Msgbox tpcall.serr
+		Resume EndError
+	End If
+	Select Case tp.ierr
+	Case iMSG_NEXT, iERR_NEXT: Resume Next
+	Case iMSG_FALSE, iERR_FALSE: Resume EndFalse
+	Case iMSG_TRUE, iERR_TRUE: Resume EndTrue
+	Case Else: Resume EndError		
+	End Select
+End Function
+
+Function saFileResourceByFormulaGetZZZ(session As notessession, dbin As notesdatabase, sFormula As String, tp As TypeParamZZZ, sFlag As String) As Variant
+%REM
+Merke: 
+Die Resourcen sind in speziellen Notes-Dokumenten gespeichert. Die folgende Felder enthalten
+$Title - enhält den Dateinamen und alle Aliasse
+$FileName - enthält nur den Dateinamen
+$Comment - enthält Komentare
+$FileSize - enthält die Größe der Resource
+%END REM
+	Dim saReturn() As String,  tpcall As TypeParamZZZ
+	Dim vtemp As Variant
+	On Error Goto errh
+	
+	'### Übergabeparameter prüfen				
+	If Len(sFormula) = 0 Then Error iERR_PARAM_MISSING, "Formula"
+	
+	Dim db As NotesDatabase
+	If dbin Is Nothing Then
+		If session Is Nothing Then 
+			Dim sessionnew As New NotesSession
+			Set db = sessionnew.CurrentDatabase
+		Else
+			Set db = session.CurrentDatabase
+		End If
+	Else
+		Set db = dbin
+	End If
+	
+	'####################################
+	
+	Dim nnc As NotesNoteCollection
+	Set nnc = db.CreateNoteCollection(False)
+	nnc.SelectMiscFormatElements=True
+	nnc.SelectionFormula=sFormula
+	Call nnc.BuildCollection
+	
+	vtemp = saNoteIDByNoteCollectionZZZ(session, nnc, tpcall, "")
+	If tpcall.ierr > 0 Then Error iERR_FUNCTION_CALL, tpcall.serr
+	If Isnull(vtemp) Then Goto EndFalse
+	
+	Call ArrayStringFromVariantZZZ( session , vtemp , saReturn, tPcall, "" )
+	If tpcall.ierr > 0 Then Error iERR_FUNCTION_CALL, tpcall.serr
+	
+'######################################	
+EndTrue:
+	tp.ierr = 0
+	saFileResourceByFormulaGetZZZ = saReturn
+	Exit Function
+EndFalse:
+	tp.ierr = 0
+	saFileResourceByFormulaGetZZZ = Null
+	Exit Function	 
+EndError:
+	saFileResourceByFormulaGetZZZ = Null
+	Exit Function
+ErrH:
+	Dim sScript As String
+	sScript = "ZBasic.DOM.Design.Notes\" & Getthreadinfo(LSI_THREAD_PROC)
+	tp.iErr = Err 'Beim wiederholten Aufruf (d.h. zwei Zeilen hintereinanger ' Error iERR_NEXT, "das ist ein text" ' aufrufen) verliert Err zwei Stellen von rechts nach dem Aufruf der MEthode objMe.MessageAppend(..) !!!! 
+	tp.serr = strMsgZZZ(Nothing,  tp.sErr, sScript, Erl, Error$, Err, tpCall, "")
+	If tpcall.iErr > 0 Then
+		Msgbox tpcall.serr
+		Resume EndError
+	End If
+	Select Case tp.ierr
+	Case iMSG_NEXT, iERR_NEXT: Resume Next
+	Case iMSG_FALSE, iERR_FALSE: Resume EndFalse
+	Case iMSG_TRUE, iERR_TRUE: Resume EndTrue
+	Case Else: Resume EndError		
+	End Select
+End Function
+Function saFileResourceSearchZZZ(session As notessession, dbin As notesdatabase, sBeginning As String, sEnding As String, tp As TypeParamZZZ, sFlag As String) As Variant
+%REM
+Merke: 
+Die Resourcen sind in speziellen Notes-Dokumenten gespeichert. Die folgende Felder enthalten
+$Title - enhält den Dateinamen und alle Aliasse
+$FileName - enthält nur den Dateinamen
+$Comment - enthält Komentare
+$FileSize - enthält die Größe der Resource
+%END REM
+	Dim saReturn() As String, tpcall As TypeParamZZZ
+	Dim itemp As Integer, vtemp As Variant
+	On Error Goto errh
+	
+	'### Übergabeparameter prüfen				
+	If Len(sBeginning) = 0 And Len(sEnding) = 0 Then Error iERR_PARAM_MISSING, "Beginning or ending string"
+	
+	Dim db As NotesDatabase
+	If dbin Is Nothing Then
+		If session Is Nothing Then 
+			Dim sessionnew As New NotesSession
+			Set db = sessionnew.CurrentDatabase
+		Else
+			Set db = session.CurrentDatabase
+		End If
+	Else
+		Set db = dbin
+	End If
+	
+	'####
+	Dim nnc As NotesNoteCollection
+	Set nnc = db.CreateNoteCollection(False)
+	nnc.SelectMiscFormatElements=True
+	
+	Dim sFormula As String,  iCount As Integer	
+	If Len(sBeginning) > 0 Then		
+		sFormula = |@IsMember(@uppercase("| & sBeginning & |"); @uppercase(@Left($Title; | & Cstr(Len(sBeginning)) & |)))
+|		
+		Call nnc.ClearCollection
+		nnc.SelectionFormula=sFormula
+		Call nnc.BuildCollection
+		
+		Dim vIDByBegin As Variant
+		vIDByBegin = saNoteIDByNoteCollectionZZZ(session, nnc, tpcall, "")
+		If tpcall.ierr > 0 Then Error iERR_FUNCTION_CALL, tpcall.serr
+		
+	End If
+	
+	If Len(sEnding) > 0 Then		
+		sFormula = |@IsMember(@uppercase("| & sEnding & |"); @uppercase(@Right($Title; | & Cstr(Len(sEnding)) & |)))
+|		
+		Call nnc.ClearCollection
+		nnc.SelectionFormula=sFormula
+		Call nnc.BuildCollection
+		
+		Dim vIDByEnd As Variant
+		vIDByEnd = saNoteIDByNoteCollectionZZZ(session, nnc, tpcall, "")
+		
+	End If
+	
+	'+++ Rückgabewert aufbereiten
+	If Len(sEnding) > 0 And Len(sBeginning) > 0 Then
+		'+++ Die Schnittmenge der beiden Suchen bilden
+		vtemp = ArrayStringIntersectionZZZ(session, vIDByBegin, vIDByEnd, 5, False, tpcall, "")
+		If tpcall.ierr > 0 Then Error iERR_FUNCTION_CALL, tpcall.serr		
+		
+		itemp = ArrayStringFromVariantZZZ( session , vtemp , saReturn, tPcall, "" )
+		If tpcall.ierr > 0 Then Error iERR_FUNCTION_CALL, tpcall.serr
+		If itemp < 0 Then Goto EndFalse
+		
+	Elseif Len(sEnding) > 0 And Len(sBeginning) = 0 Then		
+		itemp = ArrayStringFromVariantZZZ( session , vIDByEnd , saReturn, tPcall, "" )
+		If tpcall.ierr > 0 Then Error iERR_FUNCTION_CALL, tpcall.serr
+		If itemp < 0 Then Goto EndFalse
+		
+	Elseif Len(sEnding) = 0 And Len(sBeginning) > 0 Then
+		itemp = ArrayStringFromVariantZZZ( session , vIDByBegin , saReturn, tPcall, "" )
+		If tpcall.ierr > 0 Then Error iERR_FUNCTION_CALL, tpcall.serr
+		If itemp < 0 Then Goto EndFalse
+	End If
+	
+'######################################	
+EndTrue:
+	tp.ierr = 0
+	saFileResourceSearchZZZ = saReturn
+	Exit Function
+EndFalse:
+	tp.ierr = 0
+	saFileResourceSearchZZZ = Null
+	Exit Function	 
+EndError:
+	saFileResourceSearchZZZ = Null
+	Exit Function
+ErrH:
+	Dim sScript As String
+	sScript = "ZBasic.DOM.Design.Notes\" & Getthreadinfo(LSI_THREAD_PROC)
+	tp.iErr = Err 'Beim wiederholten Aufruf (d.h. zwei Zeilen hintereinanger ' Error iERR_NEXT, "das ist ein text" ' aufrufen) verliert Err zwei Stellen von rechts nach dem Aufruf der MEthode objMe.MessageAppend(..) !!!! 
+	tp.serr = strMsgZZZ(Nothing,  tp.sErr, sScript, Erl, Error$, Err, tpCall, "")
+	If tpcall.iErr > 0 Then
+		Msgbox tpcall.serr
+		Resume EndError
+	End If
+	Select Case tp.ierr
+	Case iMSG_NEXT, iERR_NEXT: Resume Next
+	Case iMSG_FALSE, iERR_FALSE: Resume EndFalse
+	Case iMSG_TRUE, iERR_TRUE: Resume EndTrue
+	Case Else: Resume EndError		
+	End Select
+End Function
+
+
+Function saNoteIDByNoteCollectionZZZ(session As notessession, nnc As NotesNoteCollection, tp As TypeParamZZZ, sFlag As String) As Variant	
+	Dim saReturn() As String
+	Dim btemp, itemp, stemp
+	On Error Goto errhNoCall
+	
+	'### Übergabeparameter prüfen		
+	If nnc Is Nothing Then Error  iERR_PARAM_MISSING, "NotesNoteCollection"
+	If nnc.Count = 0 Then Goto EndFalse
+	
+	'#################################
+	
+	Redim saReturn(nnc.Count - 1) As String
+	saReturn(0) = nnc.GetFirstNoteId
+	
+	Dim iCount As Integer
+	For icount = 1 To nnc.Count - 1
+		saReturn(icount) = nnc.GetNextNoteId(saReturn(icount-1))
+	Next
+	
+'######################################	
+EndTrue:
+	tp.ierr = 0
+	saNoteIDByNoteCollectionZZZ = saReturn
+	Exit Function
+EndFalse:
+	tp.ierr = 0
+	saNoteIDByNoteCollectionZZZ = Null
+	Exit Function	 
+EndError:
+	saNoteIDByNoteCollectionZZZ = Null
+	Exit Function
+ErrHNoCall:
+	Dim sScript As String,  tpcall As TypeParamZZZ
+	sScript = "ZBasic.DOM.Design.Notes\" & Getthreadinfo(LSI_THREAD_PROC)
+	tp.iErr = Err 'Beim wiederholten Aufruf (d.h. zwei Zeilen hintereinanger ' Error iERR_NEXT, "das ist ein text" ' aufrufen) verliert Err zwei Stellen von rechts nach dem Aufruf der MEthode objMe.MessageAppend(..) !!!! 
+	tp.serr = strMsgZZZ(Nothing,  tp.sErr, sScript, Erl, Error$, Err, tpCall, "")
+	If tpcall.iErr > 0 Then
+		Msgbox tpcall.serr
+		Resume EndError
+	End If
+	Select Case tp.ierr
+	Case iMSG_NEXT, iERR_NEXT: Resume Next
+	Case iMSG_FALSE, iERR_FALSE: Resume EndFalse
+	Case iMSG_TRUE, iERR_TRUE: Resume EndTrue
+	Case Else: Resume EndError		
+	End Select
+End Function
+Function saFileResourceKernelAliasSearchZZZ(session As notessession, dbin As NotesDatabase, sSharedFileAliasin As String, tp As TypeParamZZZ, sFlag As String) As Variant	
+	Dim vsaReturn As Variant,  tpcall As TypeParamZZZ
+	Dim btemp, itemp, stemp, vtemp As Variant
+	On Error Goto errh
+	
+	'### Übergabeparameter prüfen
+	Dim db As NotesDatabase
+	If dbin Is Nothing Then
+		Set db = session.CurrentDatabase
+	Else
+		Set db = dbin
+	End If
+	
+	Dim sSharedFileAlias As String
+	If Len(sSharedFileAliasIn) = 0 Then
+		Error iERR_PARAM_MISSING, "SharedFileAlias"
+	Else
+		sSharedFileAlias = sSharedFileAliasIn
+	End If
+	
+	'#################################
+	'stemp = sSHAREDFILEALIASPRE & sKernelAlias	
+	vsaReturn = saFileResourceGetZZZ(session, db, sSharedFileAlias, tpcall, "")
+	
+	
+'######################################	
+EndTrue:
+	tp.ierr = 0
+	saFileResourceKernelAliasSearchZZZ = vsaReturn
+	Exit Function
+EndFalse:
+	tp.ierr = 0
+	saFileResourceKernelAliasSearchZZZ = Null
+	Exit Function	 
+EndError:
+	saFileResourceKernelAliasSearchZZZ = Null
+	Exit Function
+ErrH:
+	Dim sScript As String
+	sScript = "ZBasic.DOM.Design.Notes\" & Getthreadinfo(LSI_THREAD_PROC)
+	tp.iErr = Err 'Beim wiederholten Aufruf (d.h. zwei Zeilen hintereinanger ' Error iERR_NEXT, "das ist ein text" ' aufrufen) verliert Err zwei Stellen von rechts nach dem Aufruf der MEthode objMe.MessageAppend(..) !!!! 
+	tp.serr = strMsgZZZ(Nothing,  tp.sErr, sScript, Erl, Error$, Err, tpCall, "")
+	If tpcall.iErr > 0 Then
+		Msgbox tpcall.serr
+		Resume EndError
+	End If
+	Select Case tp.ierr
+	Case iMSG_NEXT, iERR_NEXT: Resume Next
+	Case iMSG_FALSE, iERR_FALSE: Resume EndFalse
+	Case iMSG_TRUE, iERR_TRUE: Resume EndTrue
+	Case Else: Resume EndError		
+	End Select
+End Function
+Function iFileResouceKernelDocAllRefreshZZZ(session As notessession, dbin As notesdatabase, sSharedFileAliasIn As String, docaReturn As Variant, tp As TypeParamZZZ, sFlag As String) As Integer
+	Dim iReturn As Integer,  tpcall As TypeParamZZZ
+	Dim btemp, itemp, stemp
+	On Error Goto errh
+	
+	'### Übergabeparameter prüfen		
+	Erase docaReturn
+	
+	Dim db As NotesDatabase
+	If dbin Is Nothing Then
+		Set db = session.CurrentDatabase
+	Else
+		Set db = dbin
+	End If
+	
+	Dim sSharedFileAlias As String
+	If Len(sSharedFileAliasIn) = 0 Then
+		Error iERR_PARAM_MISSING, "SharedFileAlias"
+	Else
+		sSharedFileAlias = sSharedFileAliasIn
+	End If
+	
+	
+	'#################################	
+	'1. Noteids aller Shared-File Resourcen, die auf den Resource-Key passen
+	Dim vIDAll As Variant
+	vIDAll = saFileResourceKernelAliasSearchZZZ(session, db, sSharedFileAlias, tpcall, "")
+	If tpcall.ierr > 0 Then Error iERR_FUNCTION_CALL, tpcall.serr
+	If Isnull(vidall) Then Goto EndFalse
+	
+	
+	'2. Dokumente finden und in das Array packen
+	iReturn = Ubound(vIDAll)
+	
+	Redim docaReturn(iReturn) As NotesDocument
+	
+	Dim iCount As Integer
+	For icount = 0 To iReturn
+		Set docaReturn(iCount) = db.GetDocumentByID(vIDAll(icount))		
+	Next
+	
+	
+'######################################	
+EndTrue:
+	tp.ierr = 0
+	iFileResouceKernelDocAllRefreshZZZ = iReturn
+	Exit Function
+EndFalse:
+	tp.ierr = 0
+	iFileResouceKernelDocAllRefreshZZZ = -1
+	Exit Function	 
+EndError:
+	iFileResouceKernelDocAllRefreshZZZ = -99
+	Exit Function
+ErrH:
+	Dim sScript As String
+	sScript = "ZBasic.DOM.Design.Notes\" & Getthreadinfo(LSI_THREAD_PROC)
+	tp.iErr = Err 'Beim wiederholten Aufruf (d.h. zwei Zeilen hintereinanger ' Error iERR_NEXT, "das ist ein text" ' aufrufen) verliert Err zwei Stellen von rechts nach dem Aufruf der MEthode objMe.MessageAppend(..) !!!! 
+	tp.serr = strMsgZZZ(Nothing,  tp.sErr, sScript, Erl, Error$, Err, tpCall, "")
+	If tpcall.iErr > 0 Then
+		Msgbox tpcall.serr
+		Resume EndError
+	End If
+	Select Case tp.ierr
+	Case iMSG_NEXT, iERR_NEXT: Resume Next
+	Case iMSG_FALSE, iERR_FALSE: Resume EndFalse
+	Case iMSG_TRUE, iERR_TRUE: Resume EndTrue
+	Case Else: Resume EndError		
+	End Select
+End Function
+
+Function listFileResourceKernelAnyRefreshZZZ(session As NotesSession, dbin As NotesDatabase, listResourceReturn List As Variant, sKernelKeyIn As String, sItemNameIn As String, tp As TypeParamZZZ, sFlag As String) As Integer
+	Dim iReturn As Integer, tpcall As TypeParamZZZ
+	Dim btemp, itemp, stemp, vtemp As Variant
+	On Error Goto errh
+	
+	'### Übergabeparameter prüfen		
+	Erase listResourceReturn
+	
+	Dim db As NotesDatabase
+	If dbin Is Nothing Then
+		Set db = session.CurrentDatabase
+	Else
+		Set db = dbin
+	End If
+	
+	Dim sKernelKey As String
+	If Len(sKernelKeyIn) = 0 Then
+		sKernelKey = "ZZZ"
+	Else
+		sKernelKey = sKernelKeyIn
+	End If
+	
+	Dim sITemName As String
+	sITemName = sITemNameIn
+	
+	
+	'#################################
+	'1. Noteids aller Resourcen, die auf den Kernel-Key passen und eine Shared Resource sind	
+	Dim vIDAll As Variant
+	vIDAll = saFileResourceSearchZZZ(session, db, sSHAREDFILEALIASPRE, sKernelKey, tpcall, "")
+	If tpcall.ierr > 0 Then Error iERR_FUNCTION_CALL, tpcall.serr
+	If Isnull(vidall) Then Goto EndFalse
+	iReturn = Ubound(vIDAll)
+	
+	Dim iCount As Integer
+	If Len(sItemName) = 0 Then
+			'+++ FALLS der Itemname leer ist, dann gibt es nur eine Liste mit NoteIDs
+		For icount = 0 To iReturn
+			listResourceReturn(vIDAll(icount)) = Null
+		Next
+	Else
+		'+++ DEN Itemwert ggf. als variant in die Liste packen
+		'2. Dokumente finden und in ein temporäres Array packen	
+		Dim doctemp As NotesDocument
+		For icount = 0 To iReturn
+			Set doctemp = db.GetDocumentByID(vIDAll(icount))		
+			If Not doctemp Is Nothing Then 'eigentlich quatsch, die noteid wird doch gerade vorher geholt, aber: sicher ist sicher
+				'3. Liste füllen mit dem Wert des ITems
+				vtemp = doctemp.GetItemValue(sItemName)
+				listResourceReturn(vIDAll(icount)) = vtemp
+			End If
+		Next
+	End If
+	
+'######################################	
+EndTrue:
+	tp.ierr = 0
+	listFileResourceKernelAnyRefreshZZZ = iReturn
+	Exit Function
+EndFalse:
+	tp.ierr = 0
+	listFileResourceKernelAnyRefreshZZZ = -1
+	Exit Function	 
+EndError:
+	listFileResourceKernelAnyRefreshZZZ = -99
+	Exit Function
+ErrH:
+	Dim sScript As String
+	sScript = "ZBasic.DOM.Design.Notes\" & Getthreadinfo(LSI_THREAD_PROC)
+	tp.iErr = Err 'Beim wiederholten Aufruf (d.h. zwei Zeilen hintereinanger ' Error iERR_NEXT, "das ist ein text" ' aufrufen) verliert Err zwei Stellen von rechts nach dem Aufruf der MEthode objMe.MessageAppend(..) !!!! 
+	tp.serr = strMsgZZZ(Nothing,  tp.sErr, sScript, Erl, Error$, Err, tpCall, "")
+	If tpcall.iErr > 0 Then
+		Msgbox tpcall.serr
+		Resume EndError
+	End If
+	Select Case tp.ierr
+	Case iMSG_NEXT, iERR_NEXT: Resume Next
+	Case iMSG_FALSE, iERR_FALSE: Resume EndFalse
+	Case iMSG_TRUE, iERR_TRUE: Resume EndTrue
+	Case Else: Resume EndError		
+	End Select
+End Function
+Function sFileResourceAliasBySharedFileAliasZZZ(session As notessession, sSharedFileAliasIn As String, tp As TypeParamZZZ, sFlag As String) As String
+	Dim sReturn As String
+	On Error Goto errhNoCall
+	
+	'### Übergabeparameter prüfen		
+	Dim sSharedFileAlias As String
+	If Len(sSharedFileAliasIn) = 0 Then
+		Error iERR_PARAM_MISSING, "KernelAlias"
+	Else
+		sSharedFileAlias = sSharedFileAliasIn
+	End If
+	
+	'#################################
+	sReturn = Strright(sSharedFileAlias,sSHAREDFILEALIASPRE ,5,1)
+	
+'######################################	
+EndTrue:
+	tp.ierr = 0
+	sFileResourceAliasBySharedFileAliasZZZ = sReturn
+	Exit Function 
+EndFalse:
+	tp.ierr = 0
+	sFileResourceAliasBySharedFileAliasZZZ = ""
+	Exit Function	 
+EndError:
+	sFileResourceAliasBySharedFileAliasZZZ = ""
+	Exit Function
+ErrHNoCall:
+	Dim sScript As String, tpcall As TypeParamZZZ
+	sScript = "ZBasic.DOM.Design.Notes\" & Getthreadinfo(LSI_THREAD_PROC)
+	tp.iErr = Err 'Beim wiederholten Aufruf (d.h. zwei Zeilen hintereinanger ' Error iERR_NEXT, "das ist ein text" ' aufrufen) verliert Err zwei Stellen von rechts nach dem Aufruf der MEthode objMe.MessageAppend(..) !!!! 
+	tp.serr = strMsgZZZ(Nothing,  tp.sErr, sScript, Erl, Error$, Err, tpCall, "")
+	If tpcall.iErr > 0 Then
+		Msgbox tpcall.serr
+		Resume EndError
+	End If
+	Select Case tp.ierr
+	Case iMSG_NEXT, iERR_NEXT: Resume Next
+	Case iMSG_FALSE, iERR_FALSE: Resume EndFalse
+	Case iMSG_TRUE, iERR_TRUE: Resume EndTrue
+	Case Else: Resume EndError		
+	End Select
+End Function
+
+Function docDBDefaultGetZZZ(session As NotesSession, dbin As NotesDatabase, sAliasIn As String, tp As TypeParamZZZ, sFlag As String) As NotesDocument
+	Dim docReturn As NotesDocument, tpcall As TypeParamZZZ
+	On Error Goto errh
+	
+'### Übergabeparameter prüfen		
+	Dim sAlias As String
+	If Len(sAliasIn) = 0 Then
+		sAlias = "ABOUT"
+	Else
+		sALIAS = Ucase(sAliasIn)
+	End If
+	
+	Dim db As NotesDatabase
+	If dbin Is Nothing Then
+		Set db = session.CurrentDatabase
+	Else
+		Set db = dbin
+	End If
+	
+	'#################################
+	Select Case sALIAS
+	Case "ABOUT", "USING", "FORM", "VIEW", "ICON", "ACL", "DESIGNCOLLECTION_VIEW", "REPLICATION_FORMULA":
+		Dim listNoteID List As String
+		Call listNoteIDFixGetZZZ(session, listNoteID, tpcall, "")
+		If tpcall.ierr > 0 Then Error iERR_FUNCTION_CALL, tpcall.serr
+		
+		If Iselement(listNoteID(sAlias)) Then
+			Set docReturn = db.GetDocumentByID(listNoteID(sAlias))
+		Else
+			Goto EndFalse
+		End If
+		
+		'TODO: IDEE, hier auch eine Alias definieren, mit dem Handle auf Kernel, bzw. Application-Profile erhalten wird. Diese Funktion kann dann in der KErnel Klasse genutzt werden !!!
+		
+		'TODO: IDEE, mit dem entsprechenden Alias den Handle auf eine Shared-File-Resource zurückgeben.
+					'Das wäre dann z.B. der 'case Else'-Fall.
+	Case Else:
+		Error iERR_PARAM_VALUE, "AliasString='" & sAliasIn & "', but expected 'ABOUT', 'USING', 'FORM', 'VIEW', 'ICON', 'ACL', 'DESIGNCOLLECTION_VIEW', 'REPLICATION_FORMULA'"
+	End Select
+	
+'######################################	
+EndTrue:
+	tp.ierr = 0
+	Set docDBDefaultGetZZZ = docReturn
+	Exit Function 
+EndFalse:
+	tp.ierr = 0
+	Set docDBDefaultGetZZZ = Nothing
+	Exit Function	 
+EndError:
+	Set docDBDefaultGetZZZ = Nothing
+	Exit Function
+ErrH:
+	Dim sScript As String
+	sScript = "ZBasic.DOM.Design.Notes\" & Getthreadinfo(LSI_THREAD_PROC)
+	tp.iErr = Err 'Beim wiederholten Aufruf (d.h. zwei Zeilen hintereinanger ' Error iERR_NEXT, "das ist ein text" ' aufrufen) verliert Err zwei Stellen von rechts nach dem Aufruf der MEthode objMe.MessageAppend(..) !!!! 
+	tp.serr = strMsgZZZ(Nothing,  tp.sErr, sScript, Erl, Error$, Err, tpCall, "")
+	If tpcall.iErr > 0 Then
+		Msgbox tpcall.serr
+		Resume EndError
+	End If
+	Select Case tp.ierr
+	Case iMSG_NEXT, iERR_NEXT: Resume Next
+	Case iMSG_FALSE, iERR_FALSE: Resume EndFalse
+	Case iMSG_TRUE, iERR_TRUE: Resume EndTrue
+	Case Else: Resume EndError		
+	End Select
+End Function
+Function listNoteIDFixGetZZZ(session As NotesSession, listNoteID As Variant, tp As TypeParamZZZ, sFlag As String) As Boolean
+	On Error Goto errhNoCall
+	
+'### Übergabeparameter prüfen		
+	
+'#################################
+	Erase listNoteID
+	listNoteID("ABOUT")="FFFF0002"
+	listNoteID("FORM")="FFFF0004"
+	listNoteID("VIEW")="FFFF0008"
+	listNoteID("ICON")="FFFF0010"
+	listNoteID("DESIGNCOLLECTION_VIEW")="FFFF0020"
+	listNoteID("ACL")="FFFF0040"
+	listNoteID("USING")="FFFF0100"
+	listNoteID("REPLICATION_FORMULA")="FFFF0800"	
+	
+'######################################	
+EndTrue:
+	tp.ierr = 0
+	listNoteIDFixGetZZZ = True
+	Exit Function 
+EndFalse:
+	tp.ierr = 0
+	listNoteIDFixGetZZZ = False
+	Exit Function	 
+EndError:
+	listNoteIDFixGetZZZ = False
+	Exit Function
+ErrHNoCall:
+	Dim sScript As String, tpcall As TypeParamZZZ
+	sScript = "ZBasic.DOM.Design.Notes\" & Getthreadinfo(LSI_THREAD_PROC)
+	tp.iErr = Err 'Beim wiederholten Aufruf (d.h. zwei Zeilen hintereinanger ' Error iERR_NEXT, "das ist ein text" ' aufrufen) verliert Err zwei Stellen von rechts nach dem Aufruf der MEthode objMe.MessageAppend(..) !!!! 
+	tp.serr = strMsgZZZ(Nothing,  tp.sErr, sScript, Erl, Error$, Err, tpCall, "")
+	If tpcall.iErr > 0 Then
+		Msgbox tpcall.serr
+		Resume EndError
+	End If
+	Select Case tp.ierr
+	Case iMSG_NEXT, iERR_NEXT: Resume Next
+	Case iMSG_FALSE, iERR_FALSE: Resume EndFalse
+	Case iMSG_TRUE, iERR_TRUE: Resume EndTrue
+	Case Else: Resume EndError		
+	End Select
+End Function
+
+Function bEnableDesignElementProtectionZZZ(session As NotesSession, dbcurin As NotesDatabase, sNoteID As String, tp As TypeParamZZZ, sFlag As String) As Boolean
+%REM
+!!! das Designelement wird sofort gespeichert	
+%END REM
+	On Error Goto errh
+	Dim tpcall As TypeParamZZZ
+	If Len(Trim(sNoteId))=0 Then Error iERR_PARAM_MISSING, "NoteId des Design-Elements"
+	
+	Dim stemp As String, btemp As Boolean
+	Dim dbcur As notesdatabase
+	If dbcurin Is Nothing Then
+		Set dbcur = session.CurrentDatabase
+	Else
+		Set dbcur = dbcurin
+	End If
+	
+	'##################################
+	Dim docDesignTemp As NotesDocument
+	Set docDesignTemp = dbCur.GetDocumentByID(sNoteId)
+	
+	Dim bfound As Boolean
+	If Not docDesignTemp Is Nothing Then
+		Stop
+		If docDesignTemp.GetItemValue("$Title")(0) = "outline_SiteMap" Then
+			bFound = True
+			
+			'+++ Flag so setzen, dass das Designelement geschützt ist
+			stemp = docDesignTemp.GetItemValue("$FLAGS")(0)
+			If Instr(stemp,"P")=0 Then
+				stemp = stemp & "P"
+				docDesignTemp.~$FLAGS = stemp		
+				
+				btemp = docDesignTemp.Save(True, False, False)
+				'If btemp = False Then Error iERR_RUNTIME, "Unable to save design element 'outline_SiteMap'"
+			End If		
+		End If
+	Else
+		sNoteId = ""
+	End If		 
+	
+	'######################################	
+EndTrue:
+	tp.ierr = 0
+	bEnableDesignElementProtectionZZZ = True
+	Exit Function 
+EndFalse:
+	tp.ierr = 0
+	bEnableDesignElementProtectionZZZ = False
+	Exit Function	 
+EndError:
+	bEnableDesignElementProtectionZZZ = False
+	Exit Function
+ErrH:
+	Dim sScript As String
+	sScript = "ZBasic.DOM.Design.Notes\" & Getthreadinfo(LSI_THREAD_PROC)
+	tp.iErr = Err 'Beim wiederholten Aufruf (d.h. zwei Zeilen hintereinanger ' Error iERR_NEXT, "das ist ein text" ' aufrufen) verliert Err zwei Stellen von rechts nach dem Aufruf der MEthode objMe.MessageAppend(..) !!!! 
+	tp.serr = strMsgZZZ(Nothing,  tp.sErr, sScript, Erl, Error$, Err, tpCall, "")
+	If tpcall.iErr > 0 Then
+		Msgbox tpcall.serr
+		Resume EndError
+	End If
+	Select Case tp.ierr
+	Case iMSG_NEXT, iERR_NEXT: Resume Next
+	Case iMSG_FALSE, iERR_FALSE: Resume EndFalse
+	Case iMSG_TRUE, iERR_TRUE: Resume EndTrue
+	Case Else: Resume EndError		
+	End Select
+End Function

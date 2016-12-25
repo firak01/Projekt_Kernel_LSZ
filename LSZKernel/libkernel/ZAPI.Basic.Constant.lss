@@ -1,0 +1,706 @@
+'raus, wird in ZAPI.Basic.. eingebunden  %INCLUDE "C:\1fgl\workspace\Eclipse3FGL\LSZKernel\libkernel\ZAPI.Basic.Asset.lss"     
+'Leider ist es nicht möglich, dass private-Konstanten in mehr als einer Lib verwendet wirrd, bei verwendung des gleichen Namens !!!
+Private Const sLIBZZZ = "This Entry has to be replaced by a concrete string, don´t use private constants any more. (%Include problem)"
+
+'+++ Folgende Konstanten können beim "Werfen von Error oder Info-Meldungen, die in die Objekte kommen sollen(oder von den einfachen Funktionen zurückgegeben werden sollen) verwendet werden."
+'Merke Diese Konstanten mussen unbedingt integer Konstanten sein. 40000 ist also z.B. zu hoch 
+'z.B. Error iERR_PARAM_VALUE, "MyNewParameterWhichShouldBe=1"
+Const iERR_FUNCTION_CALL = 10000
+Const sERR_FUNCTION_CALL = "Function reports error: "
+
+Const iMSG_FUNCTION_CALL = 10010
+Const sMSG_FUNCTION_CALL = "Function reports info: "
+
+'Das müsste eigentlich iERR_FUNCTION_NEXT, etc. heissen
+Const iERR_NEXT = 10001   'Es wird eine Error-Message an das Objekt angehängt. Danach wird in der nächsten Zeile weitergemacht
+Const iMSG_NEXT = 10011  'Es wird eine Info-Message an das Objekt angehängt. Danach wird in der nächsten Zeile weitergemacht
+Const iERR_FALSE = 10002 ''Error-Message und Methode mit dem False-Fall beenden.
+Const iMSG_FALSE = 10012 'Info-Message und Methode mit dem False-Fall beenden.
+Const iERR_TRUE = 10003  'Error-Message und Methode mit dem True-Fall beenden
+Const iMSG_TRUE = 10013  'Info-Message und Methode mit dem True-Fall beenden
+
+'### Spezialfehler
+'DAFÜR Keinen Error mehr verwenden. GetThreadInfo bietet auch die Möglichkeit die Zeilennummer auszulesen   Const iPOS_Z = 20002  'Zur PosMsg: gehen, dort wird nur zurückgesprungen. Grund: Ermittlung der Zeilennummer
+Const sERR_PARAM_MISSING = "Missing parameter: "
+Const iERR_PARAM_MISSING = 30099
+
+Const sERR_PARAM_VALUE = "Parameter has wrong value: "
+Const  iERR_PARAM_VALUE = 30098
+
+Const sERR_DESIGN_MISSING = "Design-element not available: "
+Const iERR_DESIGN_MISSING = 30089
+
+'+++ Damit alles zentralisiert wird, kommen hier auch die Fehler, die bei Verwendung von Objekten passieren können hinein. 
+Const sERR_PROPERTY_MISSING = "Missing property: "
+Const iERR_PROPERTY_MISSING = 30097
+
+Const sERR_PROPERTY_VALUE = "Property has wrong value: "
+Const iERR_PROPERTY_VALUE = 30096
+
+Const sERR_OBJECT_ERR = "Object reports error: "
+Const iERR_OBJECT_ERR = 30095
+
+Const sERR_OBJECT_CUR = "Error reported by current object: "
+Const iERR_OBJECT_CUR = 30094
+
+Const sERR_OBJECT_PAR = "Error reported by parent-class: "
+Const iERR_OBJECT_PAR = 30093
+
+Const sERR_OBJECT_MSG = "Message reported by object of class: "
+Const iERR_OBJECT_MSG = 30092    'Normalerweise wird der ErrorCode dann darauf addiert	'### Speziell für das Arbeiten mit LWF-und den verschiedenen Hauptdokumenten
+
+Const sERR_XML_ERR = "Error parsing XML string: "
+Const iERR_XML_ERR = 30091          'Falls man einen XML-String als Inhalt einer Error - Meldung zurückgeben muss 
+
+Const sERR_RUNTIME = "Runtime error: "
+Const iERR_RUNTIME = 30090
+
+'### Steuerung des Ablaufs nach entsprechenden Agentenmessages
+'Diese Konstanten werden eigentlich nur zur Behandlung der Reaktion auf Agenten-Messages verwendet nach dem Agent.runonserver -Aufruf in der entsprechenden MEthode des Location-Objekts
+Const sERR_AGENT_CALL = "Agent reports error: "  'Der Error wird "gethrowed" und es wird im Code weitergegangen mit "resume endError"
+Const iERR_AGENT_CALL = 20000
+
+Const sMSG_AGENT_CALL = "Agent reports info: " 'Die Info wird "gethrowed" und es wird im Code weitergegangen mit 'resume next'
+Const iMSG_AGENT_CALL = 20010
+
+'theoretisch denkbar
+Const iERR_AGENT_NEXT = 20001   'Es wird eine Error-Message an das Objekt angehängt. Danach wird in der nächsten Zeile weitergemacht
+Const iMSG_AGENT_NEXT = 20011  'Es wird eine Info-Message an das Objekt angehängt. Danach wird in der nächsten Zeile weitergemacht
+Const iERR_AGENT_FALSE = 20002 ''Error-Message und Methode mit dem False-Fall beenden.
+Const iMSG_AGENT_FALSE = 20012 'Info-Message und Methode mit dem False-Fall beenden.
+Const iERR_AGENT_TRUE = 20003  'Error-Message und Methode mit dem True-Fall beenden
+Const iMSG_AGENT_TRUE = 20013  'Info-Message und Methode mit dem True-Fall beenden
+
+
+'Das wird nun durch "iMSG_NEXT" erreicht !!!
+'Const sMSG_LINE_GET = "Code at line "
+'Const iMSG_LINE_GET = 15000               'Das ist der Error, der bewirken soll, dass in einen speziellen ErrorHandler gegangen wird, in dem nur die Zeile ausgewertet wird
+
+'+++ FGL 20060127 in Anlehnung an Java gibt es nun die Funktion iAssertZZZ( bIsCritical, iMessageChanel, vCondition ). In der Scriptlibrary ZAPI.Basic.Constant.
+'Hiermit können Ausdrücke auf true geprüft werden (z.B. len(sSting) > 0)
+
+'iMessageChanel steuert, ob ein InfoString/ErrorString erzeugt wird.
+'bResume steuert, ob anschliessend die Funktion beendet werden soll
+'So wird z,B. bei der Codezeile      Error iAssertZZZ(false, iMSG_TYPE_ASSERT, len(sPerson) > 0), "The name of the person is missing"            ,lediglich die Bedingung überprüft. Es wird keinerlei Errorstring/Messagestring erzeugt
+'also eigentlich Blösinn. Will man lediglich eine Bedingung prüfen sollte die Codezeile ausreichen   btemp = bAssertZZZ(iAssertZZZ(true, 0, len(sPerson) > 0)     
+'aber eigentlich aus etwas überdimensioniert. Warum dann nicht einfach                                       btemp = bProofZZZ(len(sPerson) > 0) 
+
+'Es git allerdings gute Gründe den Funktionsablauf weiter zu steuern
+'So wird z,B. bei der Codezeile      Error iAssertZZZ(true, iMSG_TYPE_INFO, len(sPerson) > 0), "The name of the person is missing"            ,zusätzlich zur Bedingungsüberprüfung eine Infostring erzeugt. Es wird keinerlei Errorstring/Messagestring erzeug, anschliessend wird die Funktion beendet. Falls die Bedingung false ergibt.
+
+
+'die 3. Stelle von Hinten entspricht dem MessageType, die 2. Stelle ist TRUE/FALSE, die 3. Stelle ist CRITICAL ist true oder false
+Const iASSERT_TRUE = 30010
+Const iASSERT_FALSE = 30000
+Const iASSERT_TRUE_CRITICAL = 30011
+Const iASSERT_FALSE_CRITICAL = 30011
+
+Const iERR_ASSERT_TRUE = 30110 
+Const iERR_ASSERT_FALSE = 30100 
+'Const iERR_ASSERT_TRUE_CRITICAL = 30111  'DER FALL KANN NICHT EINTRETEN. NICHT HANDLEBAR
+Const iERR_ASSERT_FALSE_CRITICAL = 30101 
+
+Const iMSG_ASSERT_TRUE = 30210
+Const iMSG_ASSERT_FALSE = 30200
+'Const iMSG_ASSERT_TRUE_CRITICAL = 30211
+Const iMSG_ASSERT_FALSE_CRITICAL = 30201   
+
+'+++ Folgende Meldungsarten gibt es. Merke: Den Meldungsarten ist jeweils ein Medlugnsport zugeordnet.
+Const iMSG_TYPE_ASSERT_FALSE = 4
+Const iMSG_TYPE_ASSERT_TRUE = 2
+Const iMSG_TYPE_ERROR = 0      'Wird als Übergabeparameter für MessageAppend-Verwendet
+Const  iMSG_TYPE_INFO = 1
+
+'+++ Meldung ist Folgefehler / Originaler LotusScriptfehler
+Const iMSG_TYPELEVEL_RESUME = 8
+Const iMSG_TYPELEVEL_ORIGINAL = 16   'IDEE: Somit ist theoretisch eine Kombination von TypeLevel und Messagetype möglich
+
+'+++ Folgende Meldungsports gibt es. Merke: Ein Meldungsport ist eine Property eine ObjectsZZZ, welche dann im Errorhandler gefüllt wird
+'Merke: Sicherheitshalber entsprechen die Werte dem entsprechenden MSG_TYPE
+Const iPORT_MSG_INFO = 1
+Const iPORT_MSG_ERROR = 0
+Const iPORT_MSG_NONE = 32000
+
+'###################################################################################
+'### Beim Aufruf von Serveragenten, kann im Serveragenten folgender Status gesetzt werden (mit objLocationAgentReceipt.AgentStatusThrow(...). Der Status wird dann in das Control-Dokument geschrieben
+Const iAGENT_STATUS_TRUE = -1
+Const sAGENT_STATUS_TRUE = "TRUE"
+Const iAGENT_STATUS_FALSE = 0
+Const sAGENT_STATUS_FALSE = "FALSE"
+Const iAGENT_STATUS_ERROR = -99
+Const sAGENT_STATUS_ERROR = "ERROR"
+Const iAGENT_STATUS_RUNNING = 1
+Const sAGENT_STATUS_RUNNING = "RUNNING"
+
+
+'###################################################################################
+'+++ Für die Verarbeitung von Formeln wichtigt (Formula32)(agentServer)
+'In den Arrays des Platzhaltermappings werden die Platzhalter-Strings auf die Platzhalter-Werte gemappt
+'Gefüllt werden die Arrays mit .FieldInPlaceholderVariableInit
+'FGL 2005-09-3 Das ist nur so eine Idee, um die Array-Positionen zu vereinheiltichen
+Const iFORMULA_ALIAS = 0
+Const iFORMULA_FIELD = 1 
+Const iFORMULA_STRING = 2
+Const iFORMULA_DATATYPE = 3
+Const iFORMULA_DESCRIPTION = 4
+Const iFORMULA_VALUE = 5                        'An dieser Stelle sollen nämlich CRLF-Werte durch Platzhalter ersetzt werden
+Const iFORMULA_ELEMENT = 5                          
+
+'+++ Beim Mappen von Feldern 
+Const sMAPFIELDOMIT = "-"   'Die Zeichenkette in der LotusNotes-Feldnamen Spalte, besagt, dass das Feld augelassen werden soll
+Const sMAPCONSTSEPERATOR ="~"   'Die Zeichenkette, mit der Mehrfachwerte bei den Konstanten getrennt werden
+
+'Diese Struktur taucht in den Parameterlisten auf
+Type TypeParamZZZ
+	serr As String
+	ierr As Integer
+	'sflag As String   'Nicht in die Parameterliste mit aufnehmen, da man dann den Wert nicht mehr als String-Konstante übergeben kann. Also gezwungen ist den Wert vorher zuzuweisen und sogar nach dem Funktionsaufruf wieder zurückzusetzen !!!
+End Type
+
+'+++ Für ZBasic.DataType.Date
+Const sDELIM_DATE = "." 'Das Trennzeichen für die Datumsbestandteile. Hier z.B. in  "14.11.2005" der Punkt
+
+'+++ Für ZBasic.DOM.Design.Notes
+Const sSHAREDFILEALIASPRE="SharedFile"
+
+'+++ Für ZBasic.File
+Const sSEPDIRECTORYZZZ = "\" 
+Const sSEPENDINGZZZ = "."
+
+'+++ Für ZDeploy.Action, aber auch für das Schreiben von Feldwerten aus der Applikationskonfiguration ins Profildokument
+'Folgendes sind die Ausdrücke in der Konfiguration für "Datentypen" und deren technische Ausprägung in eine Zahl
+'Aus dem aus der Konfiguration ausgelesenem Wert wird in einer Methode der Action-Klasse die Konstante gemappt.
+'MERKE: Beim Mappen wird immer von GROSSSCHREIBUNG AUSGEGANGEN.
+Const iTYPEUNDEFINED = 0
+Const iTYPEINTEGER = 1
+Const sTYPEINTEGER = "INT"
+Const iTYPESTRING = 2
+Const sTYPESTRING = "STR"
+Const iTYPERTF = 3
+Const sTYPERTF = "RTF"
+Const iTYPEDATETIME = 4
+Const sTYPEDATETIME = "DATETIME"
+Const sTYPEBOOLEAN = "BOOL"    
+Const iTYPEBOOLEAN = 5
+Const sTYPELONG = "LNG"
+Const iTYPELONG = 6
+Const sTYPEDOUBLE = "DBL"
+Const iTYPEDOUBLE = 7
+
+Const iTYPEREADER = 10
+Const sTYPEREADER = "READER"
+Const iTYPEAUTHOR = 11
+Const sTYPEAUTHOR = "AUTHOR"
+Const iTYPENAME = 20
+Const sTYPENAME = "NAME"
+
+Const iTYPESTRINGTRIM = 101
+Const sTYPESTRINGTRIM = "STR (TRIM)"
+
+'++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+'+++ Es soll unnötig sein lsconst an einer x-beliebigen stelle zu includen. (Im übrigen führt das bestimmt auch zu einem Fehler).
+'         Darum werden alle lotus-Konstanten hier mit eingebunden.
+'-----------------------------------------------------------------------------
+' MsgBox parameters
+'-----------------------------------------------------------------------------
+
+Public Const MB_OK = 0                 ' OK button only
+Public Const MB_OKCANCEL = 1           ' OK and Cancel buttons
+Public Const MB_ABORTRETRYIGNORE = 2   ' Abort, Retry, and Ignore buttons
+Public Const MB_YESNOCANCEL = 3        ' Yes, No, and Cancel buttons
+Public Const MB_YESNO = 4              ' Yes and No buttons
+Public Const MB_RETRYCANCEL = 5        ' Retry and Cancel buttons
+
+Public Const MB_ICONSTOP = 16          ' Critical message
+Public Const MB_ICONQUESTION = 32      ' Warning query
+Public Const MB_ICONEXCLAMATION = 48   ' Warning message
+Public Const MB_ICONINFORMATION = 64   ' Information message
+
+Public Const MB_APPLMODAL = 0	       	' Application Modal Message Box
+Public Const MB_DEFBUTTON1 = 0	      ' First button is default
+Public Const MB_DEFBUTTON2 = 256       ' Second button is default
+Public Const MB_DEFBUTTON3 = 512       ' Third button is default
+Public Const MB_SYSTEMMODAL = 4096     ' System Modal
+
+'-----------------------------------------------------------------------------
+' MsgBox return values
+'-----------------------------------------------------------------------------
+
+Public Const IDOK = 1                  ' OK button pressed
+Public Const IDCANCEL = 2              ' Cancel button pressed
+Public Const IDABORT = 3               ' Abort button pressed
+Public Const IDRETRY = 4               ' Retry button pressed
+Public Const IDIGNORE = 5              ' Ignore button pressed
+Public Const IDYES = 6                 ' Yes button pressed
+Public Const IDNO = 7                  ' No button pressed
+
+
+
+'Für "GetThreadInfo" aus lsprcval.lss
+Public Const LSI_THREAD_LINE=0
+Public Const LSI_THREAD_PROC=1
+Public Const LSI_THREAD_MODULE=2
+Public Const LSI_THREAD_VERSION=3
+Public Const LSI_THREAD_LANGUAGE=4
+Public Const LSI_THREAD_COUNTRY=5
+Public Const LSI_THREAD_TICKS=6
+Public Const LSI_THREAD_TICKS_PER_SEC=7
+Public Const LSI_THREAD_PROCESS_ID=8
+Public Const LSI_THREAD_TASK_ID=9
+Public Const LSI_THREAD_CALLPROC=10
+Public Const LSI_THREAD_CALLMODULE=11
+Function MsgTypeInfoInitZZZ(session As NotesSession, intListTypeInfo List As Integer, tP As TypeParamZZZ, sFlag) As Boolean
+	'Dies Liste enthält alle MessageTypen, die auf den INF-Kanal geschoben werden sollen
+	On Error Goto errhZAPIEncoding
+	
+	intListTypeInfo(iMSG_FUNCTION_CALL) = iMSG_TYPE_INFO
+	intListTypeInfo(iMSG_NEXT) = iMSG_TYPE_INFO
+	intListTypeInfo(iMSG_TRUE) = iMSG_TYPE_INFO
+	intListTypeInfo(iMSG_FALSE) = iMSG_TYPE_INFO
+	
+	intListTypeInfo(iMSG_AGENT_CALL) = iMSG_TYPE_INFO
+	intListTypeInfo(iMSG_AGENT_NEXT) = iMSG_TYPE_INFO
+	intListTypeInfo(iMSG_AGENT_TRUE) = iMSG_TYPE_INFO
+	intListTypeInfo(iMSG_AGENT_FALSE) = iMSG_TYPE_INFO
+	
+%REM dafür gibt es eigene Funktionen 
+	intListTypeInfo(iMSG_ASSERT_FALSE) = iMSG_TYPE_INFO
+	intListTypeInfo(iMSG_ASSERT_TRUE) = iMSG_TYPE_INFO
+	intListTypeInfo(iMSG_ASSERT_TRUE_CRITICAL) = iMSG_TYPE_INFO
+	intListTypeInfo(iMSG_ASSERT_FALSE_CRITICAL) = iMSG_TYPE_INFO
+%ENDREM	
+	
+EndTrue:
+	MsgTypeInfoInitZZZ = True
+	Exit Function	
+endFalse:
+	MsgTypeInfoInitZZZ = False
+	Exit Function
+EndError:
+	MsgTypeInfoInitZZZ = False
+	Exit Function
+errhZAPIEncoding:
+	Dim sScript As String
+	sScript = "ZAPI.Basic.Constant\"  & Getthreadinfo(LSI_THREAD_PROC)
+	tP.ierr = Err
+	If tP.ierr >= 10000 Then
+		tP.serr = |<?xml version="1.0" encoding="iso-8859-1" ?><zMessage><script>| & sScript & "</script><line>" & Erl & "</line><code>" & Cstr(Err) & "</code><err>" & Error$ & |</err></zMessage>|
+	Else
+		tP.serr = |<?xml version="1.0" encoding="iso-8859-1" ?><zMessage><script>| & sScript & "</script><line>" & Erl & "</line><code>" & Cstr(Err) & "</code><err><![CDATA[" & Error$ & |]]></err></zMessage>|
+	End If
+End Function
+
+
+
+Function MsgPortByCodeGetZZZ(session As notessession, iInputCode As Integer, tP As TypeParamZZZ, sFlag) As Integer
+'Mit dieser Funktion wird ein geworfenern Error auf den richtigen "Kanal" geschoben.
+	
+	Dim iReturn As Integer, tPCall As TypeParamZZZ	
+	On Error Goto errhZAPIEncoding
+	
+	If iInputCode = 0 Then Error iERR_PARAM_MISSING, "MessageTypeCode"
+	
+	Dim intListTypeInfo List As Integer
+	If MsgTypeInfoInitZZZ(session, intListTypeInfo, tPCall, "") = False Then Error iERR_PARAM_VALUE, "Unable to init Msg_Type_Info_List"
+	If tPCall.ierr > 0 Then Error iERR_FUNCTION_CALL, tPCall.serr
+	
+	'!!! Die Typen ASSERT_TRUE / ASSERT_FALSE werden dadurch nicht behandelt. Aber die sollen ja auch im Errorhandling schon ganz vorne mit enem 'Resume Next' zurückgegeben werden.
+	If Iselement(intListTypeInfo(iInputCode)) Then '1
+		iReturn = intListTypeInfo(iInputCode)
+	Else
+		Erase intListTypeInfo
+		If MsgTypeErrorInitZZZ(session, intListTypeInfo, tPCall, "") = False Then Error iERR_PARAM_VALUE, "Unable to init Msg_Type_Error_List"
+		If tPCall.ierr > 0 Then Error iERR_FUNCTION_CALL, tPCall.serr
+		If Iselement(intListTypeInfo(iInputCode)) Then '2
+			iReturn = intListTypeInfo(iInputCode)
+		Else 
+			Erase  intListTypeInfo
+			If AssertTypeTrueInitZZZ(session, intListTypeInfo, tpcall, "") = False Then  Error iERR_PARAM_VALUE, "Unable to init Msg_Type_Assert-True_List"
+			If Iselement(intListTypeInfo(iInputCode)) Then '3
+				iReturn = intListTypeInfo(iInputCode)  'MErke: Es gibt für Assertions keinen eigenen Message-Kanal
+			Else
+				Erase  intListTypeInfo
+				If AssertTypeFalseInitZZZ(session, intListTypeInfo, tpcall, "") = False Then  Error iERR_PARAM_VALUE, "Unable to init Msg_Type_Assert-False_List"
+				If Iselement(intListTypeInfo(iInputCode)) Then '4
+					iReturn = intListTypeInfo(iInputCode)  'MErke: Es gibt für Assertions keinen eigenen Message-Kanal
+				Else
+					Erase  intListTypeInfo
+					If MsgTypeLevelResumeInitZZZ(session, intListTypeInfo, tPcall, "") = False Then  Error iERR_PARAM_VALUE, "Unable to init Msg_Type_Level_List"		
+					If Iselement(intListTypeInfo(iInputCode)) Then
+						iReturn = intListTypeInfo(iInputCode)  'MErke: Es gibt für Assertions keinen eigenen Message-Kanal
+					Else
+						iReturn = iPORT_MSG_ERROR 'DAS IST bestimmt EIN ECHTER NOTES FEHLER
+					End If
+				End If '4
+			End If '3
+		End If '2
+	End If '1
+	
+endtrue:
+	MsgPortByCodeGetZZZ = iReturn
+	Exit Function
+endfalse:
+	MsgPortByCodeGetZZZ = iPORT_MSG_NONE
+	Exit Function
+endError:
+	MsgPortByCodeGetZZZ = -99
+	Exit Function
+errhZAPIEncoding:
+	Dim sScript As String
+	sScript = "ZAPI.Basic.Constant\"  & Getthreadinfo(LSI_THREAD_PROC)
+	tP.ierr = Err
+	If tP.ierr >= 10000 Then
+		tP.serr = |<?xml version="1.0" encoding="iso-8859-1" ?><zMessage><script>| & sScript & "</script><line>" & Erl & "</line><code>" & Cstr(Err) & "</code><err>" & Error$ & |</err></zMessage>|
+	Else
+		tP.serr = |<?xml version="1.0" encoding="iso-8859-1" ?><zMessage><script>| & sScript & "</script><line>" & Erl & "</line><code>" & Cstr(Err) & "</code><err><![CDATA[" & Error$ & |]]></err></zMessage>|
+	End If
+End Function
+
+Function MsgTypeLevelResumeInitZZZ(session As NotesSession, intListTypeInfo List As Integer, tP As TypeParamZZZ, sFlag) As Boolean
+	'In dieser Liste werden die Message-Typen definiert, die einen Abbruch einer aktuellen Funktion bewirken 
+	'so dass zur übergeordneten Funktion gegangen wird.
+	'In der übergeordneten Funktion kann dann davon ausgegangen werden, dass keine neue CDATA-SEction gesetzt werden muss,
+	'weil das ja schon in der unteren Funktion gemacht wurde. ZIEL: Keine Verschachtelten CDATA-Sections
+	
+	'MERKE: Hier kommen alle Fehler/Meldungtypen rein, die schon eine CDATA-Section bekommen haben, also quasi nur durch z.B. "Error iERR_FUNCTION_CALL, tp.serr" weitergereicht werden
+	'		   Auf gar keinen Fall kommen hier kritische Fehler rein (wie z.B. iERR_PARAM_MISSING) oder Notes-Runtime-Fehler
+	'		   Die Meldungen, die von einem Serveragenten oder von Objecten entgegengenommen werden haben ja ggf. auch schon CDATA-Sections.
+	
+	
+	On Error Goto errhZAPIEncoding
+	
+	intListTypeInfo(iMSG_FUNCTION_CALL) = iMSG_TYPE_INFO    	'iMSG_TYPELEVEL_RESUME
+	intListTypeInfo(iERR_FUNCTION_CALL) = iMSG_TYPE_ERROR  	'Falls in der übergeordneten Funktion ein Fehler aufgetreten ist, dann wurde dort schon eine CDATA-Section rumgebaut
+	'DIESE MELDUNGEN AUSKOMMENTIERT 2006-03-18
+	'intListTypeInfo(iMSG_NEXT) = iMSG_TYPE_INFO						'iMSG_TYPELEVEL_RESUME
+	'intListTypeInfo(iERR_NEXT) = iMSG_TYPE_ERROR					'iMSG_TYPELEVEL_RESUME
+	
+	intListTypeInfo(iERR_OBJECT_ERR) = iMSG_TYPE_ERROR			'iMSG_TYPELEVEL_RESUME
+	intListTypeInfo(iERR_OBJECT_CUR) = iMSG_TYPE_ERROR			'iMSG_TYPELEVEL_RESUME
+	intListTypeInfo(iERR_OBJECT_PAR) = iMSG_TYPE_ERROR			'iMSG_TYPELEVEL_RESUME
+	intListTypeInfo(iERR_OBJECT_MSG) =iMSG_TYPE_ERROR			'iMSG_TYPELEVEL_RESUME	
+	
+	intListTypeInfo(iERR_AGENT_CALL) = iMSG_TYPE_ERROR			'iMSG_TYPELEVEL_RESUME
+	intListTypeInfo(iERR_AGENT_NEXT) =iMSG_TYPE_ERROR			'iMSG_TYPELEVEL_RESUME
+	intListTypeInfo(iMSG_AGENT_NEXT) =iMSG_TYPE_ERROR			'iMSG_TYPELEVEL_RESUME
+	
+	'Merke: Bei den Assertions werden immer Kommentare mitgegeben, damit ggf. eine Error Meldung erzeugt wird. Darum dürfen diese hier nicht auftauchen !!!
+	
+EndTrue:
+	MsgTypeLevelResumeInitZZZ = True
+	Exit Function	
+endFalse:
+	MsgTypeLevelResumeInitZZZ = False
+	Exit Function
+EndError:
+	MsgTypeLevelResumeInitZZZ = False
+	Exit Function
+errhZAPIEncoding:
+	Dim sScript As String
+	sScript = "ZAPI.Basic.Constant\"  & Getthreadinfo(LSI_THREAD_PROC)
+	tP.ierr = Err
+	If tP.ierr >= 10000 Then
+		tP.serr = |<?xml version="1.0" encoding="iso-8859-1" ?><zMessage><script>| & sScript & "</script><line>" & Erl & "</line><code>" & Cstr(Err) & "</code><err>" & Error$ & |</err></zMessage>|
+	Else
+		tP.serr = |<?xml version="1.0" encoding="iso-8859-1" ?><zMessage><script>| & sScript & "</script><line>" & Erl & "</line><code>" & Cstr(Err) & "</code><err><![CDATA[" & Error$ & |]]></err></zMessage>|
+	End If
+End Function
+Function MsgTypeLevelByCodeGetZZZ(session As notessession, iInputCode As Integer, tP As TypeParamZZZ, sFlag) As Integer
+'Mit dieser Funktion wird dafür gesorgt, ob eine CDATA-Section um die Message gesetzt werden soll. Solch eine Section darf nur bei Original-Fehlern gesetzt werden, nicht bei Folgefehlern !!!
+	
+	Dim iReturn As Integer, tPCall As TypeParamZZZ	
+	On Error Goto errhZAPIEncoding
+	
+	Dim intListTypeInfo List As Integer
+	If MsgTypeLevelResumeInitZZZ(session, intListTypeInfo, tPCall, "") = False Then Error iERR_PARAM_VALUE, "Unable to init Msg_TypeLEVEL_ List"
+	If tPCall.ierr > 0 Then Error iERR_FUNCTION_CALL, tPCall.serr
+	
+	If Iselement(intListTypeInfo(iInputCode)) Then
+		iReturn = iMSG_TYPELEVEL_RESUME
+	Else
+		iReturn = iMSG_TYPELEVEL_ORIGINAL
+	End If
+	
+endtrue:
+	MsgTypeLevelByCodeGetZZZ = iReturn
+	Exit Function
+endfalse:
+	MsgTypeLevelByCodeGetZZZ = 0
+	Exit Function
+endError:
+	MsgTypeLevelByCodeGetZZZ = 0
+	Exit Function
+errhZAPIEncoding:
+	Dim sScript As String
+	sScript = "ZAPI.Basic.Constant\"  & Getthreadinfo(LSI_THREAD_PROC)
+	tP.ierr = Err
+	If tP.ierr >= 10000 Then
+		tP.serr = |<?xml version="1.0" encoding="iso-8859-1" ?><zMessage><script>| & sScript & "</script><line>" & Erl & "</line><code>" & Cstr(Err) & "</code><err>" & Error$ & |</err></zMessage>|
+	Else
+		tP.serr = |<?xml version="1.0" encoding="iso-8859-1" ?><zMessage><script>| & sScript & "</script><line>" & Erl & "</line><code>" & Cstr(Err) & "</code><err><![CDATA[" & Error$ & |]]></err></zMessage>|
+	End If
+End Function
+
+Function iAssertZZZ(bIsCritical As Boolean, iMessageChanel As Integer, bCondition As Boolean) As Integer	
+	'iMSG_TYPE ist der  "Meldungskanal"
+	'bIsCritical, soll anschliessend der Code fortgeführt werden, mit "Resume Next"
+	
+	
+%REM
+
+'+++ FGL 20060127 in Anlehnung an Java gibt es nun die Funktion iAssertZZZ( bIsCritical, iMessageChanel, vCondition ). In der Scriptlibrary ZAPI.Basic.Constant.
+'Hiermit können Ausdrücke auf true geprüft werden (z.B. len(sSting) > 0)
+
+'iMessageChanel steuert, ob ein InfoString/ErrorString erzeugt wird.
+'bResume steuert, ob anschliessend die Funktion beendet werden soll
+'So wird z,B. bei der Codezeile      Error iAssertZZZ(false, iMSG_TYPE_ASSERT, len(sPerson) > 0), "The name of the person is missing"            ,lediglich die Bedingung überprüft. Es wird keinerlei Errorstring/Messagestring erzeugt
+'also eigentlich Blösinn. Will man lediglich eine Bedingung prüfen sollte die Codezeile ausreichen   btemp = bAssertZZZ(session, iAssertZZZ(true, 0, len(sPerson) > 0, tp, "")     
+'aber eigentlich aus etwas überdimensioniert. Warum dann nicht einfach                                       btemp = bProofZZZ(len(sPerson) > 0) 
+
+'Es git allerdings gute Gründe den Funktionsablauf weiter zu steuern
+'So wird z,B. bei der Codezeile      Error iAssertZZZ(true, iMSG_TYPE_INFO, len(sPerson) > 0), "The name of the person is missing"            ,zusätzlich zur Bedingungsüberprüfung eine Infostring erzeugt. Es wird keinerlei Errorstring/Messagestring erzeug, anschliessend wird die Funktion beendet. Falls die Bedingung false ergibt.
+%END REM
+	If bCondition = True Then
+			'bCondition ist true, also kein Fehler aufgetreten, somit ist es egal, ob ein Kritischer Fall oder nicht vorhanden ist
+		Select Case iMessageChanel
+		Case iPORT_MSG_NONE
+			iAssertZZZ = iASSERT_TRUE
+		Case iPORT_MSG_ERROR
+			iAssertZZZ = iERR_ASSERT_TRUE
+		Case iPORT_MSG_INFO
+			iAssertZZZ = iMSG_ASSERT_TRUE
+		Case Else
+			Msgbox "Assertion level of " & Cstr(iMessageChanel) & " is not allowed."		
+			iAssertZZZ = iASSERT_TRUE
+		End Select				
+	Else 
+			'bCondition ist false, also ist ein Fehler aufgetreten, Falls er kritisch ist, dann abbrechen
+		If bIsCritical = True Then
+			Select Case iMessageChanel
+			Case iPORT_MSG_NONE
+				iAssertZZZ = iASSERT_FALSE_CRITICAL
+			Case iPORT_MSG_ERROR
+				iAssertZZZ = iERR_ASSERT_FALSE_CRITICAL
+			Case  iPORT_MSG_INFO
+				iAssertZZZ = iMSG_ASSERT_FALSE_CRITICAL
+			Case Else
+				Msgbox "Assertion level of " & Cstr(iMessageChanel) & " is not allowed."		
+				iAssertZZZ = iASSERT_FALSE_CRITICAL
+			End Select	
+		Else			
+			Select Case iMessageChanel
+			Case iPORT_MSG_NONE
+				iAssertZZZ = iASSERT_FALSE
+			Case iPORT_MSG_ERROR
+				iAssertZZZ = iERR_ASSERT_FALSE
+			Case iPORT_MSG_INFO
+				iAssertZZZ = iMSG_ASSERT_FALSE
+			Case Else
+				Msgbox "Assertion level of " & Cstr(iMessageChanel) & " is not allowed."		
+				iAssertZZZ = iASSERT_FALSE
+			End Select		
+		End If
+	End If
+End Function
+
+Function bAssertZZZ(session As notessession, iAssertCode As Integer, tp As TypePAramZZZ, sFlag) As Boolean
+	If iASSERTCode = 0 Then Error iERR_PARAM_MISSING, "AssertCode"
+	
+	Dim itemp As Integer, tpcall As TypeParamZZZ
+	Dim intListTypeAssert List As Integer	
+	Call AssertTypeTrueInitZZZ(session, intListTypeAssert, tPcall, "")
+	If tpcall.ierr > 0 Then Error iERR_FUNCTION_CALL, tpcall.serr
+	
+	If Iselement(intListTypeAssert(iAssertCode)) Then
+		bAssertZZZ = True
+	Else
+		Erase intListTypeAssert
+		Call AssertTypeFalseInitZZZ(session, intListTypeAssert, tpcall, "")
+		If tpcall.ierr > 0 Then Error iERR_FUNCTION_CALL, tpcall.serr
+		
+		If Iselement(intListTypeAssert(iAssertCode)) Then 		
+			bAssertZZZ = False
+		Else
+			Error iERR_PARAM_VALUE, "This is neither an ASSERT_TRUE code nor an ASSERT_FALSE code"
+		End If
+	End If
+	Exit Function
+	
+errhZAPIEncoding:
+	Dim sScript As String
+	sScript = "ZAPI.Basic.Constant\"  & Getthreadinfo(LSI_THREAD_PROC)
+	tP.ierr = Err
+	If tP.ierr >= 10000 Then
+		tP.serr = |<?xml version="1.0" encoding="iso-8859-1" ?><zMessage><script>| & sScript & "</script><line>" & Erl & "</line><code>" & Cstr(Err) & "</code><err>" & Error$ & |</err></zMessage>|
+	Else
+		tP.serr = |<?xml version="1.0" encoding="iso-8859-1" ?><zMessage><script>| & sScript & "</script><line>" & Erl & "</line><code>" & Cstr(Err) & "</code><err><![CDATA[" & Error$ & |]]></err></zMessage>|
+	End If
+End Function
+
+Function bProofZZZ(bCondition As Boolean) As Boolean
+	bProofZZZ = bCondition
+End Function
+
+
+
+Function AssertTypeTrueInitZZZ(session As notessession, intListTypeAssert List As Integer, tp As TypePAramZZZ, sFlagIn As String) As Boolean
+	On Error Goto errhZAPIEncoding
+	
+	'Merke: Es gibt für Assertions keine eigenen MessageKanal !!!
+	intListTypeAssert(iASSERT_TRUE) = iMSG_TYPE_INFO							   'iMSG_TYPE_ASSERT
+	intListTypeAssert(iASSERT_TRUE_CRITICAL) = iMSG_TYPE_INFO 			   'iMSG_TYPE_ASSERT
+	intListTypeAssert(iERR_ASSERT_TRUE) = iMSG_TYPE_ERROR 				   'iMSG_TYPE_ASSERT
+	'intListTypeAssert(iERR_ASSERT_TRUE_CRITICAL) =  iMSG_TYPE_ERROR      'iMSG_TYPE_ASSERT
+	intListTypeAssert(iMSG_ASSERT_TRUE) =  iMSG_TYPE_INFO                      'iMSG_TYPE_ASSERT
+	'intListTypeAssert(iMSG_ASSERT_TRUE_CRITICAL) =  iMSG_TYPE_ERROR      'iMSG_TYPE_ASSERT
+	
+	
+EndTrue:
+	AssertTypeTrueInitZZZ = True
+	Exit Function	
+endFalse:
+	AssertTypeTrueInitZZZ = False
+	Exit Function
+EndError:
+	AssertTypeTrueInitZZZ = False
+	Exit Function
+errhZAPIEncoding:
+	Dim sScript As String
+	sScript = "ZAPI.Basic.Constant\"  & Getthreadinfo(LSI_THREAD_PROC)
+	tP.ierr = Err
+	If tP.ierr >= 10000 Then
+		tP.serr = |<?xml version="1.0" encoding="iso-8859-1" ?><zMessage><script>| & sScript & "</script><line>" & Erl & "</line><code>" & Cstr(Err) & "</code><err>" & Error$ & |</err></zMessage>|
+	Else
+		tP.serr = |<?xml version="1.0" encoding="iso-8859-1" ?><zMessage><script>| & sScript & "</script><line>" & Erl & "</line><code>" & Cstr(Err) & "</code><err><![CDATA[" & Error$ & |]]></err></zMessage>|
+	End If
+End Function
+Function MSGTypeErrorInitZZZ(session As NotesSession, intListTypeInfo List As Integer, tP As TypeParamZZZ, sFlag) As Boolean
+	On Error Goto errhZAPIEncoding
+	
+	intListTypeInfo(iERR_FUNCTION_CALL) = iMSG_TYPE_ERROR
+	intListTypeInfo(iERR_NEXT) = iMSG_TYPE_ERROR
+	intListTypeInfo(iERR_TRUE) = iMSG_TYPE_ERROR
+	intListTypeInfo(iERR_FALSE) = iMSG_TYPE_ERROR
+	
+	intListTypeInfo(iERR_AGENT_CALL) = iMSG_TYPE_ERROR
+	intListTypeInfo(iERR_AGENT_NEXT) = iMSG_TYPE_ERROR
+	intListTypeInfo(iERR_AGENT_TRUE) = iMSG_TYPE_ERROR
+	intListTypeInfo(iERR_AGENT_FALSE) = iMSG_TYPE_ERROR
+	
+	intListTypeInfo(iERR_ASSERT_FALSE) = iMSG_TYPE_ERROR
+	intListTypeInfo(iERR_ASSERT_TRUE) = iMSG_TYPE_ERROR
+	'intListTypeInfo(iERR_ASSERT_TRUE_CRITICAL) = iMSG_TYPE_ERROR
+	intListTypeInfo(iERR_ASSERT_FALSE_CRITICAL) = iMSG_TYPE_ERROR
+	
+EndTrue:
+	MsgTypeErrorInitZZZ = True
+	Exit Function	
+endFalse:
+	MsgTypeErrorInitZZZ = False
+	Exit Function
+EndError:
+	MsgTypeErrorInitZZZ = False
+	Exit Function
+errhZAPIEncoding:
+	Dim sScript As String
+	sScript = "ZAPI.Basic.Constant\"  & Getthreadinfo(LSI_THREAD_PROC)
+	tP.ierr = Err
+	If tP.ierr >= 10000 Then
+		tP.serr = |<?xml version="1.0" encoding="iso-8859-1" ?><zMessage><script>| & sScript & "</script><line>" & Erl & "</line><code>" & Cstr(Err) & "</code><err>" & Error$ & |</err></zMessage>|
+	Else
+		tP.serr = |<?xml version="1.0" encoding="iso-8859-1" ?><zMessage><script>| & sScript & "</script><line>" & Erl & "</line><code>" & Cstr(Err) & "</code><err><![CDATA[" & Error$ & |]]></err></zMessage>|
+	End If
+End Function
+Function AssertTypeFalseInitZZZ(session As notessession, intListTypeAssert List As Integer, tp As TypePAramZZZ, sFlagIn As String) As Boolean
+	On Error Goto errhZAPIEncoding
+	
+	'Merke: Es gibt für Assertions keine eigenen MessageKanal !!!
+	intListTypeAssert(iASSERT_FALSE) = iMSG_TYPE_INFO
+	intListTypeAssert(iASSERT_FALSE_CRITICAL) = iMSG_TYPE_INFO
+	intListTypeAssert(iERR_ASSERT_FALSE) = iMSG_TYPE_ERROR
+	intListTypeAssert(iERR_ASSERT_FALSE_CRITICAL) = iMSG_TYPE_ERROR
+	intListTypeAssert(iMSG_ASSERT_FALSE) = iMSG_TYPE_INFO
+	intListTypeAssert(iMSG_ASSERT_FALSE_CRITICAL) = iMSG_TYPE_INFO
+	
+EndTrue:
+	AssertTypeFalseInitZZZ = True
+	Exit Function	
+endFalse:
+	AssertTypeFalseInitZZZ = False
+	Exit Function
+EndError:
+	AssertTypeFalseInitZZZ = False
+	Exit Function
+errhZAPIEncoding:
+	Dim sScript As String
+	sScript = "ZAPI.Basic.Constant\"  & Getthreadinfo(LSI_THREAD_PROC)
+	tP.ierr = Err
+	If tP.ierr >= 10000 Then
+		tP.serr = |<?xml version="1.0" encoding="iso-8859-1" ?><zMessage><script>| & sScript & "</script><line>" & Erl & "</line><code>" & Cstr(Err) & "</code><err>" & Error$ & |</err></zMessage>|
+	Else
+		tP.serr = |<?xml version="1.0" encoding="iso-8859-1" ?><zMessage><script>| & sScript & "</script><line>" & Erl & "</line><code>" & Cstr(Err) & "</code><err><![CDATA[" & Error$ & |]]></err></zMessage>|
+	End If
+End Function
+Function MsgTypeByCodeGetZZZ(session As notessession, iInputCode As Integer, tP As TypeParamZZZ, sFlag) As Integer
+'Mit dieser Funktion wird ein geworfenern Error auf den richtigen "Kanal" geschoben.
+	
+	Dim iReturn As Integer, tPCall As TypeParamZZZ	
+	On Error Goto errhZAPIEncoding
+	
+	If iInputCode = 0 Then Error iERR_PARAM_MISSING, "MessageTypeCode"
+	
+	Dim intListTypeInfo List As Integer
+	If MsgTypeInfoInitZZZ(session, intListTypeInfo, tPCall, "") = False Then Error iERR_PARAM_VALUE, "Unable to init Msg_Type_Info_List"
+	If tPCall.ierr > 0 Then Error iERR_FUNCTION_CALL, tPCall.serr
+	
+	'!!! Die Typen ASSERT_TRUE / ASSERT_FALSE werden dadurch nicht behandelt. Aber die sollen ja auch im Errorhandling schon ganz vorne mit enem 'Resume Next' zurückgegeben werden.
+	If Iselement(intListTypeInfo(iInputCode)) Then '1
+		iReturn = iMSG_TYPE_INFO
+	Else
+		Erase intListTypeInfo
+		If MsgTypeErrorInitZZZ(session, intListTypeInfo, tPCall, "") = False Then Error iERR_PARAM_VALUE, "Unable to init Msg_Type_Error_List"
+		If tPCall.ierr > 0 Then Error iERR_FUNCTION_CALL, tPCall.serr
+		If Iselement(intListTypeInfo(iInputCode)) Then '2
+			iReturn = iMSG_TYPE_ERROR
+		Else
+			Erase  intListTypeInfo
+			If AssertTypeTrueInitZZZ(session, intListTypeInfo, tpcall, "") = False Then  Error iERR_PARAM_VALUE, "Unable to init Msg_Type_Assert-True_List"
+			If Iselement(intListTypeInfo(iInputCode)) Then '3
+				iReturn = iMSG_TYPE_ASSERT_TRUE
+			Else
+				Erase  intListTypeInfo
+				If AssertTypeFalseInitZZZ(session, intListTypeInfo, tpcall, "") = False Then  Error iERR_PARAM_VALUE, "Unable to init Msg_Type_Assert-False_List"
+				If Iselement(intListTypeInfo(iInputCode)) Then '4
+					iReturn = iMSG_TYPE_ASSERT_FALSE
+				Else
+					Erase  intListTypeInfo
+					If MsgTypeLevelResumeInitZZZ(session, intListTypeInfo, tPcall, "") = False Then  Error iERR_PARAM_VALUE, "Unable to init Msg_Type_Level_List"		
+					If Iselement(intListTypeInfo(iInputCode)) Then
+						iReturn = iMSG_TYPELEVEL_RESUME
+					Else
+						iReturn = iMSG_TYPELEVEL_ORIGINAL
+					End If
+				End If '4
+			End If '3
+		End If '2
+	End If '1
+	
+endtrue:
+	MsgTypeByCodeGetZZZ = iReturn
+	Exit Function
+endfalse:
+	MsgTypeByCodeGetZZZ = 0
+	Exit Function
+endError:
+	MsgTypeByCodeGetZZZ = 0
+	Exit Function
+errhZAPIEncoding:
+	Dim sScript As String
+	sScript = "ZAPI.Basic.Constant\"  & Getthreadinfo(LSI_THREAD_PROC)
+	tP.ierr = Err
+	If tP.ierr >= 10000 Then
+		tP.serr = |<?xml version="1.0" encoding="iso-8859-1" ?><zMessage><script>| & sScript & "</script><line>" & Erl & "</line><code>" & Cstr(Err) & "</code><err>" & Error$ & |</err></zMessage>|
+	Else
+		tP.serr = |<?xml version="1.0" encoding="iso-8859-1" ?><zMessage><script>| & sScript & "</script><line>" & Erl & "</line><code>" & Cstr(Err) & "</code><err><![CDATA[" & Error$ & |]]></err></zMessage>|
+	End If
+End Function

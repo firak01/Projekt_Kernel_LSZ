@@ -1,0 +1,392 @@
+'raus, wird in ZBasic.API32.. eingebunden  %INCLUDE "C:\1fgl\workspace\Eclipse3FGL\LSZKernel\libkernel\ZAPI.Basic.Asset.lss" 
+'raus, wird in ZBasic.API32.. eingebunden  Use "ZAPI.Basic.."    
+
+'Private Const sLibZZZ = "ZBasic.API32.Win"
+'Private Const sVerZZZ = "2005-07-14"  
+
+'+++ Zur Ermittlung des Applikationspfads einer Datei
+Const iMAX_FILENAME_LEN = 260
+Declare Function FindExecutable Lib "shell32.dll" Alias "FindExecutableA" _
+(Byval lpFile As String, Byval lpDirectory As String, Byval lpResult As String) As Long
+
+
+
+'+++ Zur Ermittlung diverser Speicher-Stati
+Type MEMORYSTATUS
+	dwLength As Long
+	dwMemoryLoad As Long
+	dwTotalPhys As Long
+	dwAvailPhys As Long
+	dwTotalPageFile As Long
+	dwAvailPageFile As Long
+	dwTotalVirtual As Long
+	dwAvailVirtual As Long
+End Type
+Declare Sub GlobalMemoryStatus Lib "KERNEL32" Alias "GlobalMemoryStatus"(lpBuffer As MEMORYSTATUS)
+
+'+++ Zur Ermittlung des Aktiven Fensters
+Declare Function GetActiveWindow Lib "user32.dll" Alias "GetActiveWindow" () As Long
+
+
+'+++ Zum Folder Search Dialog
+Type typeFileDirBrowseZZZ
+    ' Handle of the owner window for the dialog box.
+	lhOwner As Long
+	
+    ' Pointer to an item identifier list (an ITEMIDLIST structure) specifying the location
+    ' of the "root" folder to browse from. Only the specified folder and its subfolders
+    ' appear in the dialog box. This member can be NULL, and in that case, the
+    ' name space root (the desktop folder) is used.
+	' // Set the default folder for the dialog box (0 = My Computer,
+	' // 5 = My Documents)
+	lpidRoot As Long
+	
+    ' Pointer to a buffer that receives the display name of the folder selected by the
+    ' user. The size of this buffer is assumed to be MAX_PATH bytes.
+	spzDisplayName As String
+	
+    ' Pointer to a null-terminated string that is displayed above the tree view control
+    ' in the dialog box. This string can be used to specify instructions to the user.
+	slpzTitle As String
+	
+    ' Value specifying the types of folders to be listed in the dialog box as well as
+    ' other options. This member can include zero or more of the following values below.
+	' // Value specifying the types of folders to be listed
+' // in the dialog box as well as other options
+	luFlags As Long
+	
+    ' Address an application-defined function that the dialog box calls when events
+    ' occur. For more information, see the description of the BrowseCallbackProc
+    ' function. This member can be NULL.
+	lpfn As Long
+	
+    ' Application-defined value that the dialog box passes to the callback function
+    ' (if one is specified).
+	lParam As Long
+	
+    ' Variable that receives the image associated with the selected folder. The image
+    ' is specified as an index to the system image list.
+	lImage As Long
+End Type 
+Declare Function GetPathFromIDList Lib "shell32.dll" Alias "SHGetPathFromIDList" (Byval PointerToIDList As Long, Byval pszPath As String) As Long
+Declare Function BrowseFolderDlg Lib "shell32.dll" Alias "SHBrowseForFolder" (lpBrowseInfo As typeFileDirBrowseZZZ) As Long
+
+'Defaultwerte für Browseinfo, MERKE: DISE werden in .luFlags der Struktur übergeben und sind "AUFSUMMIERBAR"
+Const BIF_BROWSEFORCOMPUTER = 1000
+Const BIF_BROWSEFORPRINTER = 2000
+Const BIF_DONTGOBELOWDOMAIN = 2
+Const BIF_RETURNFSANCESTORS = 8
+Const BIF_RETURNONLYFSDIRS = 1
+Const BIF_STATUSTEXT = 4
+Const iMAX_DLGBOX_BUFFER_SIZE = 255   'Die Maximale grösse des Buffers für den Dialogboxinhalt
+
+
+%REM FGL Diese Variablen teilweise in die Funktion eingabaut. Ziel: Vermeidung globaler Variablen. Kann später gelöscht werden
+'Dim mBrowseInfo As BROWSEINFO
+Dim lngPointerToIDList As Long
+Dim lngResult As Long
+Dim strPathBuffer As String
+Dim strReturnPath As String
+Dim vbNullChar As String
+Dim mInstr As Long
+Dim mInstrEnd As Long
+Dim mFileTitle As String
+Dim mReply As Long
+Dim FileList() As String
+Dim tmppath As String
+Dim tmpInstr As Long
+Dim element As Long
+Dim mNewFile As String
+%ENDREM
+Function strExecutablePathGetZZZ(session As notessession, sResourcePath As String, tp As TypePAramZZZ, sFlag) As String
+	Dim sReturn As String
+	On Error Goto ErrHNoCall
+	
+	'### Check
+	If Len(Trim(sResourcePath)) = 0 Then Error iERR_PARAM_MISSING, "'ResourcePath'"
+	
+	Dim sApplication As String
+	sApplication = String(iMAX_FILENAME_LEN, 32)
+	
+	
+	REM use the C API call to find the associated executable
+	Dim lres As Long 		
+	lres = FindExecutable(sResourcePath, "", sApplication)
+	
+	REM shorten the executable, removing the extra spaces
+	sReturn = Left$(sApplication, Instr(sApplication, Chr$(0)) - 1)
+	
+	REM create an info-string, but NO error
+	If Trim(sReturn) = "" Then Error iERR_FALSE, "Unable to locate associated program for the file:'" & sResourcePath & "'"
+	
+	'####################
+EndTrue:
+	tp.iErr = 0
+	strExecutablePathGetZZZ = sReturn
+	Exit Function
+EndFalse:
+	tp.iErr= 0
+	strExecutablePathGetZZZ = ""
+	Exit Function
+EndError:
+	strExecutablePathGetZZZ= ""
+	Exit Function	 
+ErrHNoCall:
+	Dim sScript As String, tpcall As typeparamzzz
+	sScript = "ZBasic.API32.Win\" & Getthreadinfo(LSI_THREAD_PROC)
+	tp.iErr = Err 'Beim wiederholten Aufruf (d.h. zwei Zeilen hintereinanger ' Error iERR_NEXT, "das ist ein text" ' aufrufen) verliert Err zwei Stellen von rechts nach dem Aufruf der MEthode objMe.MessageAppend(..) !!!! 
+	tp.serr = strMsgZZZ(Nothing,  tp.sErr, sScript, Erl, Error$, Err, tpcall, "")
+	If tpcall.iErr > 0 Then
+		Msgbox tpcall.serr
+		Resume EndError
+	End If
+	Select Case tp.ierr
+	Case iMSG_NEXT, iERR_NEXT: Resume Next
+	Case iMSG_FALSE, iERR_FALSE: Resume EndFalse
+	Case iMSG_TRUE, iERR_TRUE: Resume EndTrue
+	Case Else: Resume EndError		
+	End Select
+End Function
+Function strFileDirectoryChooseByDLGZZZ(session As notessession, typeBrowseInfo As typeFileDirBrowseZZZ, tp As TypeParamZZZ, sFlag As String) As String
+	'!!!     Im Fall des Roots liefert diese Funktion einen Backslash zurück, sonst Verzeichnispfade ohne abschliessenden Backslash !!!
+	Dim sReturn As String, tpcall As typeparamzzz
+	On Error Goto ErrH
+	
+	'Meke: Es wird keine NotesUI-Klasse verwendet => kein UI im Funktionsnamen
+	'FGL: Dim mBrowseInfo As BROWSEINFO
+	Dim lngPointerToIDList As Long
+	Dim lngResult As Long
+	Dim strPathBuffer As String
+	Dim strReturnPath As String
+	
+	Dim vbNullChar As String
+	vbNullChar = Chr(0)
+	
+	'FGL: mBrowseInfo.hOwner = GetActiveWindow()
+	If typeBrowseInfo.lhOwner = 0 Then
+		typeBrowseInfo.lhOwner = lWindowActiveHandleGetZZZ(session, tpcall, "")
+		If tpcall.iErr > 0 Then Error iERR_FUNCTION_CALL, tpcall.serr
+	End If
+	
+' // Set the default folder for the dialog box (0 = My Computer,
+' // 5 = My Documents)
+	
+	'mBrowseInfo.pidlRoot = 0
+	
+	'mBrowseInfo.lpszTitle = "Select the folder you wish to use:"
+	If Len(typeBrowseInfo.slpzTitle) = 0 Then	typeBrowseInfo.slpzTitle =  "Select the folder you wish to use:"
+	
+	
+	
+' // Pointer to a buffer that receives the display name
+' // of the folder selected by the user
+	typeBrowseInfo.spzDisplayName = String(iMAX_DLGBOX_BUFFER_SIZE, Chr(0))
+	
+	
+' // Value specifying the types of folders to be listed
+' // in the dialog box as well as other options
+	'If typeBrowseInfo.luFlags = 0 Then typeBrowseInfo.luFlags = BIF_RETURNONLYFSDIRS
+	
+' // Returns a pointer to an item identifier list that
+' // specifies the location of the selected folder relative
+' // to the root of the name space
+	lngPointerToIDList = BrowseFolderDlg(typeBrowseInfo)
+	
+	If lngPointerToIDList <> 0& Then
+' // Create a buffer
+		strPathBuffer = String(iMAX_DLGBOX_BUFFER_SIZE, Chr(0))
+		
+' // Now get the selected path
+		lngResult = GetPathFromIDList(Byval lngPointerToIDList, Byval strPathBuffer)
+		
+' // And return just that
+		sReturn = Left$(strPathBuffer, Instr(strPathBuffer, vbNullChar) - 1)
+	End If
+	
+EndTrue:	
+	tp.ierr = 0
+	strFileDirectoryChooseByDLGZZZ = sReturn
+	Exit Function
+endFalse:
+	tp.ierr = 0 
+	strFileDirectoryChooseByDLGZZZ = ""	
+	Exit Function
+endError:
+	strFileDirectoryChooseByDLGZZZ = ""
+	Exit Function
+ErrH:
+	Dim sScript As String
+	sScript = "ZBasic.API32.Win\" & Getthreadinfo(LSI_THREAD_PROC)
+	tp.iErr = Err 'Beim wiederholten Aufruf (d.h. zwei Zeilen hintereinanger ' Error iERR_NEXT, "das ist ein text" ' aufrufen) verliert Err zwei Stellen von rechts nach dem Aufruf der MEthode objMe.MessageAppend(..) !!!! 
+	tp.serr = strMsgZZZ(Nothing,  tp.sErr, sScript, Erl, Error$, Err, tpcall, "")
+	If tpcall.iErr > 0 Then
+		Msgbox tpcall.serr
+		Resume EndError
+	End If
+	Select Case tp.ierr
+	Case iMSG_NEXT, iERR_NEXT: Resume Next
+	Case iMSG_FALSE, iERR_FALSE: Resume EndFalse
+	Case iMSG_TRUE, iERR_TRUE: Resume EndTrue
+	Case Else: Resume EndError		
+	End Select
+End Function
+
+Function lWindowActiveHandleGetZZZ(session As notessession, tp As TypeParamZZZ, sFlag As String) As Long
+	Dim lReturn As Long
+	On Error Goto ErrHNoCall
+	
+	
+	lReturn = GetActiveWindow()
+	
+	
+EndTrue:
+	tp.ierr = 0
+	lWindowActiveHandleGetZZZ = lReturn
+	Exit Function
+EndFalse:
+	tp.ierr = 0
+	lWindowActiveHandleGetZZZ = 0
+	Exit Function
+EndError:
+	lWindowActiveHandleGetZZZ = 0
+	Exit Function
+ErrHNoCall:
+	Dim sScript As String, tpcall As typeparamzzz
+	sScript = "ZBasic.API32.Win\" & Getthreadinfo(LSI_THREAD_PROC)
+	tp.iErr = Err 'Beim wiederholten Aufruf (d.h. zwei Zeilen hintereinanger ' Error iERR_NEXT, "das ist ein text" ' aufrufen) verliert Err zwei Stellen von rechts nach dem Aufruf der MEthode objMe.MessageAppend(..) !!!! 
+	tp.serr = strMsgZZZ(Nothing,  tp.sErr, sScript, Erl, Error$, Err, tpcall, "")
+	If tpcall.iErr > 0 Then
+		Msgbox tpcall.serr
+		Resume EndError
+	End If
+	Select Case tp.ierr
+	Case iMSG_NEXT, iERR_NEXT: Resume Next
+	Case iMSG_FALSE, iERR_FALSE: Resume EndFalse
+	Case iMSG_TRUE, iERR_TRUE: Resume EndTrue
+	Case Else: Resume EndError		
+	End Select
+End Function
+Function strFileDirectoryByAliasGetZZZ(session As notessession, sAliasIn As String, tp As TypeParamZZZ, sFlag As String) As String
+	'FGL: Original von
+	'bzgl. des Alias TEMP
+' Christian Brandlehner, http://chris.brandlehner.at
+' extended by Matthias TMC atnotes@gmx.de	
+	'FGL: aber dann erweitert
+	
+	
+	Dim sReturn As String
+	On Error Goto ErrhNoCall
+	
+	Dim sAlias As String
+	sAlias = Ucase(sAliasIn)
+	
+	Select Case sAlias
+	Case "TEMP":
+		Dim szNotesDataPath As String
+		Dim szExistsPath As String 
+		'Dim szTempPath As String
+		Dim xTemp As Variant
+		
+	' read Temp environment
+		sReturn=Environ$("Temp")
+	' read Tmp if Temp does not exist
+		If sReturn="" Then
+			sReturn=Environ$("Tmp")
+		End If
+		If sReturn="" Then
+		' read Registry
+			Const TEMPNotesMacro = |@If(@Contains(@RegQueryValue("HKEY_LOCAL_MACHINE"; "SYSTEM\\CurrentControlSet\\Control\\Session Manager\\Environment"; "TEMP");"%SystemRoot%");@ReplaceSubstring(@RegQueryValue("HKEY_LOCAL_MACHINE"; "SYSTEM\\CurrentControlSet\\Control\\Session Manager\\Environment"; "TEMP");"%SystemRoot%";@RegQueryValue("HKEY_LOCAL_MACHINE"; "SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion"; "SystemRoot"));@RegQueryValue("HKEY_LOCAL_MACHINE"; "SYSTEM\\CurrentControlSet\\Control\\Session Manager\\Environment"; "TEMP"))|
+			xTemp = Evaluate(TEMPNotesMacro)
+			sReturn = xTemp(0)
+		End If
+  'Worst Case: Temp, Tmp and Registry is not available, therefore
+  'we use the Notes Data Directory: If there is no 'Temp'-Directory, it will be created.
+		If sReturn="" Then
+			szNotesDataPath = session.GetEnvironmentString("Directory",True)
+			szExistsPath = szNotesDataPath & "\Temp"
+			If Dir$(szExistsPath,16) = "" Then
+				Mkdir szNotesDataPath & "\Temp"
+				sReturn = szNotesDataPath & "\Temp"
+			Else
+				sReturn = szNotesDataPath & "\Temp"
+			End If
+		End If
+	Case Else
+		Error iERR_PARAM_VALUE, "This function is not destinated for the alias: '" & sAliasIn & "'"
+	End Select
+	
+endTrue:
+	tp.ierr = 0
+	strFileDirectoryByAliasGetZZZ = sReturn
+	Exit Function
+endFalse:
+	tp.ierr = 0
+	strFileDirectoryByAliasGetZZZ = ""
+	Exit Function
+endError:
+	strFileDirectoryByAliasGetZZZ = ""
+	Exit Function
+ErrHNoCall:
+	Dim sScript As String, tpcall As typeparamzzz
+	sScript = "ZBasic.API32.Win\" & Getthreadinfo(LSI_THREAD_PROC)
+	tp.iErr = Err 'Beim wiederholten Aufruf (d.h. zwei Zeilen hintereinanger ' Error iERR_NEXT, "das ist ein text" ' aufrufen) verliert Err zwei Stellen von rechts nach dem Aufruf der MEthode objMe.MessageAppend(..) !!!! 
+	tp.serr = strMsgZZZ(Nothing,  tp.sErr, sScript, Erl, Error$, Err, tpcall, "")
+	If tpcall.iErr > 0 Then
+		Msgbox tpcall.serr
+		Resume EndError
+	End If
+	Select Case tp.ierr
+	Case iMSG_NEXT, iERR_NEXT: Resume Next
+	Case iMSG_FALSE, iERR_FALSE: Resume EndFalse
+	Case iMSG_TRUE, iERR_TRUE: Resume EndTrue
+	Case Else: Resume EndError		
+	End Select
+End Function
+
+Public Function GetShellEnviron (strEnvName As String) As String
+'===============================================================================
+' [Description]
+' Ermittelt den Wert einer Umgebungsvariable und löst dabei auch eingebettete
+' Umgebungsvariablen auf (z.B. %TEMP%)
+' [Input]
+' strEnvName : Name der Umgebungsvariable
+' [Output]
+' Aufgelöster Inhalt der Umgebungsvariable 
+' [Exceptions]
+' - keine -  
+' [History]
+' 19.08.1999, D. Saliger (MBS GmbH), Erstellung
+	
+	'FGL 20080313
+	'TODO: Die Funktion um das ZKernel-Errorhandling und die passenden Parameter erwweitern
+	
+'===============================================================================
+	
+     ' Variable deklarieren
+	Dim strEnvValue As String
+	Dim strReturn As String
+	Dim iPosition As Integer
+	
+     ' Umgebungsvariable ermitteln
+	strEnvValue = Environ(strEnvName)
+	
+     ' Eingebundene Umgebungsvariablen suchen
+	iPosition = Instr(1,strEnvValue,"%")
+	While (iPosition <> 0)
+		
+          ' Andere Umgebungsvariable rekursiv ersetzen
+		strReturn   = strReturn & Left(strEnvValue,iPosition - 1)
+		strEnvValue = Mid$(strEnvValue,iPosition + 1)
+		iPosition = Instr(1,strEnvValue,"%")
+		If (iPosition <> 0) Then
+			strReturn = strReturn & GetShellEnviron(Left(strEnvValue,iPosition - 1))
+			strEnvValue = Mid$(strEnvValue,iPosition + 1)
+			iPosition = Instr(1,strEnvValue,"%")
+		End If
+		
+	Wend
+	
+     ' Rückgabewert setzen
+	GetShellEnviron = strReturn & strEnvValue
+	
+End Function ' GetShellEnviron

@@ -1,0 +1,163 @@
+'raus, wird in ZAPI.Basic.. eingebunden  %INCLUDE "C:\1fgl\workspace\Eclipse3FGL\LSZKernel\libkernel\ZAPI.Basic.Asset.lss"
+'raus, wird in ZAPI.Basic.. eingebunden  Use "ZAPI.Basic.Message"
+'raus, wird in ZAPI.Basic.. eingebunden  Use "ZAPI.Basic.Lang.Markup"
+
+Function strMsgZZZ(session As notessession, sInfoOldIn As String, sScriptIn As String, iLineIn As Integer, sinfoin As String, iCodeIn As Integer, tP As TypeParamZZZ, sFlag) As String
+%REM
+	Wenn mit Error ein Erl-Variable gefüllt wird, so ist die Errorline immer mindestens eine Zeile vor der eigentlichen Message.
+	Die Bereinigung dieser Ungenauigkeit findet aber nicht hier statt, sondern in anderen Methoden, welche dann diese aufrufen.
+	(z.B.: ZZZConfigLocationAgentReceiptHandler\LAReceiptMessagePositionThrow_)
+	Grund: In der Funktion strMsgZZZ kann man nicht genau wissen wieviele andere Zeile zwischen der Error-Anweisung und der Berechnung dieses XML-Strings liegen.
+%END REM	
+	Dim sReturn As String, tPCall As TypeParamZZZ
+	Dim itemp As Integer
+	On Error Goto ErrhZAPI
+	 
+	'#####################################	
+	Dim bFlagMessageReorder As Boolean
+	Dim sInfoOld As String
+	If sInfoIn = sInfoOldIn And Len(sInfoOld) > 0 Then
+		'sInfoOld = ""
+		'Damit kein Eintrag doppelt gemacht wird, das ist der Fall, wenn ein Fehler in der vorherigen Funktion an den Errorhandler gegeben wird
+		bFlagMessageReorder = True   'Statt dessen muss der Fehler nun in den Err-Bereich des neuen Eintragsgeschrieben werden
+	Else
+		sInfoOld = sInfoOldIn
+	End If
+	
+	'aus der ParameterListe rausgenommen: Muss daher nun Berechnet werden
+	Dim iPortType As Integer 
+	Stop
+	Stop
+	iPortType = MsgPortByCodeGetZZZ(session, iCodeIn, tPCall, "")
+	If tPCall.ierr > 0 Then 
+		tp.ierr = iERR_FUNCTION_CALL
+		Goto EndError 'Error iERR_FUNCTION_CALL, tPCall.serr
+	End If
+	'Merke And iMsgType <> iMSG_TYPE_ASSERT   'Das ist kein Ausgabekanal, es gibt keine extra Property dafür in den Objekten !!!
+	If iPortType <> iPORT_MSG_ERROR And iPortType <> iPORT_MSG_INFO And iPortType <> iPORT_MSG_NONE Then Error iERR_PARAM_VALUE, "iPortType='" & Cstr(iPortType) & "', but expected '" & Cstr( iPORT_MSG_ERROR) & "' or '" & Cstr( iPORT_MSG_INFO) & "' or '" & Cstr(iPORT_MSG_NONE) & "'"
+	
+	'Das Ende ist möglicherweise nicht festgelegt
+	itemp = Instr(Ucase(sInfoIn),"</ZMESSAGE>") 
+	'If Right(Ucase(sinfoIn), Len("</zMessage>")) = "</ZMESSAGE>" Then 
+	If itemp > 0 Then
+		sInfoIn = Left(sinfoIn, itemp-1)		'sinfoIn =Left(sinfoIn, Len(sinfoIn) - Len("</ZMESSAGE>"))
+		'Msgbox sinfoin
+	End If
+	'Der Anfang ist möglicherweise nicht festgelegt (wg. des encoding-Strings)
+	itemp = Instr(Ucase(sInfoIn),"<ZMESSAGE>")
+	'If Left(Ucase(sinfoIn), Len("<zMessage>")) = "<ZMESSAGE>" Then 
+	If itemp > 0 Then
+		sinfoIn = Right(sinfoIn,Len(sinfoIn)- (itemp - 1) - Len("<ZMESSAGE>"))		'sinfoIn = Right(sinfoIn, Len(sinfoIn) - Len("<ZMESSAGE>"))
+		'Msgbox sinfoin
+	End If	
+	
+	If sInfoIn = sInfoOldIn And Len(sinfoold) > 0 Then 'Hier erneut abfragen, weil sich ja sInfoIn geändert hat
+		bFlagMessageReorder = True
+	End If
+	If Len(sInfoOld) > 0 Then 
+		itemp = Instr(Ucase(sInfoOld),"</ZMESSAGE>")
+		If itemp > 0 Then
+			sinfoOld =Left(sinfoOld, itemp-1)
+		End If
+		itemp = Instr(Ucase(sInfoOld), "<ZMESSAGE>") 
+		If itemp > 0 Then
+			sinfoOld = Right(sinfoOld,Len(sinfoOld)- (itemp - 1) - Len("<ZMESSAGE>"))
+		End If
+	End If
+	'TODO: Ggf. vorhandenen linken und rechten Rest wieder am Schluss anhängen
+	'#####################################
+	Dim vtemp As Variant, stemp As String
+	
+	'Falls es sich um einen Folgefehler eines FunctionCalls handelt 
+	If bFlagMessageReorder = True Then
+		 '+++ Denn Folgefehler in den Err-Bereich einbauen
+		'1. den letzten "Part" der sInfoOld nehmen und in das err Tag des neuen "Part" packen
+		'MsgBox sScript & Chr(13) & "vor dem Umsortieren" & Chr(13) & sinfoin
+		vtemp = saMsgTagSplitZZZ(session, sInfoIn, "part",tPCall, "")
+		If tPCall.ierr > 0 Then 
+			tp.ierr = iERR_FUNCTION_CALL
+			Goto EndError 'Error iERR_FUNCTION_CALL, tPCall.serr
+		End If
+		
+		If Not Isnull(vtemp) Then
+			sReturn = strTagInfoAllZZZ(session,iPortType, sScriptIn, iLineIn,vtemp(Ubound(vtemp)), iCodeIn, tPCall, "")
+			If tPCall.ierr > 0 Then 
+				tp.ierr = iERR_FUNCTION_CALL
+				Goto EndError 'Error iERR_FUNCTION_CALL, tPCall.serr
+			End If
+			
+			
+			sReturn = strTagZZZ(session, "part", sReturn, tPCAll, "")
+			If tPCall.ierr > 0 Then 
+				tp.ierr = iERR_FUNCTION_CALL
+				Goto EndError 'Error iERR_FUNCTION_CALL, tPCall.serr
+			End If
+			'Msgbox sScript & Chr(13) & "Umsortierte Reihenfolge: " & Chr(13) & sreturn
+			
+			'Die vorherigen Einträge auch wieder vorneweg anstellen
+			Dim iCount As Integer
+			stemp = ""
+			For iCount = 0 To Ubound(vtemp)-1
+				stemp = stemp & vtemp(iCount)
+			Next
+			sReturn = stemp & sReturn		
+		End If		
+	Else
+		'Msgbox sScriptin & "#" & Chr(13) & Chr(10)  & sInfoIn
+		sReturn = strTagInfoAllZZZ(session, iPortType, sScriptIn, iLineIn, sInfoIn, iCodeIn, tPCall, "")
+		If tPCall.ierr > 0 Then 
+			tp.ierr = iERR_FUNCTION_CALL
+			Goto EndError 'Error iERR_FUNCTION_CALL, tPCall.serr
+		End If
+		
+		'Hier nur die Meldungsteile aufzählen
+		sReturn = strTagZZZ(session, "part", sReturn, tPCall, "")		
+		If tPCall.ierr > 0 Then 
+			tp.ierr = iERR_FUNCTION_CALL
+			Goto EndError 'Error iERR_FUNCTION_CALL, tPCall.serr
+		End If
+		sReturn = sInfoOld & sReturn		
+	End If
+	
+	sReturn = strTagZZZ(session, "zMessage", sReturn, tPCall, "")
+	If tPCall.ierr > 0 Then 
+		tp.ierr = iERR_FUNCTION_CALL
+		Goto EndError 'Error iERR_FUNCTION_CALL, tPCall.serr
+	End If
+	
+	'Nun den Encoding String hinzufügen, default
+	sReturn = strTagEncodingReplaceZZZ(session, sReturn, "", tPCall, "")
+	If tPCall.ierr > 0 Then 
+		tp.ierr = iERR_FUNCTION_CALL
+		Goto EndError 'Error iERR_FUNCTION_CALL, tPCall.serr
+	End If
+	
+	'######################################	
+EndTrue:
+	tp.ierr = 0
+	strMsgZZZ = sReturn
+	Exit Function
+EndFalse:
+	tp.ierr = 0 
+	strMsgZZZ = ""
+	Exit Function	
+EndError:
+	strMsgZZZ = ""
+	Exit Function
+errhZAPI:
+	Dim sScript As String
+	sScript = "ZAPI.Basic.ZMessage\"  & Getthreadinfo(LSI_THREAD_PROC)
+	tP.iErr = Err
+	If tP.ierr >= 10000 Then
+		tP.serr = |<zMessage><script>| & sScript & "</script><line>" & Erl & "</line><code>" & Cstr(Err) & "</code><err>" & Error$ & |</err></zMessage>|
+	Else
+		tP.serr = |<zMessage><script>| & sScript & "</script><line>" & Erl & "</line><code>" & Cstr(Err) & "</code><err><![CDATA[" & Error$ & |]]></err></zMessage>|
+	End If
+	tP.sErr = strTagEncodingReplaceZZZ(session, tP.sErr, "", tpCall, "")
+	If tPCall.ierr > 0 Then
+		Msgbox tpcall.sErr
+	Else		
+		Msgbox tP.sErr
+	End If
+	Resume EndError	
+End Function

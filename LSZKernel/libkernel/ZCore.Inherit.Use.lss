@@ -1,0 +1,232 @@
+'muss rein, damit alle Funktionen global erreichbar sind. Als .lss Datei raus, wie auch alle Use-Einbindungen
+'%INCLUDE "C:\1fgl\workspace\Eclipse3FGL\LSZKernel\libkernel\ZAPI.Basic.Asset.lss"
+'Use "ZCore.Element.." 
+'Use "ZCore.Inherit"
+'Use "ZCore.Inherit.Struct.ListHash"
+'%INCLUDE "C:\1fgl\workspace\Eclipse3FGL\LSZKernel\libkernel\ZCore.Inherit.Struct.ListHash.lss"
+
+
+Class StructUseZZZ As StructZZZ
+	Private listHashList List As Variant
+	Property Get ListHashListObject As Variant
+		ListHashListObject = Me.listHashList
+	End Property
+	
+	'####################
+	Sub new(session As NotesSession, vFlagToSet As Variant, sFlagControl As String), StructZZZ(session, "firstuse", vFlagToSet, sFlagControl)		
+	End Sub
+	
+	'++++++++++++++++++++++++++
+	Function bListHashListObjectRefreshByCol(col As NotesDocumentCollection , sFieldNameForAlias As String, sFieldnameForSublist As String, vHashListFlagToSet As Variant, sFlagControl As String) As Boolean
+		bListHashListObjectRefreshByCol = UseListHashListObjectRefreshByCol_(Me, col , sFieldNameForAlias, sFieldNameForSublist, vHashListFlagToSet,sFlagControl)
+	End Function	
+	
+	'++++++++++++++++++++++++++
+	Function bListHashListObjectErase(sFlagControl) As Boolean
+		Erase Me.listHashList		
+	End Function
+	
+	'+++++++++++++++++++++++++
+	Function bHashListObjectExists(sAliasin As String, sFlagControl As String) As Boolean
+		If Not Islist(Me.listHashList) Then Goto EndFalse
+		
+		Dim sAlias As String
+		sAlias=Ucase(sAliasin)
+		If Not Iselement(Me.listHashList(sAlias)) Then Goto EndFalse
+		
+endtrue:
+		bHashListObjectExists = True
+		Exit Function
+endfalse:
+		bHashListObjectExists = False
+		Exit Function
+	End Function
+	
+	'+++++++++++++++++++++++++++++
+	Function objHashListGet(sAliasin As String, sFlagControl As String) As HashListZZZ
+		Dim objReturn As HashListZZZ
+		
+		Dim sAlias As String
+		sAlias = Ucase(sAliasin)
+		If Len(sAlias) = 0 Then Goto endFalse
+		If Me.bHashListObjectExists(sAlias, "") = False Then Goto endfalse
+		
+		Set objReturn = Me.listHashList(sAlias)
+		
+endTrue:
+		Set objHashListGet = objReturn
+		Exit Function
+endFalse:
+		Set objHashListGet = Nothing
+		Exit Function
+	End Function
+	
+	'++++++++++++++++++++++++++++
+	Function bHashListObjectAdd(objHashList As HashListZZZ, sFlagControl As String) As Boolean
+		If Not objHashList Is Nothing Then
+			Dim sAlias As String
+			sAlias = objHashList.Aliasname  'MErke: Das ist immer schon ucase !!!
+			
+			Set Me.listHashList(sAlias) = objHashList
+		Else
+			Goto EndFalse
+		End If
+endtrue:
+		bHashListObjectAdd = True
+		Exit Function
+endFalse:
+		bHashListObjectAdd = False
+		Exit Function		
+	End Function
+	
+	'++++++++++++++++++++++++++++
+	Function bHashListObjectRemove(sAliasin As String, sFlagControl As String) As Boolean
+		Dim sAlias As String
+		sAlias = Ucase(sAliasin)
+		If Len(sAlias) = 0 Then Goto endFalse
+		
+		If Me.bHashListObjectExists(sAlias, "") = False Then Goto EndFalse
+		
+		Erase Me.listHashList(sAlias)
+		
+endTrue:
+		bHashListObjectRemove = True
+		Exit Function		
+endFalse:
+		bHashListObjectRemove = False
+		Exit Function		
+	End Function
+End Class
+
+Private Function UseListHashListObjectRefreshByCol_(objUse As StructUseZZZ , colin As NotesDocumentCollection , sFieldNameForAlias As String, sFieldNameForSubList As String, vHashListFlagToSet As Variant, sFlagControl As String) As Boolean
+	On Error Goto errobj
+	Call objUse.MessageReset(iMSG_TYPE_ERROR,"")  'Damit sich in dieser Methode nicht Fehler aus einer anderen Methode auswirken
+	Dim btemp As Boolean, stemp As String, itemp As Integer, vtemp As Variant, ltemp As Long, dtemp As Double
+	Dim tpcall As TypeParamZZZ
+	
+	'### Param Check
+	Dim sFieldname As String
+	sFieldname = Trim(sFieldnameForAlias)
+	If Len(sFieldName) = 0 Then Error iERR_PARAM_MISSING, "Fieldname for alias"
+	
+	Dim col As NotesDocumentCollection
+	If colin Is Nothing Then
+		Dim db As NotesDatabase
+		Set db = objUse.session.currentdatabase		
+		Set col = db.UnprocessedDocuments
+	Else
+		Set col = colin
+	End If
+	If col.Count = 0 Then Goto EndFalse
+	
+	Dim sFieldnameSub As String
+	sFieldnameSub = Trim(sFieldnameForSubList)
+	
+	
+	'##########################################
+	'+++ Collection durchgehen
+	Dim lcount As Long, doctemp As notesdocument, objHashListTemp As HashListZZZ, bNewList As Boolean
+	Set doctemp = col.GetFirstDocument
+	For lcount = 1 To col.Count
+		If Not doctemp Is Nothing Then
+			'Aliaswert ermitteln
+			vtemp = doctemp.GetItemValue(sFieldname)
+			If Isempty(vtemp) Then Goto docnext
+			
+			'Aliaswert in einen String bringen, zur Not imploden, dabei wird auf jeden Fall der Wert auch zu einem String
+			stemp = ArrayStringImplodeZZZ( objUse.session, vtemp, "~", tPcall, "")
+			If tpcall.ierr > 0 Then Error iERR_FUNCTION_CALL, tpcall.serr
+			If Len(stemp) = 0 Then Goto docnext
+			
+			'Prüfen: Gibt es diesen Wert schon in der Liste
+			Stop
+			Set objHashListTemp = objUse.objHashListGet(stemp, "")
+			If objUse.Error.icode > 0 Then Error  iERR_OBJECT_CUR, objUse.Error.sString
+			
+			If Not objHashListTemp Is Nothing  Then
+				'Object wiederverwenden und erweitern
+				bNewList = False
+				
+			Else
+				bNewList = True
+				
+				'Object neu erstellen
+				Set objHashListTemp = New HashListZZZ(objUse.Session, stemp, vHashListFlagToSet)
+				If objHashListTemp.Error.iCode > 0 Then Error iERR_OBJECT_ERR, objUse.MessageAllReceive(objHashListTemp, iMSG_TYPE_ERROR, "")				
+			End If
+			
+			
+			'Liste erstellen, bzw. zum Object hinzufügen
+			If Len(sFieldnameSub) = 0 Then
+				stemp = doctemp.UniversalID	
+			Else
+				vtemp =  doctemp.GetItemValue(sFieldnameSub)
+				If Isempty(vtemp) Then 
+					vtemp = ""
+				Else
+					stemp = ArrayStringImplodeZZZ( objUse.session, vtemp, strcrlfzzz(1), tPcall, "")
+					If tpcall.ierr > 0 Then Error iERR_FUNCTION_CALL, tpcall.serr
+				End If					
+			End If
+			
+			Call objHashListTemp.AddIt(stemp, doctemp)
+			If objHashListTemp.Error.iCode > 0 Then Error iERR_OBJECT_ERR, objUse.MessageAllReceive(objHashListTemp, iMSG_TYPE_ERROR, "")							
+			
+			'Falls es eine neue liste ist, diese der Gesamtliste hinzufügen
+			If bNewList = True Then
+				Call objUSe.bHashListObjectAdd(objHashListTemp, "")
+				If objUse.Error.icode > 0 Then Error  iERR_OBJECT_CUR, objUse.Error.sString				
+			End If
+			
+		End If 'not doctemp is nothing
+docnext:
+		Set doctemp = col.GetNextDocument(doctemp)
+	Next lcount
+	
+EndTrue:
+	objUse.Error.iCode = 0
+	UseListHashListObjectRefreshByCol_ = True
+	Exit Function
+EndFalse:
+	Call objUse.bListHashListObjectErase("")
+	objUse.Error.iCode = 0
+	UseListHashListObjectRefreshByCol_  = False
+	Exit Function
+EndError:
+	Call objUse.bListHashListObjectErase("")
+	UseListHashListObjectRefreshByCol_  = False
+	Exit Function
+	
+	
+'Errorhandler für Objekte
+Errobj:
+	Dim tp As TypeParamZZZ, tperrh As TypeParamZZZ
+	tp.ierr = Err 'Beim wiederholten Aufruf (d.h. zwei Zeilen hintereinanger ' Error iERR_NEXT, "das ist ein text" ' aufrufen) verliert Err zwei Stellen von rechts nach dem Aufruf der MEthode objUse.MessageAppend(..) !!!! 
+	Select Case tp.ierr
+	Case iASSERT_FALSE, iASSERT_TRUE: Resume Next  'd.h. es soll keine Information über den Message oder den Error Kanals ausgegeben werden.
+	Case iASSERT_FALSE_CRITICAL: Resume EndFalse
+	End Select
+	
+	If tp.iErr = iMSG_ASSERT_TRUE Or tp.iErr = iERR_ASSERT_TRUE Then 'Or tp.iErr = iERR_ASSERT_TRUE_CRITICAL Then 
+		tp.serr = "Assertion negative: '" & Error$ & "'"
+	Else
+		tp.serr = Error$
+	End If
+	
+	
+	Dim sScript
+	sScript = objUse.ClassLibrary & "\" & Getthreadinfo(LSI_THREAD_PROC)	
+	Call objUse.MessageAppend("",sScript,Erl,tp.serr, tp.ierr, "")
+	Select Case tp.ierr
+	Case iMSG_NEXT, iERR_NEXT, iMSG_AGENT_NEXT, iERR_AGENT_NEXT, iMSG_ASSERT_TRUE, iERR_ASSERT_TRUE, iMSG_ASSERT_FALSE, iERR_ASSERT_FALSE: Resume Next
+	Case iMSG_TRUE, iERR_TRUE, iMSG_AGENT_TRUE, iERR_AGENT_TRUE: Resume EndTrue  ', iMSG_ASSERT_TRUE_CRITICAL, iERR_ASSERT_TRUE_CRITICAL: Resume EndTrue
+	Case iMSG_FALSE, iERR_FALSE, iMSG_AGENT_FALSE, iERR_AGENT_FALSE, iMSG_ASSERT_FALSE_CRITICAL, iERR_ASSERT_FALSE_CRITICAL: Resume EndFalse
+	Case iERR_OBJECT_ERR, iERR_OBJECT_CUR, iERR_AGENT_CALL, iERR_FUNCTION_CALL, iERR_PARAM_VALUE, iERR_PARAM_MISSING, iERR_PROPERTY_VALUE, iERR_PROPERTY_MISSING, iERR_DESIGN_MISSING: Resume EndError 'Ziel: Nicht jeden Fehler ins Log stellen
+	Case Else:  
+		'MSG2SinkSendZZZ(sessionin As NotesSession, sSinkAliasin As String, doc2usein As NotesDocument, sFilePath_FormIn As String, sFilename_ItemIn As String, sMessageIn As String,  iMSGLevelin As Integer, tP As TypeParamZZZ, sFlag As String) As String
+		Call MSG2SinkSendZZZ(objUse.session, "", Nothing, "", "",  objUse.Error.sString, 1, tperrh, "")
+		'ODER: Msgbox "An error happened, more here: " & Chr(13) & "'" & MSG2SinkSendZZZ(objUse.session, "", Nothing, "", "",  objUse.Error.sString, 1, tperrh, "") & "'"
+		If tperrh.iErr > 0 Then Msgbox tperrh.sErr   'Fehler im Errorhandling sofort ans Frontend/Serverlog ausgeben		
+		Resume EndError
+	End Select
+End Function

@@ -1,0 +1,242 @@
+'raus %INCLUDE "C:\1fgl\workspace\Eclipse3FGL\LSZKernel\libkernel\ZAPI.Basic.Asset.lss" 
+'raus Use "ZAPI.Basic.."           
+'Leider ist es bei Verwendung von %Include nicht möglich, dass mehrere private konstanten mit dem gleichen Namen verwendet werden.
+'Private Const sLibZZZ = "ZZZBasicDatatypeAllPrimitive"
+'Private Const sVerZZZ = "2005-06-22"
+
+Function intDivisorContainsZZZ(session As notessession, iNum2DivideInput As Integer, iaDiv() As Integer, tp As TypeParamZZZ, sFlag As String) As Integer
+'%REM
+	'Diese Funktion liefert ein Array aller ganzzahligen Teiler einer Zahl zurück, sowie das ubound des Arrays
+	On Error Goto errhNoCall
+	
+	'### Übergabeparameter prüfen				
+	Dim iNum As Integer, iNum2Divide As Integer
+	Dim iCounter As Integer
+	
+	If iNum2DivideInput <= 0 Then
+		Goto EndFalse
+	Else
+		iNum2Divide = iNum2DivideInput		
+	End If 
+	
+	'####
+	iNum = -1
+	For iCounter = 1 To 32000
+		If iCounter > iNum2Divide Then Exit For
+		
+		If iNum2Divide Mod iCounter = 0 Then
+			iNum = iNum + 1
+			Redim Preserve iaDiv(iNum) As Integer
+			iaDiv(iNum) = iCounter 
+		End If		
+	Next iCounter	
+	
+'######################################	
+EndTrue:
+	tp.ierr = 0
+	intDivisorContainsZZZ = iNum
+	Exit Function
+EndFalse:
+	tp.ierr = 0
+	intDivisorContainsZZZ = -1
+	Exit Function	 
+EndError:
+	intDivisorContainsZZZ = -1
+	Exit Function
+ErrHNoCall:
+	Dim sScript As String, tpcall As TypeParamZZZ
+	sScript = "ZBasic.DataType.AllPrimitive\" & Getthreadinfo(LSI_THREAD_PROC)
+	tp.iErr = Err 'Beim wiederholten Aufruf (d.h. zwei Zeilen hintereinanger ' Error iERR_NEXT, "das ist ein text" ' aufrufen) verliert Err zwei Stellen von rechts nach dem Aufruf der MEthode objMe.MessageAppend(..) !!!! 
+	tp.serr = strMsgZZZ(Nothing,  tp.sErr, sScript, Erl, Error$, Err, tpCall, "")
+	If tpcall.iErr > 0 Then
+		Msgbox tpcall.serr
+		Resume EndError
+	End If
+	Select Case tp.ierr
+	Case iMSG_NEXT, iERR_NEXT: Resume Next
+	Case iMSG_FALSE, iERR_FALSE: Resume EndFalse
+	Case iMSG_TRUE, iERR_TRUE: Resume EndTrue
+	Case Else: Resume EndError		
+	End Select
+'%ENDREM
+End Function
+Function vMaxZZZ(session As notessession, vNum1 As Variant, vNum2 As Variant,  tp As TypeParamZZZ, sFlag As String) As Variant
+'%REM
+	Dim vErg As Variant
+	On Error Goto errhNoCall
+	
+	If Isnull(vnum1) Then 
+		vErg = vnum2
+	Elseif Isnull(vnum2) Then
+		vErg = vnum1
+	End If
+	If vnum2 > vnum1 Then
+		vErg = vnum2
+	Elseif vnum2 <= vnum1 Then
+		vErg = vnum1
+	End If
+EndTrue:
+	tp.ierr = 0
+	vMaxZZZ = vErg
+	Exit Function
+EndFalse:
+	tp.ierr = 0
+	vMaxZZZ = Null
+	Exit Function
+EndError:
+	vMaxZZZ = Null
+	Exit Function
+ErrHNoCall:
+	Dim sScript As String, tpCall As TypeParamZZZ
+	sScript = "ZBasic.DataType.AllPrimitive\" & Getthreadinfo(LSI_THREAD_PROC)
+	tp.iErr = Err 'Beim wiederholten Aufruf (d.h. zwei Zeilen hintereinanger ' Error iERR_NEXT, "das ist ein text" ' aufrufen) verliert Err zwei Stellen von rechts nach dem Aufruf der MEthode objMe.MessageAppend(..) !!!! 
+	tp.serr = strMsgZZZ(Nothing,  tp.sErr, sScript, Erl, Error$, Err, tpCall, "")
+	If tpcall.iErr > 0 Then
+		Msgbox tpcall.serr
+		Resume EndError
+	End If
+	Select Case tp.ierr
+	Case iMSG_NEXT, iERR_NEXT: Resume Next
+	Case iMSG_FALSE, iERR_FALSE: Resume EndFalse
+	Case iMSG_TRUE, iERR_TRUE: Resume EndTrue
+	Case Else: Resume EndError		
+	End Select
+'%ENDREM
+End Function
+Function intBinomialContainsZZZ(session As notessession, iNumIn As Integer, iaBin() As Integer,  tp As TypeParamZZZ, sFlag As String) As Integer
+%REM
+'Diese Funktion liefert ein Array aller /2 - Zerlegungen einer Zahl
+zurück, sowie das ubound des Arrays
+%END REM
+	Dim iFunction As Integer
+	iFunction = -1
+	
+      '################################
+	On Error Goto errhNoCall
+	
+      '### Parameter check
+	Dim iNum As Integer
+	If iNumIn < 0 Then
+		Error iERR_PARAM_VALUE, "Number = '" & Cstr(iNumIn) & "', but expected Number >= 0"
+	Else
+		iNum = iNumIn
+	End If
+	
+      '###########################
+	Dim itemp As Integer
+	Dim iSum As Integer
+	iSum = 1 'nicht -1, weil wir die null nicht im Array haben wollen
+	Do
+		itemp = iSum * 2
+		If iSum <= iNum Then
+			iFunction = iFunction + 1
+			Redim Preserve iaBin(iFunction) As Integer
+			iaBin(iFunction) = iSum
+		End If
+		iSum = itemp
+	Loop Until iSum > iNum
+	
+      '##########################
+EndTrue:
+	tp.ierr = 0
+	intBinomialContainsZZZ = iFunction
+	Exit Function
+EndFalse:
+	tp.ierr = 0
+	intBinomialContainsZZZ = -1
+	Exit Function
+EndError:
+	intBinomialContainsZZZ = -1
+	Exit Function
+ErrHNoCall:
+	Dim sScript As String, tpcall As TypeParamZZZ
+	sScript = "ZBasic.DataType.AllPrimitive\" & Getthreadinfo(LSI_THREAD_PROC)
+	tp.iErr = Err 'Beim wiederholten Aufruf (d.h. zwei Zeilen hintereinanger ' Error iERR_NEXT, "das ist ein text" ' aufrufen) verliert Err zwei Stellen von rechts nach dem Aufruf der MEthode objMe.MessageAppend(..) !!!! 
+	tp.serr = strMsgZZZ(Nothing,  tp.sErr, sScript, Erl, Error$, Err, tpCall, "")
+	If tpcall.iErr > 0 Then
+		Msgbox tpcall.serr
+		Resume EndError
+	End If
+	Select Case tp.ierr
+	Case iMSG_NEXT, iERR_NEXT: Resume Next
+	Case iMSG_FALSE, iERR_FALSE: Resume EndFalse
+	Case iMSG_TRUE, iERR_TRUE: Resume EndTrue
+	Case Else: Resume EndError		
+	End Select
+End Function
+Function intBinomialContainsSumZZZ(session As notessession, iNumIn As Integer, iaBin() As Integer,  tp As TypeParamZZZ, sFlag As String) As Integer
+%REM
+'Diese Funktion liefert ein Array aller Binomial - Zerlegungen einer Zahl
+zurück, sowie das ubound des Arrays. 
+In das Array kommen nur die Werte, die von hinten nach vorne aufsummiert kleiner gleich der Zahl sind
+%END REM
+	Dim iFunction As Integer, tpCall As typeparamzzz
+	iFunction = -1
+	On Error Goto errh
+	
+      '### Parameter check
+	Dim iNum As Integer
+	If iNumIn < 0 Then
+		Error iERR_PARAM_VALUE,  "Number = '" & Cstr(iNumIn) & "', but expected Number >= 0"
+	Else
+		iNum = iNumIn
+	End If
+	
+      '###########################		
+	'1. Binomialzerlegung
+	Dim iNrOfEntry As Integer, iaBinInternal() As Integer
+	iNrOfEntry = intBinomialContainsZZZ(session, iNumIn, iaBinInternal, tpCall, "")
+	If tpcall.ierr >0 Then Error iERR_FUNCTION_CALL, tpcall.serr
+	If iNrOfEntry <= -1 Then Goto EndFalse
+	
+	'2. Nun Summenbildung	
+	Dim iSum As Integer	
+	iSum = iaBinInternal(iNrOfEntry)
+	
+	'Die letzte Zahl wird immer vorne vorgehängt
+	Redim Preserve iaBin(iNrOfEntry) As Integer   'Erst einmal gross dimensionieren, performanter als immer wieder zu redimensionieren
+	iFunction = 0
+	iaBin(iFunction) = iaBinInternal(iNrOfEntry)	
+	
+	
+	'!!! Das ist aber in der anderen Reihenfolge sortiert als int BinomialContainsZZZ !!!	
+	Dim iCount As Integer
+	For iCount = iNrOfEntry-1 To Lbound(iaBinInternal) Step -1
+		iSum = iSum + iaBinInternal(iCount)
+		If iSum <= iNumIn Then
+			iFunction = iFunction + 1
+			iaBin(iFunction) = iaBinInternal(iCount)
+		End If
+	Next iCount
+	
+	'Nun endgültig redimensionieren
+	Redim Preserve iaBin(iFunction) As Integer
+	
+      '##########################
+EndTrue:
+	tp.ierr = 0
+	intBinomialContainsSumZZZ = iFunction
+	Exit Function 
+EndFalse:
+	tp.ierr = 0
+	intBinomialContainsSumZZZ = -1
+	Exit Function
+EndError:
+	intBinomialContainsSumZZZ = -1
+	Exit Function
+ErrH:
+	Dim sScript As String
+	sScript = "ZBasic.DataType.AllPrimitive\" & Getthreadinfo(LSI_THREAD_PROC)
+	tp.iErr = Err 'Beim wiederholten Aufruf (d.h. zwei Zeilen hintereinanger ' Error iERR_NEXT, "das ist ein text" ' aufrufen) verliert Err zwei Stellen von rechts nach dem Aufruf der MEthode objMe.MessageAppend(..) !!!! 
+	tp.serr = strMsgZZZ(Nothing,  tp.sErr, sScript, Erl, Error$, Err, tpCall, "")
+	If tpcall.iErr > 0 Then
+		Msgbox tpcall.serr
+		Resume EndError
+	End If
+	Select Case tp.ierr
+	Case iMSG_NEXT, iERR_NEXT: Resume Next
+	Case iMSG_FALSE, iERR_FALSE: Resume EndFalse
+	Case iMSG_TRUE, iERR_TRUE: Resume EndTrue
+	Case Else: Resume EndError		
+	End Select
+End Function

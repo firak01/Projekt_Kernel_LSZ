@@ -1,0 +1,989 @@
+'%INCLUDE "C:\1fgl\workspace\Eclipse3FGL\LSZKernel\libkernel\ZAPI.Basic.Asset.lss" 
+'Use "ZBasic.DataType.."  
+'Use "ZBasic.DataURL.."
+
+Function dbCreateByCopySynchronizedZZZ(session As notessession, db2becopiedin As NotesDatabase, sTargetServerin As String, sTargetpathin As String, iTargetmaxsize As Integer, bFlagReplace As Boolean, lTimeoutSecond As Long, tp As TypeParamZZZ, sFlagin As String) As Notesdatabase	
+	Dim dbReturn As Notesdatabase, tpcall As TypeParamZZZ
+	Dim btemp As Boolean, vtemp As Variant, stemp As String, itemp As Integer
+	On Error Goto errh
+	
+	Dim db2becopied As NotesDatabase
+	If db2becopiedin Is Nothing Then
+		Error iERR_PARAM_MISSING, "Notesdatabase to be copied"
+	Else
+		Set db2becopied = db2becopiedin
+	End If
+	
+	Dim sTargetpath As String
+	If Len(sTargetpathin) = 0 Then
+		Error iERR_PARAM_MISSING, "Targetpath"
+	Else
+		sTargetPath = sTargetpathin
+	End If
+	
+	'+++ Den Pfad auf gültigen Dateinamen prüfen
+	'a) Notes-Datenbank
+	btemp = bFilenameIsNotesDBZZZ(session, sTargetPath, tpcall, "")
+	If tpcall.ierr > 0 Then Error iERR_FUNCTION_CALL, tpcall.serr
+	If btemp = False Then
+		'b) Template
+		btemp = bFilenameIsNotesTemplateZZZ(session, sTargetPath, tpcall, "")
+		If tpcall.ierr > 0 Then Error iERR_FUNCTION_CALL, tpcall.serr
+		If btemp = False Then Error iERR_PARAM_VALUE, "Targetfilepath seems to be no notesdatabase/template: '" & sTargetPathin & "'"
+	End If
+	
+	'+++ Server ermitteln
+	Dim sTargetServer As String
+	If Len(sTargetServerin) = 0 Then
+		Dim dbcur As NotesDatabase
+		Set dbcur = session.CurrentDatabase
+		sTargetServer = dbcur.Server
+	Else
+		sTargetServer = sTargetServerin
+	End If
+	
+	'#####################
+	'Falls die Datebank schon exisitert, wird es einen Fehler geben, darum
+	Stop
+	If iTargetMaxSize > 0 Then
+		On Error Goto errhnext
+		Set dbReturn = db2becopied.CreateCopy(sTargetServer, sTargetPath, iTargetMaxSize)
+		On Error Goto errh
+	Else
+		On Error Goto errhnext
+		Set dbReturn = db2becopied.CreateCopy(sTargetServer, sTargetPath)
+		On Error Goto errh
+	End If
+	
+	'Falls die Datenbank schon existiert hat, gibt es 'Noch' keine neue
+	If dbReturn Is Nothing Then
+		If bFlagReplace = True Then
+			itemp = iDBDeleteSynchronizedZZZ(session, sTargetServer, sTargetPath, lTimeoutSecond, tpcall, "")
+			If tpcall.ierr > 0 Then Error iERR_FUNCTION_CALL, tpcall.serr
+			Select Case itemp
+			Case True: 			'2. Versuch: Löschen war sofort erfolgreich
+				Error iMSG_NEXT, "Existing database successfully deleted."
+				If iTargetMaxSize > 0 Then
+					On Error Goto errhnext
+					Set dbReturn = db2becopied.CreateCopy(sTargetServer, sTargetPath, iTargetMaxSize)
+					On Error Goto errh
+				Else
+					On Error Goto errhnext
+					Set dbReturn = db2becopied.CreateCopy(sTargetServer, sTargetPath)
+					On Error Goto errh
+				End If
+			Case -2, -3, -4:          'Hinweis darauf es später zu versuchen, AdminP soll die DB löschen
+				'Error iMSG_NEXT, "Unable to delete database at once (Server: '" & sTargetServer & "', Path: '" & sTargetPath & "'). But an AdminP request was created and the approval was made."								
+				'Print "Unable to delete database at once (Server: '" & sTargetServer & "', Path: '" & sTargetPath & "'). But an AdminP request was created and the approval was made."								
+%REM Der Versuch auf die Datenbank zuzugreifen bedeutet, dass der AdminP die existierende Datenbank nicht löschen kann !!!
+				Do
+					'TODO: Auf neue DB WARTEN MIT TIMEOUT !!!
+					
+					Yield
+					If iTargetMaxSize > 0 Then
+						On Error Goto errhnextnoinfo
+						Set dbReturn = db2becopied.CreateCopy(sTargetServer, sTargetPath, iTargetMaxSize)
+						On Error Goto errh
+					Else
+						On Error Goto errhnextnoinfo
+						Set dbReturn = db2becopied.CreateCopy(sTargetServer, sTargetPath)
+						On Error Goto errh
+					End If
+				Loop While dbReturn Is Nothing
+%ENDREM				
+				Error iMSG_FALSE, "Unable to delete database now (Server: '" & sTargetServer & "', Path: '" & sTargetPath & "'). But an AdminP request was created. Please retry later when the AdminP request was processed."				
+			Case 0:			'Hnweis darauf, dass Löschen der bestehenden DB unmöglich war
+				Error iMSG_FALSE, "Unable to replace existing database. Neither you can delete this database directly nor you are allowed to create an AdminP request (Server: '" & sTargetServer & "', Path: '" & sTargetPath & "')." 
+			Case 99: 			'Hinweis auf Fehler
+				Error iMSG_FALSE, "An errorcode was returned by the function. iDBDeleteZZZ(...). The following message was returned: '" & tpcall.serr & "'"
+			Case Else:
+				Error iMSG_FALSE, "Unexpected returncode by function iDBDeleteZZZ(...). The following message was returned: '" & tpcall.serr & "'"				
+			End Select	
+		Else
+			'Hinweis darauf, dass eine Datenbank schon exisitiert und diese nicht entfernt werden sollte.
+			Error iMSG_FALSE, "A database still exists there. It should not be replaced  (Server: '" & sTargetServer & "', Path: '" & sTargetPath & "')."
+		End If		
+	End If
+	
+	'#####################
+EndTrue:
+	tp.ierr = 0
+	Set dbCreateByCopySynchronizedZZZ = dbReturn
+	Exit Function
+EndFalse:
+	tp.ierr = 0
+	Set dbCreateByCopySynchronizedZZZ = Nothing
+	Exit Function
+EndError: 
+	Set dbCreateByCopySynchronizedZZZ = Nothing
+	Exit Function
+errhNextNoInfo:
+	Resume Next
+ErrhNext:
+	'Fehler als Message entgegennehmen. Fehler tritt auf, wenn die neue DB schon exisitert
+	On Error Goto Errh
+	tp.iErr = Err 'Beim wiederholten Aufruf (d.h. zwei Zeilen hintereinanger ' Error iERR_NEXT, "das ist ein text" ' aufrufen) verliert Err zwei Stellen von rechts nach dem Aufruf der MEthode objMe.MessageAppend(..) !!!! 	
+	Dim sScripterrhnext As String, tperrhnext As TypeParamZZZ, sessionerrhnext As New notessession
+	sScripterrhnext = "ZBasic.Notes.Database\" & Getthreadinfo(LSI_THREAD_PROC)
+	
+	Dim sinfoerrhnext As String
+	sinfoerrhnext = Error$
+	tp.serr = strMsgZZZ(sessionerrhnext,  tp.sErr, sScripterrhnext, Erl, sinfoerrhnext, tp.iErr, tperrhnext, "")
+	If tperrhnext.iErr > 0 Then Error iERR_FUNCTION_CALL, tperrhnext.serr
+	
+	On Error Goto Errhnext
+	Resume Next
+ErrH:
+	tp.iErr = Err 'Beim wiederholten Aufruf (d.h. zwei Zeilen hintereinanger ' Error iERR_NEXT, "das ist ein text" ' aufrufen) verliert Err zwei Stellen von rechts nach dem Aufruf der MEthode objMe.MessageAppend(..) !!!! 	
+	Select Case tp.iErr
+	Case iASSERT_FALSE, iASSERT_TRUE: Resume Next  'd.h. es soll keine Information über den Message oder den Error Kanals ausgegeben werden.
+	Case iASSERT_FALSE_CRITICAL: Resume EndFalse
+	End Select
+	
+	Dim sinfoerrh
+	If tp.iErr = iMSG_ASSERT_TRUE Or tp.iErr = iERR_ASSERT_TRUE Then 'Or tp.iErr = iERR_ASSERT_TRUE_CRITICAL Then 
+		sinfoerrh = "Assertion negative: '" & Error$ & "'"
+	Else
+		sinfoerrh = Error$
+	End If
+	
+	Dim sScripterrh As String, tperrh As TypeParamZZZ, sessionerrh As New notessession
+	sScripterrh = "ZBasic.Notes.Database\" & Getthreadinfo(LSI_THREAD_PROC)
+	
+	'ZUM TEST, ERRORMESSAGE VORHER
+	'Call MSG2SinkSendZZZ(sessionerrh, "FILE", Nothing, "", "", tp.sErr, 1, tPerrh, "")
+	'If tperrh.iErr > 0 Then
+	'	Msgbox sScripterrh & "#" & tperrh.serr
+	'	Resume EndError
+	'End If
+	
+	tp.serr = strMsgZZZ(sessionerrh,  tp.sErr, sScripterrh, Erl, sinfoerrh, tp.iErr, tperrh, "")	
+	If tperrh.iErr > 0 Then
+		Msgbox sScripterrh & "#" & tperrh.serr
+		Resume EndError
+	End If
+	
+	
+	'ZUM TEST, ERRORMESSAGE NACHHER
+	'Call MSG2SinkSendZZZ(sessionerrh, "FILE", Nothing, "", "", tp.sErr, 1, tPerrh, "")
+	'If tperrh.iErr > 0 Then
+	'	Msgbox sScripterrh & "#" & tperrh.serr
+	'	Resume EndError
+	'End If
+	
+	Select Case tp.ierr
+	Case iMSG_NEXT, iERR_NEXT, iMSG_AGENT_NEXT, iERR_AGENT_NEXT, iMSG_ASSERT_TRUE, iERR_ASSERT_TRUE, iMSG_ASSERT_FALSE, iERR_ASSERT_FALSE: Resume Next
+	Case iMSG_TRUE, iERR_TRUE, iMSG_AGENT_TRUE, iERR_AGENT_TRUE: Resume EndTrue  ', iMSG_ASSERT_TRUE_CRITICAL, iERR_ASSERT_TRUE_CRITICAL: Resume EndTrue
+	Case iMSG_FALSE, iERR_FALSE, iMSG_AGENT_FALSE, iERR_AGENT_FALSE, iMSG_ASSERT_FALSE_CRITICAL, iERR_ASSERT_FALSE_CRITICAL: Resume EndFalse
+	Case iERR_OBJECT_ERR, iERR_OBJECT_CUR, iERR_AGENT_CALL, iERR_FUNCTION_CALL, iERR_PARAM_VALUE, iERR_PARAM_MISSING, iERR_PROPERTY_VALUE, iERR_PROPERTY_MISSING, iERR_DESIGN_MISSING: Resume EndError 'Ziel: Nicht jeden Fehler ins Log stellen
+	Case Else: Resume EndError
+	End Select
+End Function
+
+
+Function iDBDeleteSynchronizedZZZ(session As NotesSession, sTargetServerin As String, sTargetPathin As String, lTimeoutSecond As Long, tp As typeparamzzz, sflagin As String) As Integer
+	Dim iReturn As Integer, tpcall As TypeParamZZZ
+	Dim btemp As Boolean, vtemp As Variant, stemp As String, itemp As Integer
+	On Error Goto errh
+	
+	Dim sTargetpath As String
+	If Len(sTargetpathin) = 0 Then
+		Error iERR_PARAM_MISSING, "Targetpath"
+	Else
+		sTargetPath = sTargetpathin
+	End If
+	
+	'+++ Den Pfad auf gültigen Dateinamen prüfen
+	'a) Notes-Datenbank
+	btemp = bFilenameIsNotesDBZZZ(session, sTargetPath, tpcall, "")
+	If tpcall.ierr > 0 Then Error iERR_FUNCTION_CALL, tpcall.serr
+	If btemp = False Then
+		'b) Template
+		btemp = bFilenameIsNotesTemplateZZZ(session, sTargetPath, tpcall, "")
+		If tpcall.ierr > 0 Then Error iERR_FUNCTION_CALL, tpcall.serr
+		If btemp = False Then Error iERR_PARAM_VALUE, "Targetfilepath seems to be no notesdatabase/template: '" & sTargetPathin & "'"
+	End If
+	
+	'+++ Server ermitteln
+	Dim sTargetServer As String,dbcur As NotesDatabase
+	If Len(sTargetServerin) = 0 Then		
+		Set dbcur = session.CurrentDatabase
+		sTargetServer = dbcur.Server
+	Else
+		sTargetServer = sTargetServerin
+	End If
+	
+	'#####################
+	Dim db As NotesDatabase
+	Set db = New NotesDatabase(sTargetServer, sTargetPath)
+	If db.IsOpen = False Then
+		Error iMSG_FALSE, "No Database exists there or unable to open database. Server: '" & sTargetServer & ", Path: '" & sTargetPAth & "'"
+		iReturn = 1
+		Goto EndTrue
+	End If
+	
+	Stop
+	
+		'+++ Löschen einer Datenbank im Cluster (vorsorglich)
+			'Datenbank existiert immer noch. Löschen war erfolglos.
+			'Nächster Versuch: Löschen über DatenbakCluster (NICHT AdminP)
+			'Merke: Wenn die DB nicht in einem Cluster ist, dann gibt es keine Fehlermeldung. 
+			'            Die DB wird einfach nicht gelöscht.
+	On Error Goto errhnext
+	Call db.MarkForDelete
+	On Error Goto Errh
+	
+	
+	On Error Goto errhnext
+	Call db.Remove
+	On Error Goto errh
+	
+	Stop
+	
+	'TODO: ggf. noch Info-Messages erzeugen !!!
+	'Prüfen, ob die DB dort immer noch existiert
+	Set db = New NotesDatabase(sTargetServer, sTargetPath)
+	If db.IsOpen = False Then 		
+		iReturn = True
+		Goto endTrue
+	Else
+		'##############################################
+		'+++ LÖSCHEN DER REPLIKEN ÜBER ADMINP - VORBEREITUNG: Gibt es die AdminP Datenbank überhaupt ?    Lokal ist das nicht der Fall.
+		Dim dbAdminP As notesdatabase
+		Set dbAdminP = New NotesDatabase(sTargetServer, "admin4.nsf")
+		If dbAdminP.IsOpen = False Then
+			If Len(sTargetServer) = 0 Then	
+				Error iMSG_FALSE, "Unable to open database 'admin4.nsf' on server '" & sTargetServer & "', the approval for this deletion request has to be done manually. AdminP NoteID: '"  & stemp & "'"				
+			Else
+				Error iERR_PARAM_MISSING, "Unable to open database 'admin4.nsf' on server '" & sTargetServer & "', the approval for this deletion request has to be done manually. AdminP NoteID: '"  & stemp & "'"
+			End If				
+		End If
+		
+		'+++ LÖSCHEN DER REPLIKEN ÜBER ADMINP: INITIIERUNG
+		Dim nadminp As NotesAdministrationProcess
+		On Error Goto errhnext   'Weil das ja nicht jeder darf !!!
+		Set nadminp = Session.CreateAdministrationProcess(session.CurrentDatabase.Server)    'session.CreateAdministrationProcess(sTargetServer)
+		On Error Goto errh
+		If nadminp Is Nothing Then Goto EndFalse
+		
+		Dim sid As String
+		On Error Goto errhnext 'Weil das ja nicht jeder darf !!!
+		sid = nadminp.DeleteReplicas(sTargetServer, sTargetPath)  'Rückgabe in stemp: Noteid des AdminP Dokuments.  !!! Das ist aber erst das "Get Replica Information for Deletion" Dokument !!!
+		'Msgbox "ZBasic.DOM.Notes.Database\" & Getthreadinfo(LSI_THREAD_PROC) & "#Noteid des AdminP Docs: " & stemp
+		On Error Goto errh
+		If Len(sid) = 0 Then 
+			Goto endFalse 
+		Else
+			'+++ Damit diese Funktion selbst nix blockiert
+			Set db = Nothing
+			Error iMSG_Next, "AdminP request document 'Get Replica Information for Deletion' created in database 'admin4.nsf' on server '" & sTargetServer & "'. AdminP NoteID: '"  & sid & "'"						
+			Print "AdminP request document 'Get Replica Information for Deletion' created in database 'admin4.nsf' on server '" & sTargetServer & "'. AdminP NoteID: '"  & sid & "'"						
+			
+			'HIER DEN APPROVAL AGENTEN AUFRUFEN !!!
+			'+++ Weil ggf. das Programm selbst die Löschung durch den AdminP Process verhindern kann, einen anderen Agenten aufrufen !!!
+			'TODO: DEM AGENTEN IREGENDIWE DAS TIMEOUT MITGEBEN !!!
+			'Dim nagent As NotesAgent
+			'Set nagent = session.CurrentDatabase.GetAgent(sAGENT_ADMINP_APPROVAL)
+			'If nagent Is Nothing Then Error iERR_DESIGN_MISSING, "Agent: '" & sAGENT_ADMINP_APPROVAL & "'"			
+			'btemp = nagent.Run(sid)
+			
+			'### Das ist der Code aus dem Agenten
+			Dim docAdminP As notesdocument
+			Set docAdminP = dbAdminP.GetDocumentByID(sid)
+			If docAdminP Is Nothing Then Error iERR_PARAM_VALUE, "Unable to receive 'Deletion Replica Request document'  in database 'admin4.nsf' by noteid: '" & sid & "'"
+			
+			Dim sSearch As String
+			sSearch = |@Text(ProxyReplicaID)="| & docAdminP.ProxyReplicaID(0) &  |" & @Text(ProxyOriginatingTimeDate)="| & docAdminP.ProxyOriginatingTimeDate(0) & |" & ProxyAction = "82"|
+			Error iMSG_Next, "Waiting for the creation of the document 'Approve Replica Deletion' in the database 'admin4.nsf'. Using search string: '" & sSearch & "'."
+			Print "Waiting for the creation of the document 'Approve Replica Deletion' in the database 'admin4.nsf'. Using search string: '" & sSearch & "'."
+			
+			
+			Dim col As notesdocumentcollection, doctemp As NotesDocument	
+			Do		
+	'TODO: EINEN TIMEOUT PROGRAMMIEREN. Returnwert -3 !!!		
+				
+				Set doctemp = dbAdminP.GetDocumentByID(sID)  'Fall es gelöscht wird, dann abbruch !!!
+				If doctemp Is Nothing Then	Error iERR_PARAM_VALUE, "Unable to receive 'Deletion Replica Request document' by noteid: '" & sID & "'. It might be deleted."
+				
+				'MERKE: ProxyOriginatingRequestUNID ist vom DataType her ein 'response reference list', daher ist es gut möglich, das ein search nicht funktioniert !!!
+				'sSearch = |ProxyOriginatingRequestUNID="| & doctemp.ProxyOriginatingRequestUNID(0) & |" & ProxyAction = "82"|
+				
+				'Msgbox sSearch
+				Set col = dbAdminP.Search(sSearch, Nothing, 0)
+				Yield
+			Loop Until col.Count >= 1
+			Set doctemp = Nothing
+			
+			Dim docAdminPApproval As NotesDocument
+			Set docAdminPApproval = col.GetFirstDocument
+			Error iMSG_NEXT, "AdminP request document 'Approve Replica Deletion' created in database 'admin4.nsf'. This request will be tried to be processed  automatically. Check the result. Server '" & sTargetServer & "', UniversalID: '"  & docAdminPApproval.Universalid & "'"
+			Print "AdminP request document 'Approve Replica Deletion' created in database 'admin4.nsf'. This request will be tried to be processed  automatically. Check the result. Server '" & sTargetServer & "', UniversalID: '"  & docAdminPApproval.Universalid & "'"
+			
+			Call docAdminPApproval.RemoveItem("$NoPurge")
+			docAdminPApproval.ApprovalFlag = "1"   'Ohne dieses Setzen gibt es den Fehler: 'Invalid Approval Request note'
+			btemp = docAdminPApproval.Save(True,True)		
+			If btemp = False Then
+				Error iMSG_NEXT, "Unable to save AdminP request document in database 'admin4.nsf'. The approval for this deletion request has to be done manually. Server '" & sTargetServer & "', UniversalID: '"  & docAdminPApproval.UniversalID & "'"		
+				iREturn = -4
+				Goto EndTrue
+			End If
+			
+			On Error Goto ErrApprovalFalse
+			'Set nadminp = session.CreateAdministrationProcess(sTargetServer)			
+			Call nadminp.Approvereplicadeletion(Cstr(docAdminPApproval.NoteID))
+			'### ENDE CODE AUS DEM AGENTEN
+			On Error Goto errh
+			
+			'Hier auf das Ergebnis des Agenten Warten !!!
+			Error iMSG_NEXT, "AdminP request document 'Approve Replica Deletion'  seems to be approved  autmatically. Check the result. Server '" & sTargetServer & "'"
+			Print "AdminP request document 'Approve Replica Deletion'  seems to be approved  autmatically. Check the result. Server '" & sTargetServer & "'"
+			
+			iReturn = -2
+			Goto EndTrue
+		End If
+	End If
+	
+	
+	'#####################
+EndTrue:
+	tp.ierr = 0
+	iDBDeleteSynchronizedZZZ = iReturn
+	Exit Function
+EndFalse:
+	tp.ierr = 0
+	iDBDeleteSynchronizedZZZ = 0
+	Exit Function
+EndError: 
+	iDBDeleteSynchronizedZZZ = 99
+	Exit Function
+ErrApprovalFalse:
+	On Error Goto Errh
+	If Not docAdminPApproval Is Nothing Then
+		docAdminPApproval.~$NoPurge=" "
+		docAdminPApproval.ApprovalFlag = ""   'Ohne dieses Setzen gibt es den Fehler: 'Invalid Approval Request note'
+		btemp = docAdminPApproval.Save(True,True)		
+		iReturn = -2
+		Resume endTrue
+	Else
+		Resume endFalse
+	End If	
+ErrhNext:
+	'Fehler als Message entgegennehmen. Fehler tritt auf, wenn die neue DB schon exisitert
+	On Error Goto Errh
+	tp.iErr = Err 'Beim wiederholten Aufruf (d.h. zwei Zeilen hintereinanger ' Error iERR_NEXT, "das ist ein text" ' aufrufen) verliert Err zwei Stellen von rechts nach dem Aufruf der MEthode objMe.MessageAppend(..) !!!! 	
+	Dim sScripterrhnext As String, tperrhnext As TypeParamZZZ, sessionerrhnext As New notessession
+	sScripterrhnext = "ZBasic.DOM.Notes.Database\" & Getthreadinfo(LSI_THREAD_PROC)
+	
+	Dim sinfoerrhnext As String
+	sinfoerrhnext = Error$
+	tp.serr = strMsgZZZ(sessionerrhnext,  tp.sErr, sScripterrhnext, Erl, sinfoerrhnext, tp.iErr, tperrhnext, "")
+	If tperrhnext.iErr > 0 Then Error iERR_FUNCTION_CALL, tperrhnext.serr
+	
+	On Error Goto Errhnext
+	Resume Next
+ErrH:
+	tp.iErr = Err 'Beim wiederholten Aufruf (d.h. zwei Zeilen hintereinanger ' Error iERR_NEXT, "das ist ein text" ' aufrufen) verliert Err zwei Stellen von rechts nach dem Aufruf der MEthode objMe.MessageAppend(..) !!!! 	
+	Select Case tp.iErr
+	Case iASSERT_FALSE, iASSERT_TRUE: Resume Next  'd.h. es soll keine Information über den Message oder den Error Kanals ausgegeben werden.
+	Case iASSERT_FALSE_CRITICAL: Resume EndFalse
+	End Select
+	
+	Dim sinfoerrh
+	If tp.iErr = iMSG_ASSERT_TRUE Or tp.iErr = iERR_ASSERT_TRUE Then 'Or tp.iErr = iERR_ASSERT_TRUE_CRITICAL Then 
+		sinfoerrh = "Assertion negative: '" & Error$ & "'"
+	Else
+		sinfoerrh = Error$
+	End If
+	
+	Dim sScripterrh As String, tperrh As TypeParamZZZ, sessionerrh As New notessession
+	sScripterrh = "ZBasic.DOM.Notes.Database\" & Getthreadinfo(LSI_THREAD_PROC)
+	
+	
+	'ZUM TEST, ERRORMESSAGE VORHER
+	'Call MSG2SinkSendZZZ(sessionerrh, "FILE", Nothing, "", "", tp.sErr, 1, tPerrh, "")
+	'If tperrh.iErr > 0 Then
+	'	Msgbox sScripterrh & "#" & tperrh.serr
+	'	Resume EndError
+	'End If
+	
+	tp.serr = strMsgZZZ(sessionerrh,  tp.sErr, sScripterrh, Erl, sinfoerrh, tp.iErr, tperrh, "")	
+	If tperrh.iErr > 0 Then
+		Msgbox sScripterrh & "#" & tperrh.serr
+		Resume EndError
+	End If
+	
+	
+	'ZUM TEST, ERRORMESSAGE NACHHER
+	'Call MSG2SinkSendZZZ(sessionerrh, "FILE", Nothing, "", "", tp.sErr, 1, tPerrh, "")
+	'If tperrh.iErr > 0 Then
+	'	Msgbox sScripterrh & "#" & tperrh.serr
+	'	Resume EndError
+	'End If
+	
+	
+	Select Case tp.ierr
+	Case iMSG_NEXT, iERR_NEXT, iMSG_AGENT_NEXT, iERR_AGENT_NEXT, iMSG_ASSERT_TRUE, iERR_ASSERT_TRUE, iMSG_ASSERT_FALSE, iERR_ASSERT_FALSE: Resume Next
+	Case iMSG_TRUE, iERR_TRUE, iMSG_AGENT_TRUE, iERR_AGENT_TRUE: Resume EndTrue  ', iMSG_ASSERT_TRUE_CRITICAL, iERR_ASSERT_TRUE_CRITICAL: Resume EndTrue
+	Case iMSG_FALSE, iERR_FALSE, iMSG_AGENT_FALSE, iERR_AGENT_FALSE, iMSG_ASSERT_FALSE_CRITICAL, iERR_ASSERT_FALSE_CRITICAL: Resume EndFalse
+	Case iERR_OBJECT_ERR, iERR_OBJECT_CUR, iERR_AGENT_CALL, iERR_FUNCTION_CALL, iERR_PARAM_VALUE, iERR_PARAM_MISSING, iERR_PROPERTY_VALUE, iERR_PROPERTY_MISSING, iERR_DESIGN_MISSING: Resume EndError 'Ziel: Nicht jeden Fehler ins Log stellen
+	Case Else: Resume EndError
+	End Select
+End Function
+
+Function iDBDeleteZZZ(session As NotesSession, sTargetServerin As String, sTargetPathin As String,tp As typeparamzzz, sflagin As String) As Integer
+	Dim iReturn As Integer, tpcall As TypeParamZZZ
+	Dim btemp As Boolean, vtemp As Variant, stemp As String, itemp As Integer
+	On Error Goto errh
+	
+	Dim sTargetpath As String
+	If Len(sTargetpathin) = 0 Then
+		Error iERR_PARAM_MISSING, "Targetpath"
+	Else
+		sTargetPath = sTargetpathin
+	End If
+	
+	'+++ Den Pfad auf gültigen Dateinamen prüfen
+	'a) Notes-Datenbank
+	btemp = bFilenameIsNotesDBZZZ(session, sTargetPath, tpcall, "")
+	If tpcall.ierr > 0 Then Error iERR_FUNCTION_CALL, tpcall.serr
+	If btemp = False Then
+		'b) Template
+		btemp = bFilenameIsNotesTemplateZZZ(session, sTargetPath, tpcall, "")
+		If tpcall.ierr > 0 Then Error iERR_FUNCTION_CALL, tpcall.serr
+		If btemp = False Then Error iERR_PARAM_VALUE, "Targetfilepath seems to be no notesdatabase/template: '" & sTargetPathin & "'"
+	End If
+	
+	'+++ Server ermitteln
+	Dim sTargetServer As String,dbcur As NotesDatabase
+	If Len(sTargetServerin) = 0 Then		
+		Set dbcur = session.CurrentDatabase
+		sTargetServer = dbcur.Server
+	Else
+		sTargetServer = sTargetServerin
+	End If
+	
+	'#####################
+	Dim db As NotesDatabase
+	Set db = New NotesDatabase(sTargetServer, sTargetPath)
+	If db.IsOpen = False Then
+		Error iMSG_FALSE, "No Database exists there or unable to open database. Server: '" & sTargetServer & ", Path: '" & sTargetPAth & "'"
+		iReturn = 1
+		Goto EndTrue
+	End If
+	
+	Stop
+	
+		'+++ Löschen einer Datenbank im Cluster (vorsorglich)
+			'Datenbank existiert immer noch. Löschen war erfolglos.
+			'Nächster Versuch: Löschen über DatenbakCluster (NICHT AdminP)
+			'Merke: Wenn die DB nicht in einem Cluster ist, dann gibt es keine Fehlermeldung. 
+			'            Die DB wird einfach nicht gelöscht.
+	On Error Goto errhnext
+	Call db.MarkForDelete
+	On Error Goto Errh
+	
+	
+	On Error Goto errhnext
+	Call db.Remove
+	On Error Goto errh
+	
+	Stop
+	
+	'TODO: ggf. noch Info-Messages erzeugen !!!
+	'Prüfen, ob die DB dort immer noch existiert
+	Set db = New NotesDatabase(sTargetServer, sTargetPath)
+	If db.IsOpen = False Then 		
+		iReturn = True
+		Goto endTrue
+	Else
+		'##############################################
+		'+++ LÖSCHEN DER REPLIKEN ÜBER ADMINP - VORBEREITUNG: Gibt es die AdminP Datenbank überhaupt ?    Lokal ist das nicht der Fall.
+		Dim dbAdminP As notesdatabase
+		Set dbAdminP = New NotesDatabase(sTargetServer, "admin4.nsf")
+		If dbAdminP.IsOpen = False Then
+			If Len(sTargetServer) = 0 Then	
+				Error iMSG_FALSE, "Unable to open database 'admin4.nsf' on server '" & sTargetServer & "', no AdminP document could be made.& "'"				
+			Else
+				Error iERR_PARAM_MISSING, "Unable to open database 'admin4.nsf' on server '" & sTargetServer & "', the approval for this deletion request has to be done manually. AdminP NoteID: '"  & stemp & "'"
+			End If				
+		End If
+		
+		'+++ LÖSCHEN DER REPLIKEN ÜBER ADMINP: INITIIERUNG
+		Dim nadminp As NotesAdministrationProcess
+		On Error Goto errhnext   'Weil das ja nicht jeder darf !!!
+		Set nadminp = Session.CreateAdministrationProcess(session.CurrentDatabase.Server)    'session.CreateAdministrationProcess(sTargetServer)
+		On Error Goto errh
+		If nadminp Is Nothing Then Goto EndFalse
+		
+		
+		On Error Goto errhnext 'Weil das ja nicht jeder darf !!!
+		stemp = nadminp.DeleteReplicas(sTargetServer, sTargetPath)  'Rückgabe in stemp: Noteid des AdminP Dokuments.  !!! Das ist aber erst das "Get Replica Information for Deletion" Dokument !!!
+		'Msgbox "ZBasic.DOM.Notes.Database\" & Getthreadinfo(LSI_THREAD_PROC) & "#Noteid des AdminP Docs: " & stemp
+		On Error Goto errh
+		If Len(stemp) = 0 Then 
+			Goto endFalse 
+		Else
+			Error iMSG_Next, "AdminP request document 'Get Replica Information for Deletion' created in database 'admin4.nsf' on server '" & sTargetServer & "'. AdminP NoteID: '"  & stemp & "'"			
+			iReturn = -2
+			Goto EndTrue
+		End If
+	End If 'db.IsOpen=false
+	
+	
+	'#####################
+EndTrue:
+	tp.ierr = 0
+	iDBDeleteZZZ = iReturn
+	Exit Function
+EndFalse:
+	tp.ierr = 0
+	iDBDeleteZZZ = 0
+	Exit Function
+EndError: 
+	iDBDeleteZZZ = 99
+	Exit Function
+ErrhNext:
+	'Fehler als Message entgegennehmen. Fehler tritt auf, wenn die neue DB schon exisitert
+	On Error Goto Errh
+	tp.iErr = Err 'Beim wiederholten Aufruf (d.h. zwei Zeilen hintereinanger ' Error iERR_NEXT, "das ist ein text" ' aufrufen) verliert Err zwei Stellen von rechts nach dem Aufruf der MEthode objMe.MessageAppend(..) !!!! 	
+	Dim sScripterrhnext As String, tperrhnext As TypeParamZZZ, sessionerrhnext As New notessession
+	sScripterrhnext = "ZBasic.DOM.Notes.Database\" & Getthreadinfo(LSI_THREAD_PROC)
+	
+	Dim sinfoerrhnext As String
+	sinfoerrhnext = Error$
+	tp.serr = strMsgZZZ(sessionerrhnext,  tp.sErr, sScripterrhnext, Erl, sinfoerrhnext, tp.iErr, tperrhnext, "")
+	If tperrhnext.iErr > 0 Then Error iERR_FUNCTION_CALL, tperrhnext.serr
+	
+	On Error Goto Errhnext
+	Resume Next
+ErrH:
+	tp.iErr = Err 'Beim wiederholten Aufruf (d.h. zwei Zeilen hintereinanger ' Error iERR_NEXT, "das ist ein text" ' aufrufen) verliert Err zwei Stellen von rechts nach dem Aufruf der MEthode objMe.MessageAppend(..) !!!! 	
+	Select Case tp.iErr
+	Case iASSERT_FALSE, iASSERT_TRUE: Resume Next  'd.h. es soll keine Information über den Message oder den Error Kanals ausgegeben werden.
+	Case iASSERT_FALSE_CRITICAL: Resume EndFalse
+	End Select
+	
+	Dim sinfoerrh
+	If tp.iErr = iMSG_ASSERT_TRUE Or tp.iErr = iERR_ASSERT_TRUE Then 'Or tp.iErr = iERR_ASSERT_TRUE_CRITICAL Then 
+		sinfoerrh = "Assertion negative: '" & Error$ & "'"
+	Else
+		sinfoerrh = Error$
+	End If
+	
+	Dim sScripterrh As String, tperrh As TypeParamZZZ, sessionerrh As New notessession
+	sScripterrh = "ZBasic.DOM.Notes.Database\" & Getthreadinfo(LSI_THREAD_PROC)
+	
+	
+	'ZUM TEST, ERRORMESSAGE VORHER
+	'Call MSG2SinkSendZZZ(sessionerrh, "FILE", Nothing, "", "", tp.sErr, 1, tPerrh, "")
+	'If tperrh.iErr > 0 Then
+	'	Msgbox sScripterrh & "#" & tperrh.serr
+	'	Resume EndError
+	'End If
+	
+	tp.serr = strMsgZZZ(sessionerrh,  tp.sErr, sScripterrh, Erl, sinfoerrh, tp.iErr, tperrh, "")	
+	If tperrh.iErr > 0 Then
+		Msgbox sScripterrh & "#" & tperrh.serr
+		Resume EndError
+	End If
+	
+	
+	'ZUM TEST, ERRORMESSAGE NACHHER
+	'Call MSG2SinkSendZZZ(sessionerrh, "FILE", Nothing, "", "", tp.sErr, 1, tPerrh, "")
+	'If tperrh.iErr > 0 Then
+	'	Msgbox sScripterrh & "#" & tperrh.serr
+	'	Resume EndError
+	'End If
+	
+	
+	Select Case tp.ierr
+	Case iMSG_NEXT, iERR_NEXT, iMSG_AGENT_NEXT, iERR_AGENT_NEXT, iMSG_ASSERT_TRUE, iERR_ASSERT_TRUE, iMSG_ASSERT_FALSE, iERR_ASSERT_FALSE: Resume Next
+	Case iMSG_TRUE, iERR_TRUE, iMSG_AGENT_TRUE, iERR_AGENT_TRUE: Resume EndTrue  ', iMSG_ASSERT_TRUE_CRITICAL, iERR_ASSERT_TRUE_CRITICAL: Resume EndTrue
+	Case iMSG_FALSE, iERR_FALSE, iMSG_AGENT_FALSE, iERR_AGENT_FALSE, iMSG_ASSERT_FALSE_CRITICAL, iERR_ASSERT_FALSE_CRITICAL: Resume EndFalse
+	Case iERR_OBJECT_ERR, iERR_OBJECT_CUR, iERR_AGENT_CALL, iERR_FUNCTION_CALL, iERR_PARAM_VALUE, iERR_PARAM_MISSING, iERR_PROPERTY_VALUE, iERR_PROPERTY_MISSING, iERR_DESIGN_MISSING: Resume EndError 'Ziel: Nicht jeden Fehler ins Log stellen
+	Case Else: Resume EndError
+	End Select
+End Function
+Function dbCreateByCopyZZZ(session As notessession, db2becopiedin As NotesDatabase, sTargetServerin As String, sTargetpathin As String, iTargetmaxsize As Integer, bFlagReplace As Boolean, tp As TypeParamZZZ, sFlagin As String) As Notesdatabase	
+	Dim dbReturn As Notesdatabase, tpcall As TypeParamZZZ
+	Dim btemp As Boolean, vtemp As Variant, stemp As String, itemp As Integer
+	On Error Goto errh
+	
+	Dim db2becopied As NotesDatabase
+	If db2becopiedin Is Nothing Then
+		Error iERR_PARAM_MISSING, "Notesdatabase to be copied"
+	Else
+		Set db2becopied = db2becopiedin
+	End If
+	
+	Dim sTargetpath As String
+	If Len(sTargetpathin) = 0 Then
+		Error iERR_PARAM_MISSING, "Targetpath"
+	Else
+		sTargetPath = sTargetpathin
+	End If
+	
+	'+++ Den Pfad auf gültigen Dateinamen prüfen
+	'a) Notes-Datenbank
+	btemp = bFilenameIsNotesDBZZZ(session, sTargetPath, tpcall, "")
+	If tpcall.ierr > 0 Then Error iERR_FUNCTION_CALL, tpcall.serr
+	If btemp = False Then
+		'b) Template
+		btemp = bFilenameIsNotesTemplateZZZ(session, sTargetPath, tpcall, "")
+		If tpcall.ierr > 0 Then Error iERR_FUNCTION_CALL, tpcall.serr
+		If btemp = False Then Error iERR_PARAM_VALUE, "Targetfilepath seems to be no notesdatabase/template: '" & sTargetPathin & "'"
+	End If
+	
+	'+++ Server ermitteln
+	Dim sTargetServer As String
+	If Len(sTargetServerin) = 0 Then
+		Dim dbcur As NotesDatabase
+		Set dbcur = session.CurrentDatabase
+		sTargetServer = dbcur.Server
+	Else
+		sTargetServer = sTargetServerin
+	End If
+	
+	'#####################
+	'Falls die Datebank schon exisitert, wird es einen Fehler geben, darum
+	Stop
+	If iTargetMaxSize > 0 Then
+		On Error Goto errhnext
+		Set dbReturn = db2becopied.CreateCopy(sTargetServer, sTargetPath, iTargetMaxSize)
+		On Error Goto errh
+	Else
+		On Error Goto errhnext
+		Set dbReturn = db2becopied.CreateCopy(sTargetServer, sTargetPath)
+		On Error Goto errh
+	End If
+	
+	'Falls die Datenbank schon existiert hat, gibt es 'Noch' keine neue
+	If dbReturn Is Nothing Then
+		If bFlagReplace = True Then
+			itemp = iDBDeleteZZZ(session, sTargetServer, sTargetPath, tpcall, "")
+			If tpcall.ierr > 0 Then Error iERR_FUNCTION_CALL, tpcall.serr
+			Select Case itemp
+			Case True: 			'2. Versuch: Löschen war sofort erfolgreich
+				Error iMSG_NEXT, "Existing database successfully deleted."
+				If iTargetMaxSize > 0 Then 
+					On Error Goto errhnext
+					Set dbReturn = db2becopied.CreateCopy(sTargetServer, sTargetPath, iTargetMaxSize)
+					On Error Goto errh
+				Else
+					On Error Goto errhnext
+					Set dbReturn = db2becopied.CreateCopy(sTargetServer, sTargetPath)
+					On Error Goto errh
+				End If
+			Case -2:
+				Error iMSG_NEXT, "Unable to delete database now (Server: '" & sTargetServer & "', Path: '" & sTargetPath & "'). But an AdminP request was created. The approval has to be made manually."											
+			Case 0:			'Hnweis darauf, dass Löschen der bestehenden DB unmöglich war
+				Error iMSG_FALSE, "Unable to replace existing database. Neither you can delete this database directly nor you are allowed to create an AdminP request (Server: '" & sTargetServer & "', Path: '" & sTargetPath & "')." 
+			Case 99: 			'Hinweis auf Fehler
+				Error iMSG_FALSE, "An errorcode was returned by the function. iDBDeleteZZZ(...). The following message was returned: '" & tpcall.serr & "'"
+			Case Else:
+				Error iMSG_FALSE, "Unexpected returncode by function iDBDeleteZZZ(...). The following message was returned: '" & tpcall.serr & "'"				
+			End Select	
+		Else
+			'Hinweis darauf, dass eine Datenbank schon exisitiert und diese nicht entfernt werden sollte.
+			Error iMSG_FALSE, "A database still exists there. It should not be replaced  (Server: '" & sTargetServer & "', Path: '" & sTargetPath & "')."
+		End If		
+	End If
+	
+	'#####################
+EndTrue:
+	tp.ierr = 0
+	Set dbCreateByCopyZZZ = dbReturn
+	Exit Function
+EndFalse:
+	tp.ierr = 0
+	Set dbCreateByCopyZZZ = Nothing
+	Exit Function
+EndError: 
+	Set dbCreateByCopyZZZ = Nothing
+	Exit Function
+errhNextNoInfo:
+	Resume Next
+ErrhNext:
+	'Fehler als Message entgegennehmen. Fehler tritt auf, wenn die neue DB schon exisitert
+	On Error Goto Errh
+	tp.iErr = Err 'Beim wiederholten Aufruf (d.h. zwei Zeilen hintereinanger ' Error iERR_NEXT, "das ist ein text" ' aufrufen) verliert Err zwei Stellen von rechts nach dem Aufruf der MEthode objMe.MessageAppend(..) !!!! 	
+	Dim sScripterrhnext As String, tperrhnext As TypeParamZZZ, sessionerrhnext As New notessession
+	sScripterrhnext = "ZBasic.Notes.Database\" & Getthreadinfo(LSI_THREAD_PROC)
+	
+	Dim sinfoerrhnext As String
+	sinfoerrhnext = Error$
+	tp.serr = strMsgZZZ(sessionerrhnext,  tp.sErr, sScripterrhnext, Erl, sinfoerrhnext, tp.iErr, tperrhnext, "")
+	If tperrhnext.iErr > 0 Then Error iERR_FUNCTION_CALL, tperrhnext.serr
+	
+	On Error Goto Errhnext
+	Resume Next
+ErrH:
+	tp.iErr = Err 'Beim wiederholten Aufruf (d.h. zwei Zeilen hintereinanger ' Error iERR_NEXT, "das ist ein text" ' aufrufen) verliert Err zwei Stellen von rechts nach dem Aufruf der MEthode objMe.MessageAppend(..) !!!! 	
+	Select Case tp.iErr
+	Case iASSERT_FALSE, iASSERT_TRUE: Resume Next  'd.h. es soll keine Information über den Message oder den Error Kanals ausgegeben werden.
+	Case iASSERT_FALSE_CRITICAL: Resume EndFalse
+	End Select
+	
+	Dim sinfoerrh
+	If tp.iErr = iMSG_ASSERT_TRUE Or tp.iErr = iERR_ASSERT_TRUE Then 'Or tp.iErr = iERR_ASSERT_TRUE_CRITICAL Then 
+		sinfoerrh = "Assertion negative: '" & Error$ & "'"
+	Else
+		sinfoerrh = Error$
+	End If
+	
+	Dim sScripterrh As String, tperrh As TypeParamZZZ, sessionerrh As New notessession
+	sScripterrh = "ZBasic.Notes.Database\" & Getthreadinfo(LSI_THREAD_PROC)
+	
+	'ZUM TEST, ERRORMESSAGE VORHER
+	'Call MSG2SinkSendZZZ(sessionerrh, "FILE", Nothing, "", "", tp.sErr, 1, tPerrh, "")
+	'If tperrh.iErr > 0 Then
+	'	Msgbox sScripterrh & "#" & tperrh.serr
+	'	Resume EndError
+	'End If
+	
+	tp.serr = strMsgZZZ(sessionerrh,  tp.sErr, sScripterrh, Erl, sinfoerrh, tp.iErr, tperrh, "")	
+	If tperrh.iErr > 0 Then
+		Msgbox sScripterrh & "#" & tperrh.serr
+		Resume EndError
+	End If
+	
+	
+	'ZUM TEST, ERRORMESSAGE NACHHER
+	'Call MSG2SinkSendZZZ(sessionerrh, "FILE", Nothing, "", "", tp.sErr, 1, tPerrh, "")
+	'If tperrh.iErr > 0 Then
+	'	Msgbox sScripterrh & "#" & tperrh.serr
+	'	Resume EndError
+	'End If
+	
+	Select Case tp.ierr
+	Case iMSG_NEXT, iERR_NEXT, iMSG_AGENT_NEXT, iERR_AGENT_NEXT, iMSG_ASSERT_TRUE, iERR_ASSERT_TRUE, iMSG_ASSERT_FALSE, iERR_ASSERT_FALSE: Resume Next
+	Case iMSG_TRUE, iERR_TRUE, iMSG_AGENT_TRUE, iERR_AGENT_TRUE: Resume EndTrue  ', iMSG_ASSERT_TRUE_CRITICAL, iERR_ASSERT_TRUE_CRITICAL: Resume EndTrue
+	Case iMSG_FALSE, iERR_FALSE, iMSG_AGENT_FALSE, iERR_AGENT_FALSE, iMSG_ASSERT_FALSE_CRITICAL, iERR_ASSERT_FALSE_CRITICAL: Resume EndFalse
+	Case iERR_OBJECT_ERR, iERR_OBJECT_CUR, iERR_AGENT_CALL, iERR_FUNCTION_CALL, iERR_PARAM_VALUE, iERR_PARAM_MISSING, iERR_PROPERTY_VALUE, iERR_PROPERTY_MISSING, iERR_DESIGN_MISSING: Resume EndError 'Ziel: Nicht jeden Fehler ins Log stellen
+	Case Else: Resume EndError
+	End Select
+End Function
+Function ReadInternetAddressByUsernameZZZ(session As notessession, sUsernamein As String, tp As TypeparamZZZ, sFlag As String) As String
+%REM
+FGL 2010-06-30: Im rahmen des SEWAG-Projekts, ist noch im Kernel einzubauen (Z.B. in der objDir - Klasse.	
+%END REM	
+	On Error Goto errhNoCall
+	Dim sReturn As String
+	
+	Dim sUsername As String
+	If(Len(sUsernameIn) = 0 ) Then
+		Dim nnotesname As New NotesName(session.UserName)
+		sUsername = nnotesname.Abbreviated
+	Else
+		sUsername = sUsernameIn
+	End If
+	
+	'Suche nach dem Personendokument
+	Dim docPers As NotesDocument
+	Set docPers = SearchDirDocByItemEntryZZZ(session, Nothing, "Person",  "FullName", sUsername, tp, "")
+	If tp.ierr > 0 Then Error iERR_FUNCTION_CALL, tp.serr
+	If docPers Is Nothing Then Goto endFalse
+	
+	sReturn = docPers.GetItemValue("InternetAddress")(0)
+	
+	'###########
+EndTrue:
+	tp.ierr = 0
+	ReadInternetAddressByUsernameZZZ=sReturn
+	Exit Function
+EndFalse:
+	tp.ierr = 0
+	ReadInternetAddressByUsernameZZZ=""
+	Exit Function
+EndError:
+	ReadInternetAddressByUsernameZZZ=""
+	Exit Function 
+ErrHNoCall:
+	Dim sScript As String, tpCall As TypeParamZZZ
+	sScript = "ZBasic.DOM.Notes.Database\" & Getthreadinfo(LSI_THREAD_PROC)
+	tp.iErr = Err 'Beim wiederholten Aufruf (d.h. zwei Zeilen hintereinanger ' Error iERR_NEXT, "das ist ein text" ' aufrufen) verliert Err zwei Stellen von rechts nach dem Aufruf der MEthode objMe.MessageAppend(..) !!!! 
+	tp.serr = strMsgZZZ(Nothing, tp.sErr, sScript, Erl, Error$, Err, tpCall, "")
+	If tpcall.iErr > 0 Then
+		Msgbox tpcall.serr
+		Resume EndError
+	End If
+	Select Case tp.ierr
+	Case iMSG_NEXT, iERR_NEXT: Resume Next
+	Case iMSG_FALSE, iERR_FALSE: Resume EndFalse
+	Case iMSG_TRUE, iERR_TRUE: Resume EndTrue
+	Case Else: Resume EndError		
+	End Select
+End Function
+Function DirectoryDBCurrentZZZ(Session As notessession, tp As TypeParamZZZ) As NotesDatabase
+%REM
+FGL 2010-06-30: Im rahmen des SEWAG-Projekts, ist noch im Kernel einzubauen (Z.B. in der objDir - Klasse.	
+%END REM
+	
+	On Error Goto errhNoCall
+	Dim dbReturn As notesdatabase
+	
+	Dim sorg As String
+	sorg = session.OrgDirectoryPath
+	
+	Dim sfilename As String
+	sfilename = "names.nsf"
+	
+	If sorg <> "" And Right(sorg, 1) <> "\" Then
+		sorg = sorg & "\"
+	End If
+	
+	Dim sServer As String
+	If session.IsOnServer Then
+		sServer = ""
+	Else
+		Dim dbCur As notesdatabase
+		Set dbcur = session.CurrentDatabase
+		
+		sServer = dbcur.Server
+	End If
+	
+	
+	Set dbReturn = session.GetDatabase(sServer, sorg & sfilename)
+	
+	'###########
+EndTrue:
+	tp.ierr = 0
+	Set DirectoryDBCurrentZZZ = dbReturn
+	Exit Function
+EndFalse:
+	tp.ierr = 0
+	Set DirectoryDBCurrentZZZ = Nothing
+	Exit Function
+EndError:
+	Set DirectoryDBCurrentZZZ = Nothing
+	Exit Function 
+ErrHNoCall:
+	Dim sScript As String, tpCall As TypeParamZZZ
+	sScript = "ZBasic.DOM.Notes.Database\" & Getthreadinfo(LSI_THREAD_PROC)
+	tp.iErr = Err 'Beim wiederholten Aufruf (d.h. zwei Zeilen hintereinanger ' Error iERR_NEXT, "das ist ein text" ' aufrufen) verliert Err zwei Stellen von rechts nach dem Aufruf der MEthode objMe.MessageAppend(..) !!!! 
+	tp.serr = strMsgZZZ(Nothing, tp.sErr, sScript, Erl, Error$, Err, tpCall, "")
+	If tpcall.iErr > 0 Then
+		Msgbox tpcall.serr
+		Resume EndError
+	End If
+	Select Case tp.ierr
+	Case iMSG_NEXT, iERR_NEXT: Resume Next
+	Case iMSG_FALSE, iERR_FALSE: Resume EndFalse
+	Case iMSG_TRUE, iERR_TRUE: Resume EndTrue
+	Case Else: Resume EndError		
+	End Select
+End Function
+Private Function SearchDirDocByItemEntryZZZ(session As notessession, dbInput As notesdatabase, sFormInput As String,  sSearchitemInput As String, sNameInput As String, tp As TypeParamZZZ, sFlagControlInput As String) As notesdocument
+%REM
+FGL 2010-06-30: Im rahmen des SEWAG-Projekts, ist noch im Kernel einzubauen (Z.B. in der objDir - Klasse.	
+%END REM
+	Dim docReturn As notesdocument	
+	On Error Goto errhNoCall
+	Dim btemp, stemp', itemp, vtemp, ltemp, dtemp
+	
+	'### Übergabewerte prüfen 
+	Dim dbDir As notesdatabase
+	Dim col As notesdocumentcollection
+	Dim docdir As notesdocument
+	Dim sForm As String, sName As String, sItem As String
+	Dim nname As notesname
+	Dim sSearch As String, sSearchform As String, sSearchItem As String
+	
+	If dbInput Is Nothing Then
+		'+++ Das N&A/Directory ermitteln
+		Set dbDir = DirectoryDBCurrentZZZ(session, tp)
+		If tp.ierr > 0 Then Error iERR_FUNCTION_CALL, tp.serr
+		If dbdir Is Nothing Then Error iERR_PARAM_MISSING, "NuA / Directory, also not available as property."
+	Else
+		Set dbDir = dbInput
+	End If
+	If dbdir.isopen = False Then Error iERR_PARAM_VALUE, "NuA / Directory not open, access ?"
+	
+	
+	If Len(sFormInput) = 0 Then
+		Error iERR_PARAM_MISSING, "Form"
+	Else
+		sForm = sFormInput
+	End If
+	
+	If Len(sSearchitemInput) = 0 Then
+		Error iERR_PARAM_MISSING, "ItemName"
+	Else
+		sSearchItem = sSearchiteminput
+	End If
+	
+	If Len(sNameInput) = 0 Then
+		Error iERR_PARAM_MISSING, "Key Name for search in NuA / Directory"
+	Elseif Instr(sNameInput,"@") Then
+		sName = Strleft(sNameInput,"@")      'ggf. angehängte Domänen sind im Fullname nicht enthalten
+	Else
+		sName = sNameInput
+	End If
+	Set nname = New notesname(sName)		
+	
+	'### Suchen nach dem Dokument
+	If Len(sForm) > 0 Then
+		sSearchForm =  | & Form = "| & sForm & |"|
+	Else
+		sSearchForm = ""
+	End If
+	
+	
+	stemp = nname.canonical	
+	sSearch = |@IsMember("| & stemp & |"; | & sSearchItem & | )| & sSearchForm	
+	Set col = dbDir.search(sSearch, Nothing, 0)
+	
+	If col.count = 0 Then
+		'sError = "Kein Dokument des Typs '" & sFormInput & "' zu dem Namen '" & sNameInput & "' gefunden."
+		Goto EndFalse
+	Elseif col.count >= 2 Then
+		Error iERR_PARAM_VALUE, "more then one document of the form '" & sFormInput & "' found for the key '" & sNameInput & "'."
+	End If
+	Set docReturn = col.getfirstdocument
+	
+'##########################################
+EndTrue:
+	tp.ierr = 0 
+	Set SearchDirDocByItemEntryZZZ = docReturn
+	Exit Function
+EndFalse:
+	tp.ierr = 0 
+	Set SearchDirDocByItemEntryZZZ = Nothing
+	Exit Function
+EndError:
+	Set SearchDirDocByItemEntryZZZ = Nothing
+	Exit Function
+%REM
+Errobj:
+	Dim sScript, icode As Integer
+	sScript = "ZBasic.DOM.Notes.Database" & "\" & Getthreadinfo(LSI_THREAD_PROC)
+	icode = Err   'Beim wiederholten Aufruf (d.h. zwei Zeilen hintereinanger ' Error iERR_NEXT, "das ist ein text" ' aufrufen) verliert Err zwei Stellen von rechts nach dem Aufruf der MEthode objDir.MessageAppend(..) !!!! 
+	Call objDir.MessageAppend("",sScript,Erl,Error$, Err, "")
+	Select Case icode
+	Case iMSG_NEXT, iERR_NEXT: Resume Next
+	Case iMSG_TRUE, iERR_TRUE: Resume EndTrue
+	Case iMSG_FALSE, iERR_FALSE: Resume EndFalse
+	Case iERR_OBJECT_ERR, iERR_OBJECT_CUR: Resume EndError 'Ziel: Nicht jeden Fehler ins Log stellen
+	Case Else: 
+		'Call MSG2FileSendZZZ(Nothing, "", objDir.Error.sString, 1, tpcall, "")
+		'ODER: Msgbox "An error happened, more in this file: " & Chr(13) & MSG2FileSendZZZ(Nothing, "", objDir.Error.sString, tpcall, "")
+		If tpcall.iErr > 0 Then Msgbox tpcall.sErr   'Fehler im Errorhandling sofort ans Frontend/Serverlog ausgeben		
+		Resume EndError
+	End Select
+%ENDREM
+ErrHNoCall:
+	Dim sScript As String, tpCall As TypeParamZZZ
+	sScript = "ZBasic.DOM.Notes.Database\" & Getthreadinfo(LSI_THREAD_PROC)
+	tp.iErr = Err 'Beim wiederholten Aufruf (d.h. zwei Zeilen hintereinanger ' Error iERR_NEXT, "das ist ein text" ' aufrufen) verliert Err zwei Stellen von rechts nach dem Aufruf der MEthode objMe.MessageAppend(..) !!!! 
+	tp.serr = strMsgZZZ(Nothing, tp.sErr, sScript, Erl, Error$, Err, tpCall, "")
+	If tpcall.iErr > 0 Then
+		Msgbox tpcall.serr
+		Resume EndError
+	End If
+	Select Case tp.ierr
+	Case iMSG_NEXT, iERR_NEXT: Resume Next
+	Case iMSG_FALSE, iERR_FALSE: Resume EndFalse
+	Case iMSG_TRUE, iERR_TRUE: Resume EndTrue
+	Case Else: Resume EndError		
+	End Select
+End Function

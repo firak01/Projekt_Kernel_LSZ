@@ -1,0 +1,86 @@
+'muss rein, damit alle Funktionen global erreichbar sind. Als .lss Datei raus, wie auch alle Use-Einbindungen
+'%INCLUDE "C:\1fgl\workspace\Eclipse3FGL\LSZKernel\libkernel\ZAPI.Basic.Asset.lss"
+'Use "ZCore.Element.."
+'Use "ZCore.inherit"
+
+'Private Const sLibZZZ="ZZZBasicInheritStructListHash
+Public Class HashListZZZ As StructZZZ
+	
+	'### Properties
+	'### Die Version des ganzen Kernels
+	Public Property Get KernelVersionText As String
+		KernelVersionText = ""
+	End Property
+	Public Property Get KernelVersion As String
+		KernelVersion = "3.0"
+	End Property
+	Public Property Get KernelVersionDate As String
+		KernelVersionDate = "10.03.2005"
+	End Property
+	
+	'### Die Version DIESES Objekts und der Klassenname
+	Public Property Get ClassName As String
+		ClassName = "HashListZZZ"
+	End Property 
+	Public Property Get ClassNameParent As String
+		ClassNameParent = ObjectZZZ..ClassName
+	End Property
+	Public Property Get ClassLibrary As String
+		ClassLibrary = "ZBasic.Inherit.Struct.ListHash"
+	End Property
+	Public Property Get VersionText As String
+		VersionText = ""
+	End Property
+	Public Property Get Version As String
+		Version = "1.0"
+	End Property
+	Public Property Get VersionDate As String
+		VersionDate = "17.08.2005"
+	End Property
+	
+	'### PROPERTIES
+	Public VariantList List As Variant
+	
+	'### Methoden
+	'+++ Konstruktor
+	Sub new(session As notessession, sAliasin As String, vFlagToSet As Variant), StructZZZ(session, sAliasin, vFlagToSet, "")
+	End Sub
+	Function addIt(sKeyin As String, vElement As Variant) As Boolean
+		Dim skey As String
+		skey = Ucase(skeyin)
+		If Isobject(vElement) Then
+			Set Me.VariantList(sKey) = vElement
+		Else
+			Me.VariantList(sKey) = vElement				
+		End If		
+	End Function
+	Function getIt(sKeyin As String) As Variant
+		Dim skey As String
+		skey = Ucase(skeyin)
+		If Iselement(Me.VariantList(sKey)) Then
+			getIt = Me.VariantList(sKey)
+		Else
+			getIt = Null
+		End If
+	End Function
+	Function bringIn(parentlist List As Variant, bFlagOverwrite, sFlagControl) As Boolean
+		If bFlagOverwrite = False Then
+			If Iselement(parentlist(Me.sAlias)) Then Goto EndFalse
+		End If		
+		Set parentlist(Me.sAlias) = Me
+endTrue:
+		bringin = True
+		Exit Function
+endfalse:
+		bringIn = False
+		Exit Function
+	End Function
+	Function includeIt(sourcelist List As Variant) As Boolean
+		Dim sKey As String
+		Forall element In sourcelist
+			sKey=Listtag(element)
+			Call Me.addit(skey, element)
+		End Forall		
+	End Function
+	
+End Class

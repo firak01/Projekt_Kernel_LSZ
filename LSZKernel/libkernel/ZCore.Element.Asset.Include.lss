@@ -1,0 +1,21 @@
+'%INCLUDE "C:\1fgl\workspace\Eclipse3FGL\LSZKernel\libkernel\ZAPI.Basic.Asset.lss" 
+'Use "ZCore.Element.Asset"
+
+
+Class ObjectZZZ As KernelObjectZZZ
+	
+	'### Die Version DIESES Objekts
+	Public Property Get VersionText As String
+		VersionText = ""
+	End Property
+	Public Property Get Version As String
+		Version = "3.0"
+	End Property
+	Public Property Get VersionDate As String
+		VersionDate = "09.03.2005"
+	End Property
+	
+	'### Functions
+	Sub new()		
+	End Sub
+End Class 

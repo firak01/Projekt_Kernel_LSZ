@@ -1,0 +1,39 @@
+'muss rein, damit alle Funktionen global erreichbar sind. Als .lss Datei raus, wie auch alle Use-Einbindungen
+%INCLUDE "C:\1fgl\workspace\Eclipse3FGL\LSZKernel\libkernel\ZAPI.Basic.Asset.lss" 
+Use "ZBasic.DataType.."  
+Sub Initialize
+	
+End Sub
+Function splitQueryString(strValue As String) As Variant	
+	On Error Goto SplitError
+  'Takes entire query string from URL and splits 
+ 'it into logical values
+	Dim intAmpPos As Long, intEqPos As Long, intPos As Long
+	Dim intCount As Long
+	Dim varResults() As String
+	
+  'init vars
+	intAmpPos = 1
+	intEqPos = 1
+	intPos = 1
+	
+	While intAmpPos <> 0
+		Redim Preserve varResults(intCount)
+		intEqPos = Instr(1, strValue, "=") + 1
+		intAmpPos = Instr(intEqPos, strValue, "&")
+		If intAmpPos = 0 Then
+			varResults(intCount) = Right(strValue, Len(strValue)-intEqPos+1)
+		Else
+			varResults(intCount) = Mid(strValue, intEqPos, intAmpPos-intEqPos)
+		End If
+		strValue = Right(strValue, Len(strValue)-intAmpPos)
+		intCount = intCount + 1
+	Wend
+  'return values as variant array
+	splitQueryString = varResults
+	Exit Function
+SplitError:
+  'in the case of an error, reset value to nothing
+	splitQueryString=""
+	Exit Function
+End Function

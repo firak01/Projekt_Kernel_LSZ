@@ -1,0 +1,728 @@
+'muss rein, damit alle Funktionen global erreichbar sind. Als .lss Datei raus, wie auch alle Use-Einbindungen
+'%INCLUDE "C:\1fgl\workspace\Eclipse3FGL\LSZKernel\libkernel\ZAPI.Basic.Asset.lss"
+'Use "ZCore.Kernel.."
+
+
+'Private Const sLibZZZ = "ZZZBasicKernelUIHandler"
+Class KernelKernelUIZZZ As KernelUseObjectZZZ
+	Private ws As notesuiworkspace
+	Private sFrameNameTargetDefault As String
+	Private uidocCur As NotesUIDocument
+	
+	Public Property Get ClassName As String
+		ClassName = "KernelKernelUIZZZ"
+	End Property
+	Public Property Get ClassNameParent As String
+		ClassNameParent = KernelUseObjectZZZ..ClassName
+	End Property
+	Public Property Get ClassLibrary As String
+		ClassLibrary = "ZCraftKernel..UI"
+	End Property
+	
+	Property Get Workspace As NotesUIWorkspace
+		Set Workspace = Me.ws
+	End Property
+	Property Set Workspace As NotesUIWorkspace
+		Set Me.ws = Workspace
+	End Property
+	
+	Property Get UIDocumentOpened As NotesUIDocument
+		Set UIDocumentOpened = Me.uidocCur
+	End Property
+	
+	Property Get DefaultTargetFrameName As String		
+		DefaultTargetFrameName = Me.sFrameNameTargetDefault
+	End Property
+	Property Set DefaultTargetFrameName As String
+		Me.sFrameNameTargetDefault = DefaultTargetFrameName
+	End Property
+	
+	Sub new(objKernel As KernelZZZ, ws As notesuiworkspace, vFlagToSet As Variant, sFlagControl As String), KernelUseObjectZZZ(objKernel)
+		Dim itemp As Integer
+		itemp = UINew_(Me, ws, vFlagToSet, sFlagControl)
+	End Sub
+	
+	'+++ Ein Backenddocument im Frameset öffnen. Das alte uidoc wird geschlossen
+	Function DocInFramesetReopen(uidoc As notesuidocument, doc As notesdocument, sFramename As String, iMode As Integer, sFlagControl As String) As Boolean
+		Set Me.uidocCur =  UIDocInFramesetReopen_(Me, uidoc, doc, sFramename, iMode, sFlagControl) 
+		If Me.uidocCur Is Nothing Then
+			DocInFramesetReopen = False
+		Else
+			DocInFramesetReopen = True			
+		End If
+	End Function
+	
+	'+++ Ein Backenddocument erneut öffnen, d.h. das bestehende Dokument wird erst geschlossen. Ist z.B. wichtig um den Inhalt eines veränderten RTF-Feldes anzuzeigen
+	Function DocReOpen(uidoc As notesuidocument, doc As notesdocument,iMode As Integer, sFlagControl As String) As Boolean
+		Set Me.uidocCur = UIDocReOpen_(Me, uidoc, doc, iMode, sFlagControl) 
+		If Me.uidocCur Is Nothing Then
+			DocReOpen = False
+		Else
+			DocReOpen = True			
+		End If
+	End Function
+	
+	'+++ Ein Backenddocument neu öffnen, ohne ein bestehendes Document zu schliessen
+	Function DocNewOpen(uidoc As notesuidocument, doc As notesdocument,iMode As Integer, sFlagControl As String) As Boolean
+		Set Me.uidocCur = UIDocNewOpen_(Me, uidoc, doc, iMode, sFlagControl) 
+		If Me.uidocCur Is Nothing Then
+			DocNewOpen = False
+		Else
+			DocNewOpen = True
+		End If
+	End Function
+	
+	'+++ Existiert momentan ein Handle auf eine View. Dies ist nicht der Fall, wenn das aktuelle Dokument als Vollbild (z.B. durch eine DocLink) geöffent worden ist.
+	Function DocIsInView(sFlagControl As String) As Boolean
+		DocIsInView = UIDocIsInView_(Me, sFlagControl) 
+	End Function
+	
+	'+++ ist das Dokument in der Preview-Pane geöffnet ?
+	Function DocIsInPreviewPane(uidoc As NotesUIDocument, sFlagControl As String) As Boolean
+		DocIsInPreviewPane = UIDocIsInPreviewPane_(Me, uidoc, sFlagControl) 
+	End Function
+	
+	'+++ Das das Dokument als Dialogbox geöffnet ?
+	Function DocIsInDLGBox(uidoc As NotesUIDocument, sFlagControl As String) As Boolean
+		DocIsInDLGBox = UIDocIsInDLGBox_(Me, uidoc, sFlagControl)
+	End Function
+	
+	
+	
+	
+	'### Behandlung der internen Flags	
+	'+++ Diese Funktion setzt die internen Flags. Mir erscheint dies besser als eine eigene Funktion für alle Flags
+	Function FlagSet(sFlagName As String, bHow As Boolean) As Boolean		
+		Dim bReturn As Boolean
+		Dim sWhat As String	
+		sWhat = Trim(sFlagName)
+		If Len(sWhat) = 0 Then Goto EndError
+		sWhat = Lcase(sWhat)
+		
+		bReturn = KernelUseObjectZZZ..flagset(sWhat, bHow)
+		If bReturn = True Goto EndSuccess
+		
+		Select Case sWhat	
+		End Select		
+endSuccess:
+		FlagSet = bReturn
+		Exit Function
+endError:
+		FlagSet = False
+		Exit Function
+ErrHandler:
+		Resume EndError
+	End Function			
+	
+	'+++ Diese Funktion liest die internen Flags aus.
+	Function FlagGet(sFlagName As String) As Boolean
+		Dim sWhat As String	
+		Dim bReturn As Integer
+		sWhat = Trim(sFlagName)
+		If Len(sWhat) = 0 Then Goto EndFalse
+		sWhat = Lcase(sWhat)
+		
+		bReturn = KernelUseObjectZZZ..flagget(sWhat)
+		If bReturn = True Goto EndSuccess
+		
+		Select Case sWhat
+		End Select		
+endSuccess:
+		FlagGet = bReturn
+		Exit Function
+endFalse:
+		FlagGet = False
+		Exit Function
+endError:
+		FlagGet = False
+		Exit Function
+ErrHandler:
+		Resume EndError	
+	End Function
+End Class
+Private Function UINew_(objUI As KernelKernelUIZZZ, wsin As notesuiworkspace, vFlagToSet As Variant, sFlagControlIn As String) As Boolean
+	
+	'### Voraussetzung für die Protokollierung
+	Dim tpcall As TypeParamZZZ
+	On Error Goto errobj
+	
+	'### Param-Check (generel)
+	'Falls in dem Constructor der Elternklasse ein Fehler aufgetreten ist
+	If objUI.Error.iCode > 0 Then Error iERR_OBJECT_PAR, objUI.MessageAllReceive(Nothing, iMSG_TYPE_ERROR, "")
+	
+	Dim serr, ierr
+	Dim itemp, btemp, stemp
+	If Not Isnull(vFlagToSet) Then
+		Dim saTemp() As String
+		Dim iCounter As Integer
+		itemp = ArrayStringFromVariantZZZ(objUI.session, vFlagToSet, saTemp, tpcall, "")
+		If tpcall.ierr > 0 Then Error iERR_FUNCTION_CALL, tpcall.serr
+		For iCounter = 0 To Ubound(saTemp)
+			btemp = objUI.flagset(saTemp(iCounter), True)
+		Next			
+		If objUI.flagget("init")=True Then Goto endTrue
+	End If 
+	
+%REM wird nun durch flagset - erledigt
+	If Len(sFlagControlin) > 0 Then
+		Dim sFlagControl As String			
+		sFlagControl = Ucase(sflagControlIn)
+		If sFlagControl <> "INIT" Then
+			Error iERR_PARAM_VALUE, "FlagControl'=" & sFlagControlin & ", but expected 'INIT'"
+		Elseif sFlagControl = "INIT" Then 
+			Goto EndSuccess		
+		End If
+End If
+%ENDREM
+	
+	'### Param-Check (special)
+	If wsin Is Nothing Then
+		Set objUI.Workspace = New notesuiworkspace
+	Else
+		Set objUI.Workspace = wsin
+	End If
+	
+	
+	'###############################
+EndTrue:
+	objUI.Error.iCode = 0
+	UINew_= True
+	Exit Function
+EndFalse:
+	objUI.Error.iCode = 0
+	UINew_ = False
+	Exit Function
+EndError:
+	UINew_ = False
+	Exit Function	
+Errobj:
+	Dim sScript, icode As Integer
+	sScript = objUI.ClassLibrary & "\" & Getthreadinfo(LSI_THREAD_PROC)
+	icode = Err   'Beim wiederholten Aufruf (d.h. zwei Zeilen hintereinanger ' Error iERR_NEXT, "das ist ein text" ' aufrufen) verliert Err zwei Stellen von rechts nach dem Aufruf der MEthode objUI.MessageAppend(..) !!!! 
+	Call objUI.MessageAppend("",sScript,Erl,Error$, Err, "")
+	Select Case icode
+	Case iMSG_NEXT, iERR_NEXT: Resume Next
+	Case iMSG_TRUE, iERR_TRUE: Resume EndTrue
+	Case iMSG_FALSE, iERR_FALSE: Resume EndFalse
+	Case iERR_OBJECT_ERR, iERR_OBJECT_CUR: Resume EndError 'Ziel: Nicht jeden Fehler ins Log stellen
+	Case Else: 
+		Call MSG2FileSendZZZ(Nothing, "", objUI.Error.sString, 1, tpcall, "")
+		'ODER: Msgbox "An error happened, more in this file: " & Chr(13) & MSG2FileSendZZZ(Nothing, "", objUI.Error.sString, tpcall, "")
+		If tpcall.iErr > 0 Then Msgbox tpcall.sErr   'Fehler im Errorhandling sofort ans Frontend/Serverlog ausgeben		
+		Resume EndError
+	End Select
+End Function
+
+Private Function UIDocInFramesetReopen_(objUI As KernelKernelUIZZZ, uidocin As notesuidocument, docin As notesdocument, sFramenamein As String, iModein As Integer, sFlagControlin As String) As notesuidocument
+	Dim uidocReturn As NotesUIDocument		
+	On Error Goto errobj
+	Call ObjUI.MessageReset(iMSG_TYPE_ERROR,"")  'Daimt sich in dieser Methode nicht Fehler aus einer anderen Methode auswirken
+	
+	'### Param-Check
+	Dim ws As notesuiworkspace
+	Dim uidoc As NotesUIDocument
+	Dim doc As notesdocument
+	Dim sFrame As String
+	Dim iMode As Integer
+	Dim sFlagControl As String
+	
+	If objUI.Workspace Is Nothing Then
+		Set ws = New NotesUIWorkspace
+		If ws Is Nothing Then Error iERR_PROPERTY_MISSING, "'NotesUIWorkspace'"
+	Else
+		Set ws = objUI.Workspace
+	End If
+	
+	If uidocin Is Nothing Then 
+		Set uidoc = ws.currentdocument
+		'Merke: Das uidoc ist nicht zwingend notwendig, erst wenn es kein doc als Parameter gibt, dann wird ein Fehler ausgegeben. 
+		'If uidoc Is Nothing Then	Error iERR_PARAM_MISSING, "'NotesUIDocument'"
+	Else
+		Set uidoc = uidocin
+	End If
+	
+	If docin Is Nothing And uidoc Is Nothing Then
+		Error iERR_PARAM_MISSING, "'NotesUIDocument' or 'NotesDocument'"
+	Elseif docin Is Nothing And Not uidoc Is Nothing Then
+		Set doc = uidoc.document
+		If doc Is Nothing Then Error iERR_PARAM_MISSING, "'Document'"
+	Else
+		Set doc = docin
+	End If
+	If doc Is Nothing Then Error iERR_PARAM_MISSING, "Handle on backend/frontenddocument"
+	
+	If Len(sFrameNameIn) = 0 Then
+		sFrame = objUI.DefaultTargetFrameName
+		If Len(sFrame) = 0 Then Error iERR_PARAM_MISSING, "'TargetFrameName'"
+	Else
+		sFrame = sFrameNameIn
+	End If
+	
+	If iModeIn < -1 Or iModeIn > 1 Then
+		Error iERR_PARAM_VALUE, "Mode = '" & Cstr(iMode) & "', but expected -1 <= Mode <= 1."
+	Else
+		iMode = iModeIn
+	End If
+	
+	sFlagControl = Ucase(sFlagControlIn)
+	
+	'###############################
+	Dim iFlagEditMode As Integer
+	If iMode = -1 Then
+		iFlagEditMode =  uidoc.EditMode
+	Else
+		If iMode = 0 Then
+			iFlagEditMode = False
+		Else
+			iFlagEditMode = True
+		End If
+	End If
+	
+	'Frontend ohne Dialog schließen
+	doc.saveoptions = "0"			
+	'Das Positionsdokument vorübergehend schließen		
+	If Not uidoc Is Nothing Then uidoc.close
+	
+'und wieder öffnen !!! ohne new instance, etc
+	Call ws.SetTargetFrame(sFrame)
+	Set uidocReturn  = ws.EditDocument(False, Doc, False, "")
+	
+	'im Edit Mode wie vorher oder gewünscht, das nachträglich setzen. Zumindest unter R5 gab es sonst probleme.
+	If iFlagEditMode = True Then
+		Set uidocReturn  = ws.EditDocument(True)
+	End If
+	
+	Set doc = uidocReturn.Document
+	doc.saveoptions = "1"
+	
+	'###############################
+EndTrue:
+	objUI.Error.iCode = 0
+	Set UIDocInFramesetReopen_= uidocReturn
+	Exit Function
+EndFalse:
+	objUI.Error.iCode = 0
+	Set UIDocInFramesetReopen_ = Nothing
+	Exit Function
+EndError:
+	Set UIDocInFramesetReopen_ = Nothing
+	Exit Function
+errobj:
+	Dim sScript, icode As Integer, tpcall As TypeParamZZZ
+	sScript = objUI.ClassLibrary & "\" & Getthreadinfo(LSI_THREAD_PROC)
+	icode = Err   'Beim wiederholten Aufruf (d.h. zwei Zeilen hintereinanger ' Error iERR_NEXT, "das ist ein text" ' aufrufen) verliert Err zwei Stellen von rechts nach dem Aufruf der MEthode objUI.MessageAppend(..) !!!! 
+	Call objUI.MessageAppend("",sScript,Erl,Error$, Err, "")
+	Select Case icode
+	Case iMSG_NEXT, iERR_NEXT: Resume Next
+	Case iMSG_TRUE, iERR_TRUE: Resume EndTrue
+	Case iMSG_FALSE, iERR_FALSE: Resume EndFalse
+	Case iERR_OBJECT_ERR, iERR_OBJECT_CUR: Resume EndError 'Ziel: Nicht jeden Fehler ins Log stellen
+	Case Else: 
+		Call MSG2FileSendZZZ(Nothing, "", objUI.Error.sString, 1, tpcall, "")
+		'ODER: Msgbox "An error happened, more in this file: " & Chr(13) & MSG2FileSendZZZ(Nothing, "", objUI.Error.sString, tpcall, "")
+		If tpcall.iErr > 0 Then Msgbox tpcall.sErr   'Fehler im Errorhandling sofort ans Frontend/Serverlog ausgeben		
+		Resume EndError
+	End Select
+End Function
+Private Function UIDocReOpen_(objUI As KernelKernelUIZZZ, uidocin As notesuidocument, docin As notesdocument, iModein As Integer, sFlagControlin As String) As notesuidocument
+	Dim uidocReturn As NotesUIDocument
+	On Error Goto errobj
+	Call ObjUI.MessageReset(iMSG_TYPE_ERROR,"")  'Daimt sich in dieser Methode nicht Fehler aus einer anderen Methode auswirken
+	
+	
+	'### Param-Check
+	Dim ws As notesuiworkspace
+	Dim uidoc As NotesUIDocument	
+	Dim doc As notesdocument
+	Dim sFrame As String
+	Dim iMode As Integer
+	Dim sFlagControl As String
+	
+	If objUI.Workspace Is Nothing Then
+		Set ws = New NotesUIWorkspace
+		If ws Is Nothing Then Error iERR_PROPERTY_MISSING, "'NotesUIWorkspace'"
+	Else
+		Set ws = objUI.Workspace
+	End If
+	
+	If uidocin Is Nothing Then 
+		Set uidoc = ws.currentdocument
+		'Merke: Das uidoc ist nicht zwingend notwendig, erst wenn es kein doc als Parameter gibt, dann wird ein Fehler ausgegeben. 
+		'If uidoc Is Nothing Then	Error iERR_PARAM_MISSING, "'NotesUIDocument'"
+	Else
+		Set uidoc = uidocin
+	End If
+	
+	If docin Is Nothing And uidoc Is Nothing Then
+		Error iERR_PARAM_MISSING, "'NotesUIDocument' or 'NotesDocument'"
+	Elseif docin Is Nothing And Not uidoc Is Nothing Then
+		Set doc = uidoc.document
+		If doc Is Nothing Then Error iERR_PARAM_MISSING, "'Document'"
+	Else
+		Set doc = docin
+	End If
+	
+	If iModeIn < -1 Or iModeIn > 1 Then
+		Error iERR_PARAM_VALUE, "Mode = '" & Cstr(iMode) & "', but expected -1 <= Mode <= 1."
+	Else
+		iMode = iModeIn
+	End If
+	
+	sFlagControl = Ucase(sFlagControlIn)
+	
+	'###############################
+	Dim iFlagEditMode As Integer
+	If iMode = -1 Then
+		iFlagEditMode =  uidoc.EditMode
+	Else
+		If iMode = 0 Then
+			iFlagEditMode = False
+		Else
+			iFlagEditMode = True
+		End If
+	End If
+	
+	'Frontend ohne Dialog schließen
+	doc.saveoptions = "0"			
+	'Das Positionsdokument vorübergehend schließen		
+	If Not uidoc Is Nothing Then uidoc.close
+	
+	'und wieder öffnen, ggf. im Edit Mode wie vorher oder gewünscht
+	'Set uidocReturn  = ws.EditDocument(iFlagEditMode, Doc, False, "", True, True)
+	Set uidocReturn  = ws.EditDocument(False, Doc, False, "")
+	
+	'im Edit Mode wie vorher oder gewünscht, das nachträglich setzen. Zumindest unter R5 gab es sonst probleme.
+	If iFlagEditMode = True Then
+		Set uidocReturn  = ws.EditDocument(True)
+	End If
+	
+	Set doc = uidocReturn.Document
+	doc.saveoptions = "1"
+	
+	'###############################
+EndTrue:
+	objUI.Error.iCode = 0
+	Set UIDocReOpen_= uidocReturn
+	Exit Function
+EndFalse:
+	objUI.Error.iCode = 0
+	Set UIDocReOpen_ = Nothing
+	Exit Function
+EndError:
+	Set UIDocReOpen_ = Nothing
+	Exit Function
+Errobj:
+	Dim sScript, icode As Integer, tpcall As TypeParamZZZ
+	sScript = objUI.ClassLibrary & "\" & Getthreadinfo(LSI_THREAD_PROC)
+	icode = Err   'Beim wiederholten Aufruf (d.h. zwei Zeilen hintereinanger ' Error iERR_NEXT, "das ist ein text" ' aufrufen) verliert Err zwei Stellen von rechts nach dem Aufruf der MEthode objUI.MessageAppend(..) !!!! 
+	Call objUI.MessageAppend("",sScript,Erl,Error$, Err, "")
+	Select Case icode
+	Case iMSG_NEXT, iERR_NEXT: Resume Next
+	Case iMSG_TRUE, iERR_TRUE: Resume EndTrue
+	Case iMSG_FALSE, iERR_FALSE: Resume EndFalse
+	Case iERR_OBJECT_ERR, iERR_OBJECT_CUR: Resume EndError 'Ziel: Nicht jeden Fehler ins Log stellen
+	Case Else: 
+		Call MSG2FileSendZZZ(Nothing, "", objUI.Error.sString, 1, tpcall, "")
+		'ODER: Msgbox "An error happened, more in this file: " & Chr(13) & MSG2FileSendZZZ(Nothing, "", objUI.Error.sString, tpcall, "")
+		If tpcall.iErr > 0 Then Msgbox tpcall.sErr   'Fehler im Errorhandling sofort ans Frontend/Serverlog ausgeben		
+		Resume EndError
+	End Select
+End Function
+Private Function UIDocNewOpen_(objUI As KernelKernelUIZZZ, uidocin As notesuidocument, docin As notesdocument, iModein As Integer, sFlagControlin As String) As notesuidocument
+	Dim uidocReturn As NotesUIDocument
+	On Error Goto errobj
+	Call ObjUI.MessageReset(iMSG_TYPE_ERROR,"")  'Daimt sich in dieser Methode nicht Fehler aus einer anderen Methode auswirken
+	
+	
+	'### Param-Check
+	Dim ws As notesuiworkspace
+	Dim uidoc As NotesUIDocument
+	Dim doc As notesdocument
+	Dim sFrame As String
+	Dim iMode As Integer
+	Dim sFlagControl As String
+	
+	If objUI.Workspace Is Nothing Then
+		Error iERR_PROPERTY_MISSING, "'NotesUIWorkspace'"
+	Else
+		Set ws = objUI.Workspace
+	End If
+	
+	If uidocin Is Nothing Then 
+		Set uidoc = ws.currentdocument
+		'Merke: Das uidoc ist nicht zwingend notwendig, erst wenn es kein doc als Parameter gibt, dann wird ein Fehler ausgegeben. 
+		'If uidoc Is Nothing Then	Error iERR_PARAM_MISSING, "'NotesUIDocument'"
+	Else
+		Set uidoc = uidocin
+	End If
+	
+	If docin Is Nothing And uidoc Is Nothing Then
+		Error iERR_PARAM_MISSING, "'NotesUIDocument' or 'NotesDocument'"
+	Elseif docin Is Nothing And Not uidoc Is Nothing Then
+		Set doc = uidoc.document
+		If doc Is Nothing Then Error iERR_PARAM_MISSING, "'Document'"
+	Else
+		Set doc = docin
+	End If
+	
+	If iModeIn < -1 Or iModeIn > 1 Then
+		Error iERR_PARAM_VALUE, "Mode = '" & Cstr(iMode) & "', but expected -1 <= Mode <= 1."
+	Else
+		iMode = iModeIn
+	End If
+	
+	sFlagControl = Ucase(sFlagControlIn)
+	
+	'###############################
+	Dim iFlagEditMode As Integer
+	If iMode = -1 Then
+		iFlagEditMode =  uidoc.EditMode
+	Else
+		If iMode = 0 Then
+			iFlagEditMode = False
+		Else
+			iFlagEditMode = True
+		End If
+	End If
+	
+	'und wieder öffnen
+	Set uidocReturn  = ws.EditDocument(iFlagEditMode, Doc, False, "", True, True)
+	uidocreturn.Document.Saveoptions = "1"
+	
+	'im Edit Mode wie vorher oder gewünscht
+	'If iFlagEditMode = True Then
+	'	Set uidoc  = ws.EditDocument(True)
+	'End If
+	
+	'###############################
+EndTrue:
+	objUI.Error.iCode = 0
+	Set UIDocNewOpen_= uidocReturn
+	Exit Function
+EndFalse:
+	objUI.Error.iCode = 0
+	Set UIDocNewOpen_ = Nothing
+	Exit Function
+EndError:
+	Set UIDocNewOpen_ = Nothing
+	Exit Function
+Errobj:
+	Dim sScript, icode As Integer, tpcall As TypeParamZZZ
+	sScript = objUI.ClassLibrary & "\" & Getthreadinfo(LSI_THREAD_PROC)
+	icode = Err   'Beim wiederholten Aufruf (d.h. zwei Zeilen hintereinanger ' Error iERR_NEXT, "das ist ein text" ' aufrufen) verliert Err zwei Stellen von rechts nach dem Aufruf der MEthode objUI.MessageAppend(..) !!!! 
+	Call objUI.MessageAppend("",sScript,Erl,Error$, Err, "")
+	Select Case icode
+	Case iMSG_NEXT, iERR_NEXT: Resume Next
+	Case iMSG_TRUE, iERR_TRUE: Resume EndTrue
+	Case iMSG_FALSE, iERR_FALSE: Resume EndFalse
+	Case iERR_OBJECT_ERR, iERR_OBJECT_CUR: Resume EndError 'Ziel: Nicht jeden Fehler ins Log stellen
+	Case Else: 
+		Call MSG2FileSendZZZ(Nothing, "", objUI.Error.sString, 1, tpcall, "")
+		'ODER: Msgbox "An error happened, more in this file: " & Chr(13) & MSG2FileSendZZZ(Nothing, "", objUI.Error.sString, tpcall, "")
+		If tpcall.iErr > 0 Then Msgbox tpcall.sErr   'Fehler im Errorhandling sofort ans Frontend/Serverlog ausgeben		
+		Resume EndError
+	End Select
+End Function
+Private Function UIDocIsInView_(objUI As KernelKernelUIZZZ, sFlagControlin As String) As Boolean
+	On Error Goto errobj
+	Call ObjUI.MessageReset(iMSG_TYPE_ERROR,"")  'Daimt sich in dieser Methode nicht Fehler aus einer anderen Methode auswirken
+	
+	
+	'### Param-Check
+	Dim ws As notesuiworkspace
+	If objUI.Workspace Is Nothing Then
+		Set ws = New NotesUIWorkspace
+	Else
+		Set ws = objUI.Workspace
+	End If
+	
+	'###############################
+	
+	Dim vw As NotesUIView
+	Set vw=ws.CurrentView
+	If vw Is Nothing Then 
+		Goto Endfalse
+	End If
+	
+	'###############################
+EndTrue:
+	objUI.Error.iCode = 0
+	UIDocIsInView_ = True
+	Exit Function
+EndFalse:
+	objUI.Error.iCode = 0
+	UIDocIsInView_ = False
+	Exit Function
+EndError:
+	UIDocIsInView_ = False
+	Exit Function
+Errobj:
+	Dim sScript, icode As Integer, tpcall As TypeParamZZZ
+	sScript = objUI.ClassLibrary & "\" & Getthreadinfo(LSI_THREAD_PROC)
+	icode = Err   'Beim wiederholten Aufruf (d.h. zwei Zeilen hintereinanger ' Error iERR_NEXT, "das ist ein text" ' aufrufen) verliert Err zwei Stellen von rechts nach dem Aufruf der MEthode objUI.MessageAppend(..) !!!! 
+	Call objUI.MessageAppend("",sScript,Erl,Error$, Err, "")
+	Select Case icode
+	Case iMSG_NEXT, iERR_NEXT: Resume Next
+	Case iMSG_TRUE, iERR_TRUE: Resume EndTrue
+	Case iMSG_FALSE, iERR_FALSE: Resume EndFalse
+	Case iERR_OBJECT_ERR, iERR_OBJECT_CUR: Resume EndError 'Ziel: Nicht jeden Fehler ins Log stellen
+	Case Else: 
+		Call MSG2FileSendZZZ(Nothing, "", objUI.Error.sString, 1, tpcall, "")
+		'ODER: Msgbox "An error happened, more in this file: " & Chr(13) & MSG2FileSendZZZ(Nothing, "", objUI.Error.sString, tpcall, "")
+		If tpcall.iErr > 0 Then Msgbox tpcall.sErr   'Fehler im Errorhandling sofort ans Frontend/Serverlog ausgeben		
+		Resume EndError
+	End Select
+End Function
+Private Function UIDocIsInPreviewPane_(objUI As KernelKernelUIZZZ, uidocin As NotesUIDocument, sFlagControlin As String) As Boolean
+	On Error Goto errobj
+	Call ObjUI.MessageReset(iMSG_TYPE_ERROR,"")  'Daimt sich in dieser Methode nicht Fehler aus einer anderen Methode auswirken
+	
+	
+	'### Param-Check
+	Dim uidoc As notesuidocument 
+	If uidocin Is Nothing Then
+		
+		Dim ws As notesuiworkspace
+		If objUI.Workspace Is Nothing Then
+			Set ws = New NotesUIWorkspace
+		Else
+			Set ws = objUI.Workspace
+		End If
+		
+		Set uidoc = ws.CurrentDocument
+		If uidoc Is Nothing Then Error iERR_PARAM_MISSING, "UIDocument"	
+	Else
+		Set uidoc = uidocin
+	End If
+	
+	'###############################
+	
+	If uidoc.InPreviewPane = False Then Goto EndFalse
+	
+	'###############################
+EndTrue:
+	objUI.Error.iCode = 0
+	UIDocIsInPreviewPane_ = True
+	Exit Function
+EndFalse:
+	objUI.Error.iCode = 0
+	UIDocIsInPreviewPane_ = False
+	Exit Function
+EndError:
+	UIDocIsInPreviewPane_ = False
+	Exit Function
+Errobj:
+	Dim sScript, icode As Integer, tpcall As TypeParamZZZ
+	sScript = objUI.ClassLibrary & "\" & Getthreadinfo(LSI_THREAD_PROC)
+	icode = Err   'Beim wiederholten Aufruf (d.h. zwei Zeilen hintereinanger ' Error iERR_NEXT, "das ist ein text" ' aufrufen) verliert Err zwei Stellen von rechts nach dem Aufruf der MEthode objUI.MessageAppend(..) !!!! 
+	Call objUI.MessageAppend("",sScript,Erl,Error$, Err, "")
+	Select Case icode
+	Case iMSG_NEXT, iERR_NEXT: Resume Next
+	Case iMSG_TRUE, iERR_TRUE: Resume EndTrue
+	Case iMSG_FALSE, iERR_FALSE: Resume EndFalse
+	Case iERR_OBJECT_ERR, iERR_OBJECT_CUR: Resume EndError 'Ziel: Nicht jeden Fehler ins Log stellen
+	Case Else: 
+		Call MSG2FileSendZZZ(Nothing, "", objUI.Error.sString, 1, tpcall, "")
+		'ODER: Msgbox "An error happened, more in this file: " & Chr(13) & MSG2FileSendZZZ(Nothing, "", objUI.Error.sString, tpcall, "")
+		If tpcall.iErr > 0 Then Msgbox tpcall.sErr   'Fehler im Errorhandling sofort ans Frontend/Serverlog ausgeben		
+		Resume EndError
+	End Select
+End Function
+Private Function UIDocIsInDLGBox_(objUI As KernelKernelUIZZZ, uidocin As NotesUIDocument, sFlagControlin As String) As Boolean
+	On Error Goto errobj
+	Call ObjUI.MessageReset(iMSG_TYPE_ERROR,"")  'Daimt sich in dieser Methode nicht Fehler aus einer anderen Methode auswirken
+	Dim stemp 
+	
+	'### Param-Check
+	Dim uidoc As notesuidocument
+	If uidocin Is Nothing Then 
+		Dim ws As notesuiworkspace
+		If objUI.Workspace Is Nothing Then
+			Set ws = New NotesUIWorkspace
+		Else
+			Set ws = objUI.Workspace
+		End If
+		
+		Set uidoc = ws.CurrentDocument
+		If uidoc Is Nothing Then Error iERR_PARAM_MISSING, "UIDocument"
+	Else
+		Set uidoc = uidocin
+	End If 
+	
+	If uidoc.InPreviewPane=True Then Goto EndFalse             
+	If uidoc.DialogBoxCanceled=True Then Goto EndTrue
+	
+	If uidoc.IsNewDoc=True Then 
+		Msgbox "uidoc ist new doc"
+	Else
+		Msgbox "uidoc ist nicht new doc"
+	End If
+	
+	If uidoc.Ruler = True Then
+		Msgbox "ruler ist an"
+	Else
+		Msgbox "ruler ist aus"
+	End If
+	
+	
+	
+	'###############################
+	Dim doc As notesdocument
+	Set doc = uidoc.Document
+	
+	'Für den Test, welche properties zutreffen und welche nicht
+	If doc Is Nothing Then 
+		Msgbox "Backenddoc is nothing"
+	Else
+		Msgbox "Backenddoc ist nicht nothing"
+	End If
+	
+	If doc.IsUIDocOpen = True Then 
+		Msgbox "doc.IsUIDocOpen = true"
+	Else
+		Msgbox "doc.IsUIDocOpen = false"
+	End If
+	
+	Dim sOutput As String, iProof As Integer
+	Forall field In doc.items
+		stemp = stemp & field.name & ", "
+		iproof = iProof + 1
+		If iProof >= 10 Then
+			sOutput = sOutput & stemp & Chr(13) & Chr(10)
+			iProof = 0
+			stemp = ""
+		End If		
+	End Forall
+	sOutput = sOutput & stemp
+	Msgbox sOutput
+	
+	
+	'###############################
+EndTrue:
+	objUI.Error.iCode = 0
+	UIDocIsInDLGBox_ = True
+	Exit Function
+EndFalse:
+	objUI.Error.iCode = 0
+	UIDocIsInDLGBox_ = False
+	Exit Function
+EndError:
+	UIDocIsInDLGBox_ = False
+	Exit Function
+Errobj:
+	Dim sScript, icode As Integer, tpcall As TypeParamZZZ
+	sScript = objUI.ClassLibrary & "\" & Getthreadinfo(LSI_THREAD_PROC)
+	icode = Err   'Beim wiederholten Aufruf (d.h. zwei Zeilen hintereinanger ' Error iERR_NEXT, "das ist ein text" ' aufrufen) verliert Err zwei Stellen von rechts nach dem Aufruf der MEthode objUI.MessageAppend(..) !!!! 
+	Call objUI.MessageAppend("",sScript,Erl,Error$, Err, "")
+	Select Case icode
+	Case iMSG_NEXT, iERR_NEXT: Resume Next
+	Case iMSG_TRUE, iERR_TRUE: Resume EndTrue
+	Case iMSG_FALSE, iERR_FALSE: Resume EndFalse
+	Case iERR_OBJECT_ERR, iERR_OBJECT_CUR: Resume EndError 'Ziel: Nicht jeden Fehler ins Log stellen
+	Case Else: 
+		Call MSG2FileSendZZZ(Nothing, "", objUI.Error.sString, 1, tpcall, "")
+		'ODER: Msgbox "An error happened, more in this file: " & Chr(13) & MSG2FileSendZZZ(Nothing, "", objUI.Error.sString, tpcall, "")
+		If tpcall.iErr > 0 Then Msgbox tpcall.sErr   'Fehler im Errorhandling sofort ans Frontend/Serverlog ausgeben		
+		Resume EndError
+	End Select
+End Function

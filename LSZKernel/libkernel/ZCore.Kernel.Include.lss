@@ -1,0 +1,40 @@
+'muss rein, damit alle Funktionen global erreichbar sind. Als .lss Datei raus, wie auch alle Use-Einbindungen
+'%INCLUDE "C:\1fgl\workspace\Eclipse3FGL\LSZKernel\libkernel\ZAPI.Basic.Asset.lss"
+'Use "ZBasic.DOM.."
+'Use "ZCore.Element.."
+'Use "ZCore.Kernel"
+'%INCLUDE "C:\1fgl\workspace\Eclipse3FGL\LSZKernel\libkernel\ZCore.Kernel.lss"         
+'Private Const sLIBZZZ = "ZZZBasicKernelInclude"
+Class KernelZZZ As KernelKernelZZZ	
+	
+	'########### Properties	
+	'### Die Version DIESES Objekts
+	Public Property Get VersionText As String
+		VersionText = ""
+	End Property 
+	Public Property Get Version As String
+		Version = "3.0"
+	End Property
+	Public Property Get VersionDate As String
+		VersionDate = "27.07.2005"
+	End Property 
+	Public Property Get ClassName As String
+		ClassName = "KernelZZZ"
+	End Property
+	Public Property Get ClassNameParent As String
+		ClassNameParent = KernelKernelZZZ..ClassName
+	End Property
+	Public Property Get ClassLibrary As String
+		ClassLibrary = "ZCore.Kernel.include"
+	End Property
+	
+	'########### Funktionen
+	Sub new(sessionObj As notessession, sKeyApplication As String, vFlagControl As Variant, sFlagControl As String), KernelKernelZZZ(sessionObj, "ZZZ", sKeyApplication, vFlagControl, sFlagControl)
+	End Sub
+	
+	'### Falls kein ApplikationKey bei der Initierung des KernelObjekts mitgegeben wird, wird hierauf zugegriffen
+	Property Get ApplicationKeyDefault As String		
+		'TODO: Default Key erst aus dem KernelProfildokument lesen
+		ApplicationKeyDefault = "FGL"
+	End Property		
+End Class

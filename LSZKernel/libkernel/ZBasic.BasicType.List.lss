@@ -1,0 +1,239 @@
+'raus, wird in ZBasic.DataType.. eingebunden %INCLUDE "C:\fglKernel\KernelCode\LS\Dev\current\ZAPI.Basic.Asset.lss" 
+'raus, wird in ZBasic.DataType.. eingebunden Use "ZAPI.Basic.." 
+
+Function ListElementCountZZZ(session As notessession, list2count As Variant, tp As TypeParamZZZ, sFlag As String) As Long
+'%REM
+	On Error Goto errhNoCall
+	Dim lReturn As Long
+	
+	Forall e In list2count
+		lReturn = lReturn + 1
+	End Forall
+EndTrue:
+	tp.ierr = 0
+	ListElementCountZZZ = lReturn
+	Exit Function
+EndFalse:
+	tp.ierr = 0
+	ListElementCountZZZ = 0
+	Exit Function
+EndError:
+	ListElementCountZZZ = -1
+	Exit Function
+ErrHNoCall:
+	Dim sScript As String, tpcall As TypeParamZZZ
+	sScript = "ZBasic.BasicType.List\" & Getthreadinfo(LSI_THREAD_PROC)
+	tp.iErr = Err 'Beim wiederholten Aufruf (d.h. zwei Zeilen hintereinanger ' Error iERR_NEXT, "das ist ein text" ' aufrufen) verliert Err zwei Stellen von rechts nach dem Aufruf der MEthode objMe.MessageAppend(..) !!!! 
+	tp.serr = strMsgZZZ(Nothing,  tp.sErr, sScript, Erl, Error$, Err, tpCall, "")
+	If tpcall.iErr > 0 Then
+		Msgbox tpcall.serr
+		Resume EndError
+	End If
+	Select Case tp.ierr
+	Case iMSG_NEXT, iERR_NEXT: Resume Next
+	Case iMSG_FALSE, iERR_FALSE: Resume EndFalse
+	Case iMSG_TRUE, iERR_TRUE: Resume EndTrue
+	Case Else: Resume EndError		
+	End Select
+'%ENDREM
+End Function
+Function ListTagByEntryGetZZZ(session As notessession, sList List As String, sEntryToMatch As String,  tp As TypeParamZZZ, sFlag) As Variant
+'%REM
+	Dim saReturn() As String
+	On Error Goto errhNoCall
+	
+	'### Übergabewerte
+	If Len(sEntryToMatch) = 0 Then Goto EndFalse
+	Dim sEntry As String	
+	sEntry = Lcase(Trim(sEntryToMatch))
+	
+	'###################
+	Dim  iCounterTotal As Integer
+	Redim saReturn(0) As String
+	iCounterTotal = -1
+	Forall element In sList
+		If Lcase(Trim(element)) = sEntry Then
+			iCounterTotal = iCounterTotal + 1
+			Redim Preserve saReturn(iCounterTotal) As String
+			saReturn(iCounterTotal) = Listtag(element)
+		End If
+	End Forall
+	If iCounterTotal = -1 Then Goto EndFalse
+	
+	'#####################
+endTrue:
+	tp.ierr = 0
+	ListTagByEntryGetZZZ = saReturn
+	Exit Function
+endFalse:
+	tp.ierr = 0
+	ListTagByEntryGetZZZ = ""
+	Exit Function
+EndError:
+	ListTagByEntryGetZZZ = Null
+	Exit Function
+ErrHNoCall:
+	Dim sScript As String, tpcall As TypeParamZZZ
+	sScript = "ZBasic.BasicType.List\" & Getthreadinfo(LSI_THREAD_PROC)
+	tp.iErr = Err 'Beim wiederholten Aufruf (d.h. zwei Zeilen hintereinanger ' Error iERR_NEXT, "das ist ein text" ' aufrufen) verliert Err zwei Stellen von rechts nach dem Aufruf der MEthode objMe.MessageAppend(..) !!!! 
+	tp.serr = strMsgZZZ(Nothing,  tp.sErr, sScript, Erl, Error$, Err, tpCall, "")
+	If tpcall.iErr > 0 Then
+		Msgbox tpcall.serr
+		Resume EndError
+	End If
+	Select Case tp.ierr
+	Case iMSG_NEXT, iERR_NEXT: Resume Next
+	Case iMSG_FALSE, iERR_FALSE: Resume EndFalse
+	Case iMSG_TRUE, iERR_TRUE: Resume EndTrue
+	Case Else: Resume EndError		
+	End Select
+'%ENDREM
+End Function
+Function vListTagZZZ(session As notessession, list2Array As Variant, tp As TypeParamZZZ, sFlagControl As String) As Variant
+	Dim vReturn() As Variant
+	On Error Goto errhNoCall
+	
+	Dim icount As Integer
+	
+	'### Übergabeparameter Prüfen
+	If Not Islist(list2Array) Then Error iMSG_FALSE, "List not passes"
+	
+	icount = -1
+	Forall element In list2Array
+		icount = icount + 1
+	End Forall
+	If icount = -1 Then Goto EndFalse
+	
+	Redim vReturn(icount) As Variant
+	icount = -1
+	Forall element In list2Array
+		icount = icount + 1
+		vReturn(iCount) = Listtag(element)
+	End Forall
+	
+	'#########################
+EndTrue:
+	tp.ierr = 0
+	vListTagZZZ = vReturn 
+	Exit Function	
+EndFalse:
+	tp.ierr = 0
+	vListTagZZZ = Null
+	Exit Function	 
+EndError:
+	vListTagZZZ = Null
+	Exit Function
+ErrHNoCall:
+	Dim sScript As String, tpCall As TypeParamZZZ
+	sScript = "ZBasic.BasicType.List\" & Getthreadinfo(LSI_THREAD_PROC)
+	tp.iErr = Err 'Beim wiederholten Aufruf (d.h. zwei Zeilen hintereinanger ' Error iERR_NEXT, "das ist ein text" ' aufrufen) verliert Err zwei Stellen von rechts nach dem Aufruf der MEthode objMe.MessageAppend(..) !!!! 
+	tp.serr = strMsgZZZ(Nothing,  tp.sErr, sScript, Erl, Error$, Err, tpCall, "")
+	If tpcall.iErr > 0 Then
+		Msgbox tpcall.serr
+		Resume EndError
+	End If
+	Select Case tp.ierr
+	Case iMSG_NEXT, iERR_NEXT: Resume Next
+	Case iMSG_FALSE, iERR_FALSE: Resume EndFalse
+	Case iMSG_TRUE, iERR_TRUE: Resume EndTrue
+	Case Else: Resume EndError		
+	End Select
+End Function
+Function vListElementZZZ(session As notessession, list2Array As Variant, tp As TypeParamZZZ, sFlagControl As String) As Variant
+	Dim vReturn() As Variant
+	On Error Goto errhNoCall
+	
+	Dim icount As Integer
+	
+	'### Übergabeparameter Prüfen
+	If Not Islist(list2Array) Then Error iMSG_FALSE, "List not passes"
+	
+	icount = -1
+	Forall element In list2Array
+		icount = icount + 1
+	End Forall
+	If icount = -1 Then Goto EndFalse
+	
+	Redim vReturn(icount) As Variant
+	icount = -1
+	Forall element In list2Array
+		icount = icount + 1
+		vReturn(iCount) = element
+	End Forall
+	
+	'#########################
+EndTrue:
+	tp.ierr = 0
+	vListElementZZZ = vReturn
+	Exit Function	
+EndFalse:
+	tp.ierr = 0
+	vListElementZZZ = Null
+	Exit Function	
+EndError:
+	vListElementZZZ = Null
+	Exit Function
+ErrHNoCall:
+	Dim sScript As String, tpCall As TypeParamZZZ
+	sScript = "ZBasic.BasicType.List\" & Getthreadinfo(LSI_THREAD_PROC)
+	tp.iErr = Err 'Beim wiederholten Aufruf (d.h. zwei Zeilen hintereinanger ' Error iERR_NEXT, "das ist ein text" ' aufrufen) verliert Err zwei Stellen von rechts nach dem Aufruf der MEthode objMe.MessageAppend(..) !!!! 
+	tp.serr = strMsgZZZ(Nothing,  tp.sErr, sScript, Erl, Error$, Err, tpCall, "")
+	If tpcall.iErr > 0 Then
+		Msgbox tpcall.serr
+		Resume EndError
+	End If
+	Select Case tp.ierr
+	Case iMSG_NEXT, iERR_NEXT: Resume Next
+	Case iMSG_FALSE, iERR_FALSE: Resume EndFalse
+	Case iMSG_TRUE, iERR_TRUE: Resume EndTrue
+	Case Else: Resume EndError		
+	End Select
+End Function
+Function saListZZZ(session As notessession, list2Array As Variant, sSeperatorIn As String, tp As TypeParamZZZ, sFlag As String) As Variant
+	Dim saReturn() As String
+	On Error Goto ErrhNoCall
+	
+	'### Übergabeparameter Prüfen
+	If Not Islist(list2Array) Then Error iERR_PARAM_MISSING, "List not passed"
+	
+	Dim lElement As Long
+	lElement = ListElementCountZZZ(session, list2Array, tp, "")
+	If tp.ierr > 0 Then Error iERR_FUNCTION_CALL, tp.serr
+	If lElement <= 0  Then Goto EndTrue 'Kein Fehler, halt nix in der Liste
+	
+	Redim saReturn(lElement - 1) As String
+	Dim lcount As Long
+	lcount = -1
+	Forall element In list2Array
+		lcount = lcount + 1
+		saReturn	(lcount) = Cstr(element)	& sSeperatorIn & Cstr(Listtag(element)) 
+	End Forall
+	
+	'#############################################################		
+endtrue:	
+	tp.ierr = 0
+	saListZZZ = saReturn
+	Exit Function
+endfalse:	
+	tp.ierr = 0
+	saListZZZ = Null
+	Exit Function
+enderror:	
+	saListZZZ = Null
+	Exit Function
+ErrHNoCall:
+	Dim sScript As String, tpCall As TypeParamZZZ
+	sScript = "ZBasic.BasicType.List\" & Getthreadinfo(LSI_THREAD_PROC)
+	tp.iErr = Err 'Beim wiederholten Aufruf (d.h. zwei Zeilen hintereinanger ' Error iERR_NEXT, "das ist ein text" ' aufrufen) verliert Err zwei Stellen von rechts nach dem Aufruf der MEthode objMe.MessageAppend(..) !!!! 
+	tp.serr = strMsgZZZ(Nothing,  tp.sErr, sScript, Erl, Error$, Err, tpCall, "")
+	If tpcall.iErr > 0 Then
+		Msgbox tpcall.serr
+		Resume EndError
+	End If
+	Select Case tp.ierr
+	Case iMSG_NEXT, iERR_NEXT: Resume Next
+	Case iMSG_FALSE, iERR_FALSE: Resume EndFalse
+	Case iMSG_TRUE, iERR_TRUE: Resume EndTrue
+	Case Else: Resume EndError
+	End Select
+End Function

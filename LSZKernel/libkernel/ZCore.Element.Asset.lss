@@ -1,0 +1,829 @@
+'muss rein, damit alle Funktionen global erreichbar sind. Als .lss Datei raus, wie auch alle Use-Einbindungen
+'%INCLUDE "C:\1fgl\workspace\Eclipse3FGL\LSZKernel\libkernel\ZAPI.Basic.Asset.lss" 
+'Use "ZBasic.DataType.."
+
+'Hier sind alle Properties, etc. definiert, die ALLE ZZZ-Objekte besitzen.
+'Private Const sLibZZZ = "ZZZBasicInherigAssetHandler"
+'Private Const sVerZZZ = "2009-02-28"
+
+
+'### Globale Datentypen, die in allen Objekten zur Verfügung stehen
+Type TypeErrorZZZ
+	sString As String
+	iCode As Integer
+	vString As Variant	
+	vCount As Variant
+End Type
+
+Type TypeInfoZZZ
+	sString As String
+	iCode As Integer
+	vString As Variant 'Die kummulieren Strings
+	vCount As Variant 'Die Häufigkeit in der der jeweilige Fehlereintrag sich wiederholt hat
+End Type
+
+Type TypeStatusZZZ
+	bFlagInit As Boolean
+	bFlagTerminate As Boolean
+	bFlagDebug As Boolean
+	bFlagQuietMode As Boolean
+End Type
+
+'### Diese Klasse wurde nur eingeführt um z.B. in der Funktion KernelObjectZZZ.ClassNameParentGet den Ausdruck me..ClassName zu ermöglichen
+Class DummyObjectZZZ
+	Public Property Get ClassName As String
+		ClassName = "DummyObjectZZZ, Parent - Classname property has to be overwritten like 'ParentClassNameZZZ'..ClassName !!!"
+	End Property
+End Class
+
+
+'### Das Objekt von dem alle Kernel Objekte erben
+Class KernelObjectZZZ As DummyObjectZZZ
+	Private sessionKernel As NotesSession
+	
+	'### Public Variablen
+	Public Status As TypeStatusZZZ 
+	Public Error As TypeErrorZZZ
+	Public Info As TypeInfoZZZ
+	
+	'### Properties
+	'### Die Version des ganzen Kernels
+	Public Property Get KernelVersionText As String
+		KernelVersionText = ""
+	End Property
+	Public Property Get KernelVersion As String
+		KernelVersion = "3.0"
+	End Property
+	Public Property Get KernelVersionDate As String
+		KernelVersionDate = "10.03.2005"
+	End Property
+	
+	'### Die Version DIESES Objekts und der Klassenname
+	Public Property Get ClassName As String
+		ClassName = Typename(Me)
+	End Property 
+	Public Property Get ClassNameParent As String
+		ClassNameParent = DummyObjectZZZ..ClassName
+	End Property
+	Public Property Get ClassLibrary As String
+		ClassLibrary = "ZCore.Element.Asset"
+	End Property
+	Public Property Get VersionText As String
+		VersionText = ""
+	End Property
+	Public Property Get Version As String
+		Version = "3.01"
+	End Property
+	Public Property Get VersionDate As String
+		VersionDate = "28.02.2008"
+	End Property
+	
+	'### Die globale Session
+	Public Property Get Session() As notessession
+		Set Session = Me.sessionKernel	
+	End Property
+	Public Property Set Session() As notessession
+		Set Me.sessionKernel = session
+	End Property	
+	
+	'### Functions
+	Sub new()		
+	End Sub	
+	
+	'+++ Hier werden die Fehler ggf. aufgrund des Fehlercodes noch um einen Standardtext erweitert
+	Function ErrorDetailRefresh(sInfo As String, iCode As Integer, tError As TypeErrorZZZ, sFlagControl As String) As Boolean
+		ErrorDetailRefresh = AssetErrorDetailRefresh_(Me, sInfo, iCode, tError, sFlagControl)
+	End Function
+	
+	'+++ Hilffunktion um den XML-String ans Frontend so auszugeben, dass er ausgeschnitten und in einen Editor kopiert werden kann.
+	Function Message2FileSend(sFile As String, sMessage As String, sFlagControl As String) As Boolean
+		Message2FileSend = AssetMessage2FileSend_(Me, sFile,sMessage, sFlagControl)
+	End Function
+	
+	'+++ Message in das entsprechende Array der Messages anhängen, neue letzte Message füllen
+	Function MessageAppend(sMsgOld As String, sScript As String, iLine As Integer, sMsg As String, iCode2Append As Integer, sFlagControl As String) As Boolean
+		MessageAppend = AssetMessageAppend_(Me,sMsgOld, sScript, iLine, sMsg, iCode2Append, sFlagControl)
+	End Function
+	
+	'+++ Letzte Message aus der Property auslesen
+	Function MessageLastReceive(objSender As Variant, iType As Integer, sFlagControl As String) As String
+		MessageLastReceive = AssetMessageLastReceive_(Me, objSender, iType, sFlagControl)
+	End Function
+	
+	'+++ Alle Messages zusammenfassen 
+	Function MessageAllReceive(objSender As Variant, iType As Integer, sFlagControl As String) As String
+		MessageAllReceive = AssetMessageAllReceive_(Me, objSender, iType, sFlagControl) 
+	End Function
+	
+	'+++ Messages resetten (wird zu beginn jeder Methode aufgerufen, damit keine Fehler einer vorherigen Methode in der aktuellen Methode in den Fehlerfall führen.)
+	Function MessageReset(iType As Integer, sFlagControl As String) As Boolean
+		MessageReset = AssetMessageReset_(Me, iType, sFlagControl)
+	End Function
+	
+	'+++ Einfache print Anweisung für einen String, aber: Es wird das Quiet-Flag berücksichtigt. MERKE: Die Funktion darf nicht print heissen.
+	Function Println(sMessage, sFlagControl) As Boolean
+		Println = AssetPrintln_(Me, sMessage, sFlagControl)
+	End Function
+	
+	
+	'### Behandlung der internen Flags	
+	Function FlagSet(sFlagName As String, bHow As Boolean) As Boolean
+		Dim bReturn As Boolean
+		
+		'Paramcheck
+		Dim sWhat As String	
+		sWhat = Trim(sFlagName)
+		If Len(sWhat) = 0 Then Goto EndError
+		sWhat = Lcase(sWhat)
+		
+		'Wir sind in der obersten Klasse, also ist das hier nicht notwendig und möglich
+		'Erst die Funktion der Elternklasse aufrufen
+		'bReturn = ObjectZZZ..flagset(sWhat, bHow)
+		
+		'Nun die eigenen Flags verarbeiten
+		Select Case sWhat
+		Case "terminate": 
+			Me.Status.bFlagTerminate = bHow
+			bReturn = True
+		Case "init": 
+			Me.Status.bFlagInit = bHow
+			bReturn = True			
+		Case "debug": 
+			Me.Status.bFlagDebug = bHow
+			bReturn = True
+		Case "quietmode":
+			Me.Status.bFlagQuietMode = bHow
+			bReturn = True
+		End Select		
+endSuccess:
+		FlagSet = bReturn
+		Exit Function
+endError:
+		FlagSet = False
+		Exit Function
+	End Function			
+	
+	Function FlagGet(sFlagName As String) As Boolean
+		Dim sWhat As String	
+		Dim bHow As Integer
+		sWhat = Trim(sFlagName)
+		If Len(sWhat) = 0 Then Goto EndError	
+		sWhat = Lcase(sWhat)
+		
+		'Wir sind in der obersten Klasse, also ist das hier nicht notwendig und möglich
+		'Erst die Funktion der Elternklasse aufrufen
+		'bHow = ObjectZZZ..flagget(sWhat)
+		
+		'Nun die eigenen Flags auslesen 
+		Select Case sWhat
+		Case "terminate": bHow = Me.Status.bFlagTerminate
+		Case "init": bHow = Me.Status.bFlagInit
+		Case "debug": bHow = Me.Status.bFlagDebug
+		Case "quietmode": bHow = Me.Status.bFlagQuietMode
+		End Select		
+endSuccess:
+		FlagGet = bHow
+		Exit Function
+endError:
+		FlagGet = False
+		Exit Function 
+	End Function
+	
+	Function FlagExists(sFlagName As String) As Boolean
+		Dim bReturn As Boolean
+		Dim bValueOld As Boolean
+		
+		'1. ggf. den Wert holen, damit er anschliessen wiederhergestellt werden kann
+		bValueOld = Me.FlagGet(sFlagName) 'merke: das Trimmen und das lcase sparen, wird alles in der aufgerufenen Funktion gemacht.
+		
+		'2. das Flag setzen. Falls es vorhanden ist, wird true zurückgeliefert.
+		bReturn = Me.flagSet(sFlagName, True)
+		
+		'3. das Flag ggf. mit dem alten Wert versehen (was nur sinn macht, wenn es auch existiert.)
+		If bReturn = True Then
+			Call Me.flagSet(sFlagName, bValueOld)
+		End If
+		FlagExists = bReturn
+	End Function
+End Class
+
+
+
+
+Private Function AssetErrorDetailRefresh_(objCur As Variant, sErrInfoIn As String, iErrCodeIn As Integer, tError As TypeErrorZZZ, sFlagControlIn As String) As Boolean
+	Dim itemp As Integer,stemp As String, saMsg() As String, iaCode() As Integer
+	On Error Goto errhNoCall
+	
+	'### check
+	Dim sErrInfo As String
+	Dim iErrCode As Integer
+	
+	If Len(sErrInfoIn)=0 Then 
+		Goto EndFalse
+	Else
+		'Falls schon eine ZMessage, dann wird nix verändert, der Fehlerstring ist schon 'normiert', d.h. mit einem einheitlichen Beschreibungstext versehen
+		If Instr(sErrInfoIn, "<zMessage>") > 0 Then
+			tError.sString = sErrInfoIn	
+			tError.iCode = iErrCodeIn
+			Goto EndTrue
+		End If
+		
+		'Ansonsten wird weiterverarbeitet
+		sErrInfo = sErrInfoIn
+	End If
+	iErrCode = iErrCodeIn
+	
+	'#### TODO: Beim Aufruf eines Objektfehlers den Klassennamen angeben (Merke, diese Eigenschaft muss in jedem Objekt extra angegeben werden.)
+	
+	'### main	
+	'+++ den übergebenen Code auswerten
+	Select Case iErrCode
+	Case iERR_DESIGN_MISSING:
+		tError.sString = sERR_DESIGN_MISSING & sErrInfo
+		tError.iCode = iERR_DESIGN_MISSING
+	Case  iERR_PARAM_MISSING:	
+		tError.sString = sERR_PARAM_MISSING & sErrInfo
+		tError.iCode = iERR_PARAM_MISSING
+	Case iERR_PARAM_VALUE:
+		tError.sString = sERR_PARAM_VALUE & sErrInfo
+		tError.iCode = iERR_PARAM_VALUE
+	Case iERR_PROPERTY_MISSING:
+		tError.sString = sERR_PROPERTY_MISSING & sErrInfo
+		tError.iCode = iERR_PROPERTY_MISSING
+	Case iERR_PROPERTY_VALUE:
+		tError.sString = sERR_PROPERTY_VALUE & sErrInfo
+		tError.iCode = iERR_PROPERTY_VALUE
+	Case iERR_OBJECT_ERR
+		tError.sString = sERR_OBJECT_ERR & sErrInfo
+		tError.iCode = iERR_OBJECT_ERR
+	Case iERR_OBJECT_PAR 
+		tError.sString = sERR_OBJECT_PAR & "'" & objCur.ClassNameParent & "'- " & sErrInfo
+		tError.iCode = iERR_OBJECT_PAR
+	Case iERR_OBJECT_CUR
+		tError.sString = sERR_OBJECT_CUR & "'" & objCur.ClassName & "' - " & sErrInfo
+		tError.iCode = iERR_OBJECT_CUR
+	Case iERR_AGENT_CALL
+		tError.sString= sERR_AGENT_CALL & sErrInfo   'FGL: 2005-10-08 Wie bekommt man den zuvor aufgerufenen Agenten heraus ???
+		tError.iCode = iERR_AGENT_CALL	
+	Case iMSG_AGENT_CALL
+		tError.sString= sMSG_AGENT_CALL & sErrInfo   'FGL: 2005-10-08 Wie bekommt man den zuvor aufgerufenen Agenten heraus ???
+		tError.iCode = iMSG_AGENT_CALL	
+	Case iERR_FUNCTION_CALL
+		tError.sString= sERR_FUNCTION_CALL & sErrInfo   'FGL: 2005-10-08 Wie bekommt man den zuvor aufgerufenen Agenten heraus ???
+		tError.iCode = iERR_FUNCTION_CALL	
+	Case iMSG_FUNCTION_CALL
+		tError.sString= sMSG_FUNCTION_CALL & sErrInfo   'FGL: 2005-10-08 Wie bekommt man den zuvor aufgerufenen Agenten heraus ???
+		tError.iCode = iMSG_FUNCTION_CALL	
+	Case Else
+		tError.sString = sErrInfo
+		tError.iCode = iErrCode
+	End Select
+	
+	'############################
+EndTrue:	
+	AssetErrorDetailRefresh_ = True
+	Exit Function
+endFalse:
+	AssetErrorDetailRefresh_ = False
+	Exit Function
+EndError:
+	AssetErrorDetailRefresh_ = False
+	Exit Function
+ErrHNoCall:
+	Dim sScript As String, tp As TypeParamZZZ, tpcall As TypeParamZZZ
+	sScript = "ZBasic.Element.Asset\" & Getthreadinfo(LSI_THREAD_PROC)
+	tp.ierr = Err 'Beim wiederholten Aufruf (d.h. zwei Zeilen hintereinanger ' Error iERR_NEXT, "das ist ein text" ' aufrufen) verliert Err zwei Stellen von rechts nach dem Aufruf der MEthode objMe.MessageAppend(..) !!!! 
+	tp.serr = strMsgZZZ(Nothing, tp.sErr, sScript, Erl, Error$, Err, tpcall, "")
+	If tpcall.iErr > 0 Then
+		Msgbox "An error happened: " & tpcall.serr
+		Resume EndError
+	End If
+	Select Case tp.ierr
+	Case iMSG_NEXT, iERR_NEXT: Resume Next
+	Case iMSG_FALSE, iERR_FALSE: Resume EndFalse
+	Case iMSG_TRUE, iERR_TRUE: Resume EndTrue
+	Case Else: 
+		stemp = MSG2FileSendZZZ(Nothing, "", tp.serr , 1, tpcall, "")
+		If tpcall.iErr > 0 Then Msgbox tpcall.sErr   'Fehler im Errorhandling sofort ans Frontend/Serverlog ausgeben
+		Msgbox "An error happened, more in this file: " & Chr(13) & stemp
+		Resume EndError		
+	End Select
+End Function
+Private Function AssetMessageAppend_(objCur As KernelObjectZZZ, sMsgOld As String, sScriptIn As String, iLineIn As Integer, sMessage As String, iCode2Append As Integer, sFlagControl As String) As Boolean
+	Dim bReturn As Boolean , tpcall As TypeParamZZZ
+	Dim stemp As String, btemp As Boolean, itemp As Integer, saMsg() As String, iaCode() As Integer
+	On Error Goto errh
+	
+	Dim session As NotesSession
+	Set session = objCur.Session
+	
+	Dim  iCodeZ As Integer
+	iCodeZ = iCode2Append
+	
+	Dim iMsgType As Integer
+	iMsgType = MsgPortByCodeGetZZZ(session, iCodeZ, tpcall, "")
+	If tpcall.iErr > 0 Then Error iERR_FUNCTION_CALL, tpcall.serr
+	'Merke And iMsgType <> iMSG_TYPE_ASSERT  'Das ist kein Ausgabekanal. es gibt keine extra Property dafür in den Objekten 
+	If iMsgType <> iMSG_Type_Error And iMsgType <> iMSG_Type_Info Then Error iERR_PARAM_VALUE,  "Wrong parameter for code '" & Cstr(iCodeZ) & "' is the resulting port='" & Cstr(iMsgType) & _
+	"', but expected '" & Cstr(iMSG_TYPE_ERROR) & "' or '" & Cstr(iMSG_TYPE_INFO) & "'"
+	
+	
+	'#########################################
+	'0. Den MessageString mit den Standard-"Floskeln" erweitern, möglicherweise Code-Switchen
+	Dim tError As TypeErrorZZZ
+	btemp = objCur.ErrorDetailRefresh(sMessage, iCodeZ, tError,"")
+	If btemp = True Then
+		sMessage = tError.sString
+		iCodeZ= tError.iCode
+	Else
+		Error iERR_FUNCTION_CALL, "Error calling method objCur.ErrorDetailRefresh."
+	End If
+	
+	'1. XML-Message-String generieren	
+	'2. MessageType auswerten
+	Dim sXMLCur As String, sXMLLast As String	
+	Dim bFlagTagValueEqual As Boolean
+	
+	'TODO: Prüfen, inwieweit durch ZAPI.Basic.Constant.MsgTypeByCodeGet(..) dieses Konstrukt vereinfacht werden kann.
+	Select  Case iMsgType
+	Case iMSG_TYPE_ERROR:
+		sXMLCur = strMsgZZZ(session, sMsgOld, sScriptIn, iLineIn, sMessage, iCodeZ, tpcall, "")
+		If tpcall.ierr > 0 Then Error iERR_FUNCTION_CALL, tpcall.serr
+		
+		If Isempty(objCur.Error.vString) Then
+			Redim objCur.Error.vString(0) As String
+			objCur.Error.vString(0) = sXMLCur
+			
+			Redim objCur.Error.vCount(0) As Long
+			objCur.Error.vCount(0) = 1
+			bReturn = True 'weil ein neuer Fehler aufgenommen wurde
+		Else
+			If Isarray(objCur.Error.vString) Then
+				'+++ Den alten Error Eintrag mit dem Neuen vergleichen				
+				sXMLLast = objCur.Error.vString(Ubound(objCur.Error.vString))																				
+				bFlagTagValueEqual = bTagDetailFirstByNameIsEqualZZZ(session, sXMLCur, sXMLLast, "err","err","","", tpcall, "")
+				If tpcall.iErr > 0 Then Error iERR_FUNCTION_CALL, tpcall.serr
+				If bFlagTagValueEqual = True Then
+					'Fall: Identische Err-Tags
+					'Nur den Zähler um 1 erhöhen
+					objCur.Error.vCount(Ubound(objCur.Error.vCount)) = objCur.Error.vCount(Ubound(objCur.Error.vCount)) + 1
+					
+					'Zum schreiben des aktuellen Werts den alten Wert nehmen und nicht den neu berechneten (wg. der geänderten Uhrzeit)
+					sXMLCur = sXMLLast					
+					bReturn = False 'weil kein neuer Fehler aufgenommen wurde
+				Else 'bFlagTagValueEqual = true
+					'Fall: Verschiedene Err-Tags
+					Dim bAppend As Boolean
+					Dim vtemp As Variant
+					
+					'ggf. ist der String nicht identisch, sondern in einem Unterknoten vorhanden
+%REM Test und Debug 
+					Stop
+					stemp = strReplaceAllSubstringZZZ(session, sScript, "\","_" , sInfo, iCode, "")
+					If iCode > 0 Then Error iERR_FUNCTION_CALL, sinfo
+					Call objcur.Message2FileSend("c:\fglKernel\KernelLog\" & stemp & "_CUR.xml" ,sXMLCur, "")
+					Call objCur.Message2FileSend("c:\fglKernel\KernelLog\" & stemp & "_LAST.xml",sXMLLast,"")
+%ENDREM					
+					'Merke: sXML
+					bAppend = bMsgIsMemberExactZZZ(session, sXMLCur, sXMLLast, tpcall,  "")
+					If tpcall.iErr > 0 Then Error iERR_FUNCTION_CALL, tpcall.serr
+					
+					If bAppend = False Then
+						'Fall: Einträge sind verschieden
+					     'Neue Zeile anhängen, Neuen Zähler für diese Zeile auf 1 setzen
+						Redim Preserve objCur.Error.vString(Ubound(objCur.Error.vString) + 1)
+						objCur.Error.vString(Ubound(objCur.Error.vString)) = sXMLCur
+						
+						Redim Preserve objCur.Error.vCount(Ubound(objCur.Error.vCount) + 1)
+						objCur.Error.vCount(Ubound(objCur.Error.vCount)) = 1												
+						bReturn = True 'weil ein neuer Fehler aufgenommen wurde
+					Else	
+						'Fall: Es gibt den neuen Eintrag schon als Teil-Tag in dem bestehenden letzten Eintrag 
+						'TEST: Kann es sein, dass nun ein Eintrag geschrieben wird, der weniger umfangreich ist als der Vorgänger ?
+						objCur.Error.vString(Ubound(objCur.Error.vString)) = sXMLCur	
+						
+						'Nur den Zähler um 1 erhöhen im letzen Wert, der 'hoffentlich' auch der richtige ist
+						objCur.Error.vCount(Ubound(objCur.Error.vCount)) = objCur.Error.vCount(Ubound(objCur.Error.vCount)) + 1
+						bReturn = False 'weil kein neuer Fehler aufgenommen wurde							
+					End If																						
+				End If'bFlagTagValueEqual = true
+			Else 'if isarray()
+				Redim objCur.Error.vString(0) As String
+				objCur.Error.vString(0) = sXMLCur
+				Redim objCur.Error.vCount(0) As Long
+				objCur.Error.vCount(0) = 1
+				bReturn = True 'weil ein neuer Fehler aufgenommen wurde
+			End If 'if isarray()  			
+		End If' Isempty(objCur.Error.vString)
+		
+		'Als letzten-Fehler anhängen
+		objCur.Error.sString = sXMLCur
+		objCur.Error.iCode = iCodeZ
+	Case iMSG_TYPE_INFO:
+		sXMLCur = strMsgZZZ(session, sMsgOld, sScriptIn, iLineIn, sMessage, iCodeZ, tpcall,  "")
+		If tpcall.iErr > 0 Then Error iERR_FUNCTION_CALL, tpcall.serr
+		
+		If Isempty(objCur.Info.vString) Then
+			Redim objCur.Info.vString(0) As String
+			objCur.Info.vString(0) = sXMLCur
+			
+			Redim objCur.Info.vCount(0) As Long
+			objCur.Info.vCount(0) = 1
+			bReturn = True 'weil ein neuer Fehler aufgenommen wurde
+		Else
+			If Isarray(objCur.Info.vString) Then
+				'+++ Den alten Error Eintrag mit dem Neuen vergleichen				
+				sXMLLast = objCur.Info.vString(Ubound(objCur.Info.vString))																				
+				bFlagTagValueEqual = bTagDetailFirstByNameIsEqualZZZ(session, sXMLCur, sXMLLast, "msg","msg","","", tpcall, "")
+				If tpcall.iErr > 0 Then Error iERR_FUNCTION_CALL, tpcall.serr
+				
+				
+				If bFlagTagValueEqual = True Then
+					'Fall: Identische Err-Tags
+					'Nur den Zähler um 1 erhöhen
+					objCur.Info.vCount(Ubound(objCur.Info.vCount)) = objCur.Info.vCount(Ubound(objCur.Info.vCount)) + 1
+					
+					'Zum schreiben des aktuellen Werts den alten Wert nehmen und nicht den neu berechneten (wg. der geänderten Uhrzeit)
+					sXMLCur = sXMLLast					
+					bReturn = False 'weil kein neuer Fehler aufgenommen wurde
+				Else 'bFlagTagValueEqual = true
+					'Fall: Verschiedene Err-Tags		
+					'ggf. ist der String nicht identisch, sondern in einem Unterknoten vorhanden
+%REM Test und Debug
+					Stop
+					stemp = strReplaceAllSubstringZZZ(session, sScript, "\","_" , sInfo, iCode, "")
+					If iCode > 0 Then Error iERR_FUNCTION_CALL, sinfo
+					Call objcur.Message2FileSend("c:\fglKernel\KernelLog\" & stemp & "_CUR.xml" ,sXMLCur, "")
+					Call objCur.Message2FileSend("c:\fglKernel\KernelLog\" & stemp & "_LAST.xml",sXMLLast,"")
+%ENDREM					
+					
+					bAppend = bMsgIsMemberExactZZZ(session, sXMLCur, sXMLLast, tpcall,  "")
+					If tpcall.iErr > 0 Then Error iERR_FUNCTION_CALL, tpcall.serr
+					
+					If bAppend = False Then
+						'Fall: Einträge sind verschieden
+					     'Neue Zeile anhängen, Neuen Zähler für diese Zeile auf 1 setzen
+						Redim Preserve objCur.Info.vString(Ubound(objCur.Info.vString) + 1)
+						objCur.Info.vString(Ubound(objCur.Info.vString)) = sXMLCur
+						
+						Redim Preserve objCur.Info.vCount(Ubound(objCur.Info.vCount) + 1)
+						objCur.Info.vCount(Ubound(objCur.Info.vCount)) = 1												
+						bReturn = True 'weil ein neuer Fehler aufgenommen wurde
+					Else	
+						'Fall: Es gibt den neuen Eintrag schon als Teil-Tag in dem bestehenden letzten Eintrag 
+						'TEST: Kann es sein, dass nun ein Eintrag geschrieben wird, der weniger umfangreich ist als der Vorgänger ?
+						objCur.Info.vString(Ubound(objCur.Info.vString)) = sXMLCur
+						
+						'Nur den Zähler um 1 erhöhen im letzen Wert, der 'hoffentlich' auch der richtige ist
+						objCur.Info.vCount(Ubound(objCur.Info.vCount)) = objCur.Info.vCount(Ubound(objCur.Info.vCount)) + 1
+						bReturn = False 'weil kein neuer Fehler aufgenommen wurde							
+					End If																						
+				End If'bFlagTagValueEqual = true
+			Else 'if isarray()
+				Redim objCur.Info.vString(0) As String
+				objCur.Info.vString(0) = sXMLCur
+				Redim objCur.Info.vCount(0) As Long
+				objCur.Info.vCount(0) = 1
+				bReturn = True 'weil ein neuer Fehler aufgenommen wurde
+			End If 'if isarray()  			
+		End If' Isempty(objCur.Info.vString)
+		
+		'Als letzten-Fehler anhängen
+		objCur.Info.sString = sXMLCur
+		objCur.Info.iCode = iCodeZ
+		
+	End Select
+	
+EndTrue:
+	AssetMessageAppend_ = bReturn
+	Exit Function
+endFalse:
+	AssetMessageAppend_= False
+	Exit Function 
+EndError:	
+	AssetMessageAppend_= False
+	Exit Function
+ErrH:
+	Dim sScript As String, tp As TypeParamZZZ
+	sScript = "ZBasic.Element.Asset\" & Getthreadinfo(LSI_THREAD_PROC)
+	tp.ierr = Err 'Beim wiederholten Aufruf (d.h. zwei Zeilen hintereinanger ' Error iERR_NEXT, "das ist ein text" ' aufrufen) verliert Err zwei Stellen von rechts nach dem Aufruf der MEthode objMe.MessageAppend(..) !!!! 
+	tp.serr = strMsgZZZ(Nothing, tp.sErr, sScript, Erl, Error$, Err, tpcall, "")
+	If tpcall.iErr > 0 Then
+		Msgbox "An error happened: " & tpcall.serr
+		Resume EndError
+	End If
+	Select Case tp.ierr
+	Case iMSG_NEXT, iERR_NEXT: Resume Next
+	Case iMSG_FALSE, iERR_FALSE: Resume EndFalse
+	Case iMSG_TRUE, iERR_TRUE: Resume EndTrue
+	Case Else: 
+		stemp = MSG2FileSendZZZ(Nothing, "", tp.serr ,1,  tpcall, "")
+		If tpcall.iErr > 0 Then Msgbox tpcall.sErr   'Fehler im Errorhandling sofort ans Frontend/Serverlog ausgeben
+		Msgbox "An error happened, more in this file: " & Chr(13) & stemp
+		Resume EndError		
+	End Select
+End Function
+
+Private Function AssetMessageLastReceive_(objCur As Variant, objSenderIn As Variant, iMsgType As Integer, sFlagControl As String) As String
+%REM
+Hiermit empfängt das aktuelle objekt eine Nachricht von einem anderen objekt
+%END REM
+	Dim sReturn As String, tpcall As TypeParamZZZ
+	On Error Goto errh
+	Dim stemp As String, btemp As Boolean, itemp As Integer
+	
+	If iMsgType <> iMSG_Type_Error And iMsgType <> iMSG_Type_Info Then Error iERR_PARAM_VALUE,  "Wrong parameter for receiving port. MessageType='" & Cstr(iMsgType) & _
+	"', but expected '" & Cstr(iMSG_TYPE_ERROR) & "' or '" & Cstr(iMSG_TYPE_INFO) & "'"
+	
+	
+	Dim objSender As Variant
+	If objSenderIn Is Nothing Then
+		Set objSender = objCur  'Dann will das Object ggf. von sich selbst alle Meldungen bekommen
+	Else		
+		Set objSender = objSenderIn
+	End If
+	
+	
+	'+++ XML Message entgegennehmen
+	Dim sXML As String
+	If iMsgType =  iMSG_TYPE_ERROR Then
+		sXML = objSender.Error.sString
+	Elseif iMsgType =  iMSG_TYPE_INFO Then
+		sXML = objSender.Info.sString
+	End If	
+	
+	'Merke: Dieselbe Vorgehensweise wird bei objLocationAgentCall.MessageCatchByIndex(...) durchgeführt.
+	'Der Objekt - Tag wird nun eine Ebene höher eingefügt
+	Dim sValue As String
+	sValue = strTagEncodingRemoveZZZ(Nothing, sXML, tpcall,"")
+	If tpcall.iErr > 0 Then Error iERR_FUNCTION_CALL, tpcall.serr
+	
+	'FGL 2005-10-10 Einfügen des Tags vor allen PART-Tags
+	sValue = strTagZZZ(objCur.session, "object", objSender.Classname, tpcall, "") + sValue
+	If tpcall.iErr > 0 Then Error iERR_FUNCTION_CALL, tpcall.serr
+	
+%REM damit würde der Tag innerhalb des <part>-Tags eigefügt
+	'An den Wert von tNode wird nun der <object> Tag hinzugefügt
+	Dim tNode As TypeXMLNodeZZZ
+	tNode.sName = "object"
+	tNode.sValue = objSender.ClassName
+	
+	Dim sTagAll As String
+	sTagAll = strNodeAddZZZ(Nothing, sValue, tNode, -1, tpcall, "") 'den ObjectTag-nach vorne sortiert bringen, nur der Übersichtlichkeit halber
+	If tpcall.iErr > 0 Then Error iERR_FUNCTION_CALL, tpcall.serr
+%ENDREM	
+	
+	sReturn = strTagEncodingReplaceZZZ(Nothing, svalue, "",tpcall,  "")
+	If tpcall.iErr > 0 Then Error iERR_FUNCTION_CALL, tpcall.serr
+	
+	
+EndTrue:
+	AssetMessageLastReceive_ = sReturn
+	Exit Function
+endFalse:
+	AssetMessageLastReceive_= ""
+	Exit Function 
+EndError:
+	AssetMessageLastReceive_= ""
+	Exit Function
+ErrH:
+	Dim sScript As String, tp As TypeParamZZZ
+	sScript = "ZBasic.Element.Asset\" & Getthreadinfo(LSI_THREAD_PROC)
+	tp.ierr = Err 'Beim wiederholten Aufruf (d.h. zwei Zeilen hintereinanger ' Error iERR_NEXT, "das ist ein text" ' aufrufen) verliert Err zwei Stellen von rechts nach dem Aufruf der MEthode objMe.MessageAppend(..) !!!! 
+	tp.serr = strMsgZZZ(Nothing, tp.sErr, sScript, Erl, Error$, Err, tpcall, "")
+	If tpcall.iErr > 0 Then
+		Msgbox "An error happened: " & tpcall.serr
+		Resume EndError
+	End If
+	Select Case tp.ierr
+	Case iMSG_NEXT, iERR_NEXT: Resume Next
+	Case iMSG_FALSE, iERR_FALSE: Resume EndFalse
+	Case iMSG_TRUE, iERR_TRUE: Resume EndTrue
+	Case Else: 
+		stemp = MSG2FileSendZZZ(Nothing, "", tp.serr , 1, tpcall, "")
+		If tpcall.iErr > 0 Then Msgbox tpcall.sErr   'Fehler im Errorhandling sofort ans Frontend/Serverlog ausgeben
+		Msgbox "An error happened, more in this file: " & Chr(13) & stemp
+		Resume EndError		
+	End Select
+End Function
+Private Function AssetMessage2FileSend_(objCur As Variant, sFileIn As String, sMessageIn As String, sFlagControl As String) As Boolean
+	Dim tpCall As TypeParamZZZ
+	On Error Goto errh
+	Dim stemp As String
+	
+	'##############################
+	
+	stemp = MSG2FileSendZZZ(Nothing, sFileIn, sMessageIn, 1, tpcall, "")
+	If tpcall.iErr > 0 Then Error iERR_FUNCTION_CALL, tpcall.serr
+	
+	'##############################
+EndTrue:
+	AssetMessage2FileSend_ = True
+	Exit Function
+endFalse:
+	AssetMessage2Filesend_= False
+	Exit Function 
+EndError:
+	AssetMessage2filesend_ = False
+	Exit Function
+ErrH:
+	Dim sScript As String, tp As TypeParamZZZ
+	sScript = "ZBasic.Element.Asset\" & Getthreadinfo(LSI_THREAD_PROC)
+	tp.ierr = Err 'Beim wiederholten Aufruf (d.h. zwei Zeilen hintereinanger ' Error iERR_NEXT, "das ist ein text" ' aufrufen) verliert Err zwei Stellen von rechts nach dem Aufruf der MEthode objMe.MessageAppend(..) !!!! 
+	tp.serr = strMsgZZZ(Nothing, tp.sErr, sScript, Erl, Error$, Err, tpcall, "")
+	If tpcall.iErr > 0 Then
+		Msgbox "An error happened: " & tpcall.serr
+		Resume EndError
+	End If
+	Select Case tp.ierr
+	Case iMSG_NEXT, iERR_NEXT: Resume Next
+	Case iMSG_FALSE, iERR_FALSE: Resume EndFalse
+	Case iMSG_TRUE, iERR_TRUE: Resume EndTrue
+	Case Else: 
+		stemp = MSG2FileSendZZZ(Nothing, "", tp.serr , 1, tpcall, "")
+		If tpcall.iErr > 0 Then Msgbox tpcall.sErr   'Fehler im Errorhandling sofort ans Frontend/Serverlog ausgeben
+		Msgbox "An error happened, more in this file: " & Chr(13) & stemp
+		Resume EndError		
+	End Select
+End Function
+Private Function AssetMessageAllReceive_(objCur As Variant, objSenderIn As Variant, iMsgType As Integer, sFlagControl As String) As String
+%REM
+Hiermit empfängt das aktuelle objekt eine Nachricht von einem anderen objekt
+%END REM
+	Dim sReturn As String, tpcall As TypeParamZZZ
+	On Error Goto errh
+	Dim stemp As String
+	
+	If iMsgType <> iMSG_Type_Error And iMsgType <> iMSG_Type_Info Then Error iERR_PARAM_VALUE,  "Wrong parameter for receiving all messages for this port. MessageType='" & Cstr(iMsgType) & _
+	"', but expected '" & Cstr(iMSG_TYPE_ERROR) & "' or '" & Cstr(iMSG_TYPE_INFO) & "'"
+	
+	Dim objSender As Variant
+	If objSenderIn Is Nothing Then
+		Set objSender = objCur  'Dann will das Object ggf. von sich selbst alle Meldungen bekommen
+	Else		
+		Set objSender = objSenderin
+	End If
+	
+	'+++ XML Message entgegennehmen
+	Dim vXML As Variant
+	If iMsgType =  iMSG_TYPE_ERROR Then
+		vXML = objSender.Error.vString
+	Elseif iMsgType =  iMSG_TYPE_INFO Then
+		vXML = objSender.Info.vString
+	End If	
+	
+	'Der Objekt - Tag wird nun eine Ebene höher eingefügt
+	Dim sValue As String	
+	'Msgbox "ZBasic.Element.Asset\" & Getthreadinfo(LSI_THREAD_PROC)  & strcrlfzzz(2) & "Message was sent to file: " & MSG2FileSendZZZ(Nothing, "", vXML(0), tpcall, "")
+	sValue = strMsgAllJoinZZZ(objCur.session, vXML, tpcall, "")
+	If tpcall.iErr > 0 Then Error iERR_FUNCTION_CALL, tpcall.serr
+	
+	'+++ Wenn es nix zu receiven gibt, dann darf hier nicht weitergemacht werden
+	'Msgbox  "ZBasic.Element.Asset\" & Getthreadinfo(LSI_THREAD_PROC) & strcrlfzzz(1) & sValue
+	If Len(sValue) = 0 Then Goto EndFalse 'Damit man sicher sein kann, das auch ein leerstring zurückgegeben wird.
+	
+	'### Einfügen des Object-Tags vor allen PART-Tags
+	'+++ Encoding Tag und Umschliessenden Tag entfernen. Damit kann eine vom Receipt-Objekt "gethrowte" Message (und an das Objekt angehängte Message) auch mit dieser Methode geholt werden.
+	sValue = strTagEnclosingRemoveZZZ(objCur.session, sValue, tpcall,"")
+	If tpcall.iErr > 0 Then Error iERR_FUNCTION_CALL, tpcall.serr
+	
+	'Msgbox "ZBasic.Element.Asset\" & Getthreadinfo(LSI_THREAD_PROC) & strcrlfzzz(2) & sValue	
+	sValue = strTagZZZ(objCur.session, "object", objSender.Classname, tpcall, "") + sValue
+	If tpcall.iErr > 0 Then Error iERR_FUNCTION_CALL, tpcall.serr
+	
+	
+%REM damit würde der Tag innerhalb des <part>-Tags eigefügt, also des ersten gefundenen Tags
+	Dim tNode As TypeXMLNodeZZZ
+	tNode.sName = "object"
+	tNode.sValue = objSender.ClassName
+	
+	Dim sTagAll As String
+	sReturn = strNodeAddZZZ(objCur.session, sValue, tNode, -1, tpcall,"") 'den ObjectTag-nach vorne sortiert bringen, nur der Übersichtlichkeit halber
+	If tpcall.iErr > 0 Then Error iERR_FUNCTION_CALL, tpcall.serr
+%ENDREM	
+	
+	'+++ Den Z-Message-Tag wieder setzen
+	sReturn = strTagZZZ(objCur.session, "ZMessage", sValue, tpcall, "")
+	If tpcall.iErr > 0 Then Error iERR_FUNCTION_CALL, tpcall.serr
+	
+	'+++ den encoding Type wieder setzen setzen
+	sReturn = strTagEncodingReplaceZZZ(objCur.session, sReturn, "", tpcall, "")
+	If tpcall.iErr > 0 Then Error iERR_FUNCTION_CALL, tpcall.serr
+	
+EndTrue:
+	AssetMessageAllReceive_ = sReturn
+	Exit Function
+endFalse:
+	AssetMessageAllReceive_= ""
+	Exit Function 
+EndError:
+	AssetMessageAllReceive_= ""
+	Exit Function
+ErrH:
+	Dim sScript As String, tp As TypeParamZZZ
+	sScript = "ZBasic.Element.Asset\" & Getthreadinfo(LSI_THREAD_PROC)
+	tp.ierr = Err 'Beim wiederholten Aufruf (d.h. zwei Zeilen hintereinanger ' Error iERR_NEXT, "das ist ein text" ' aufrufen) verliert Err zwei Stellen von rechts nach dem Aufruf der MEthode objMe.MessageAppend(..) !!!! 
+	tp.serr = strMsgZZZ(Nothing, tp.sErr, sScript, Erl, Error$, Err, tpcall, "")
+	If tpcall.iErr > 0 Then
+		Msgbox "An error happened: " & tpcall.serr
+		Resume EndError
+	End If
+	Select Case tp.ierr
+	Case iMSG_NEXT, iERR_NEXT: Resume Next
+	Case iMSG_FALSE, iERR_FALSE: Resume EndFalse
+	Case iMSG_TRUE, iERR_TRUE: Resume EndTrue
+	Case Else: 
+		stemp = MSG2FileSendZZZ(Nothing, "", tp.serr , 1, tpcall, "")
+		If tpcall.iErr > 0 Then Msgbox tpcall.sErr   'Fehler im Errorhandling sofort ans Frontend/Serverlog ausgeben
+		Msgbox "An error happened, more in this file: " & Chr(13) & stemp
+		Resume EndError		
+	End Select
+End Function
+Private Function AssetMessageReset_(objCur As KernelObjectZZZ, iMsgType As Integer, sFlagControl As String) As Boolean
+%REM
+	Hiermit wird in jedem Methodenaufruf am Anfang ein ggf. aus einer anderen MEthode stammender Fehler deaktiviert.
+%END REM	
+	On Error Goto errh
+	Dim stemp As String
+	
+	If iMsgType = iMSG_Type_Error Then
+		objCur.Error.iCode = 0
+		objCur.Error.sString = ""
+	Elseif iMsgType = iMSG_Type_Info Then
+		objCur.Info.iCode = 0
+		objCur.Info.sString = ""
+	Else
+		Error iERR_PARAM_VALUE,  "Wrong parameter for resetting all messages of a port. MessageType='" & Cstr(iMsgType) & _
+		"', but expected '" & Cstr(iMSG_TYPE_ERROR) & "' or '" & Cstr(iMSG_TYPE_INFO) & "'"
+	End If
+	
+EndTrue:
+	AssetMessageReset_ = True
+	Exit Function
+endFalse:
+	AssetMessageReset_= False
+	Exit Function 
+EndError:	
+	AssetMessageReset_= False
+	Exit Function
+ErrH:
+	Dim sScript As String, tp As TypeParamZZZ, tpcall As TypeParamZZZ
+	sScript = "ZBasic.Element.Asset\" & Getthreadinfo(LSI_THREAD_PROC)
+	tp.ierr = Err 'Beim wiederholten Aufruf (d.h. zwei Zeilen hintereinanger ' Error iERR_NEXT, "das ist ein text" ' aufrufen) verliert Err zwei Stellen von rechts nach dem Aufruf der MEthode objMe.MessageAppend(..) !!!! 
+	tp.serr = strMsgZZZ(Nothing, tp.sErr, sScript, Erl, Error$, Err, tpcall, "")
+	If tpcall.iErr > 0 Then
+		Msgbox "An error happened: " & tpcall.serr
+		Resume EndError
+	End If
+	Select Case tp.ierr
+	Case iMSG_NEXT, iERR_NEXT: Resume Next
+	Case iMSG_FALSE, iERR_FALSE: Resume EndFalse
+	Case iMSG_TRUE, iERR_TRUE: Resume EndTrue
+	Case Else: 
+		stemp = MSG2FileSendZZZ(Nothing, "", tp.serr , 1, tpcall, "")
+		If tpcall.iErr > 0 Then Msgbox tpcall.sErr   'Fehler im Errorhandling sofort ans Frontend/Serverlog ausgeben
+		Msgbox "An error happened, more in this file: " & Chr(13) & stemp
+		Resume EndError		
+	End Select
+End Function
+Private Function AssetMessageAppendAppend_() As Boolean
+	
+End Function
+
+Private Function AssetPrintln_(objCur As KernelObjectZZZ, sMessage As String, sFlagControl As String) As Boolean
+	
+	If objCur.FlagGet("QuietMode") Then Goto EndFalse
+	
+	Print sMessage	
+	
+EndTrue:
+	AssetPrintln_ = True
+	Exit Function
+endFalse:
+	AssetPrintln_= False
+	Exit Function 
+EndError:	
+	AssetPrintln_= False
+	Exit Function
+ErrH:
+	Dim tpcall As TypeParamZZZ, stemp As String
+	
+	Dim sScript As String, tp As TypeParamZZZ
+	sScript = "ZBasic.Element.Asset\" & Getthreadinfo(LSI_THREAD_PROC)
+	tp.ierr = Err 'Beim wiederholten Aufruf (d.h. zwei Zeilen hintereinanger ' Error iERR_NEXT, "das ist ein text" ' aufrufen) verliert Err zwei Stellen von rechts nach dem Aufruf der MEthode objMe.MessageAppend(..) !!!! 
+	tp.serr = strMsgZZZ(Nothing, tp.sErr, sScript, Erl, Error$, Err, tpcall, "")
+	If tpcall.iErr > 0 Then
+		Msgbox "An error happened: " & tpcall.serr
+		Resume EndError
+	End If
+	Select Case tp.ierr
+	Case iMSG_NEXT, iERR_NEXT: Resume Next
+	Case iMSG_FALSE, iERR_FALSE: Resume EndFalse
+	Case iMSG_TRUE, iERR_TRUE: Resume EndTrue
+	Case Else: 
+		stemp = MSG2FileSendZZZ(Nothing, "", tp.serr ,1,  tpcall, "")
+		If tpcall.iErr > 0 Then Msgbox tpcall.sErr   'Fehler im Errorhandling sofort ans Frontend/Serverlog ausgeben
+		Msgbox "An error happened, more in this file: " & Chr(13) & stemp
+		Resume EndError		
+	End Select
+End Function

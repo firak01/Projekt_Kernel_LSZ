@@ -1,0 +1,265 @@
+'%INCLUDE "C:\1fgl\workspace\Eclipse3FGL\LSZKernel\libkernel\ZAPI.Basic.Asset.lss"
+'Use "ZCore.Element.."
+
+'Private Const sLibZZZ="ZZZBasicInheritStructListHash
+Public Class KernelCryptSimpleZZZ As ObjectZZZ
+	Private sCryptKeyCurrent As String 's. Konstruktor
+	Private objSession As Notessession
+	
+	'### Properties
+	'### Die Version des ganzen Kernels
+	Public Property Get KernelVersionText As String
+		KernelVersionText = ""
+	End Property
+	Public Property Get KernelVersion As String
+		KernelVersion = "3.0"
+	End Property
+	Public Property Get KernelVersionDate As String
+		KernelVersionDate = "10.11.2005"
+	End Property
+	
+	'### Die Version DIESES Objekts und der Klassenname
+	Public Property Get ClassName As String
+		ClassName = Typename(Me)
+	End Property 
+	Public Property Get ClassNameParent As String
+		ClassNameParent = ObjectZZZ..ClassName
+	End Property
+	Public Property Get ClassLibrary As String
+		ClassLibrary = "ZBasic.Global.Crypt.Simple"
+	End Property
+	Public Property Get VersionText As String
+		VersionText = ""
+	End Property
+	Public Property Get Version As String
+		Version = "1.0"
+	End Property
+	Public Property Get VersionDate As String
+		VersionDate = "10.11.2005"
+	End Property
+	
+	'### PROPERTIES
+	Public Property Get CryptKeyCurrent As String
+		If Len(Me.sCryptKeyCurrent) = 0 Then
+			CryptKeyCurrent = Me.CryptKeyDefault
+		Else
+			CryptKeyCurrent = Me.sCryptKeyCurrent
+		End If
+	End Property
+	Public Property Set CryptKeyCurrent As String
+		Me.sCryptKeyCurrent = CryptKeyCurrent
+	End Property
+	Public Property Get CryptKeyDefault As String
+		CryptKeyDefault = "FGLRulez"
+	End Property
+	
+	
+	
+	'Merke: Weil dieses Objekt nichts von ZZZBasicKernelThem erbt, muss ein Session-Property extra definiert werden
+	Public Property Get Session As NotesSession
+		If Me.objSession Is Nothing Then
+			Set session = New notessession
+		Else
+			Set Session = Me.objSession
+		End If
+	End Property
+	Public Property Set Session As notessession
+		Set Me.objSession = session
+	End Property
+	
+	'### Methoden
+	'+++ Konstruktor. Merke: Kein Kernel-Objekt !!! Darum muss die Session auch an die Private new_ Function übergeben werden
+	Sub new(session As notessession, sCryptKey As String, vFlagToSet As Variant, sFlagControl As String)
+		Call CRSNew_(Me, session, sCryptKey, vFlagToSet, sFlagControl)
+	End Sub
+	Function encrypt(sToEncrypt As String, sFlagControl As String) As String
+		encrypt = CRSEncrypt_(Me, sToEncrypt, sFlagControl)
+	End Function
+	Function decrypt(sToDecrypt As String, sFlagControl As String) As String
+		decrypt = CRSDecrypt_(Me, sToDecrypt, sFlagControl)
+	End Function
+End Class
+Private Function CRSNew_(objCrypt As KernelCryptSimpleZZZ, session As NotesSession, sCryptKeyCurrentIn As String, vFlagToSet As Variant, sFlagControl As String) As Boolean
+	On Error Goto errobj
+	If objCrypt.Error.iCode > 0 Then Error iERR_OBJECT_PAR, objCrypt.MessageAllReceive(Nothing, iMSG_TYPE_ERROR, "") 	'Falls in dem Constructor der Elternklasse ein Fehler aufgetreten ist
+	
+	Dim tpcall As TypeParamZZZ
+	Dim btemp, stemp, itemp', vtemp, ltemp, dtemp
+	
+	'+++ Interne Flags auf default setzen (default = true)
+	'hier: nix
+	'...
+	
+	'+++ weiter Flags setzen
+	If Not Isnull(vFlagToSet) Then
+		Dim saTemp() As String
+		Dim iCounter As Integer
+		itemp = ArrayStringFromVariantZZZ(objCrypt.session, vFlagToSet, saTemp, tpcall,"")
+		If tpcall.ierr > 0 Then Error iERR_FUNCTION_CALL, tpcall.serr
+		For iCounter = 0 To itemp
+			btemp = objCrypt.flagset(saTemp(iCounter), True)
+		Next			
+		If objCrypt.flagget("init") = True Then Goto EndTrue
+	End If
+	
+	'##############
+	
+	Set objCrypt.session = session
+	objCrypt.CryptKeyCurrent = sCryptKeyCurrentIn
+	
+	'##############
+EndTrue:
+	objCrypt.Error.iCode = 0
+	CRSNew_ = True
+	Exit Function
+EndFalse:
+	objCrypt.Error.iCode = 0
+	CRSNew_  = False
+	Exit Function
+EndError:
+	CRSNew_  = False
+	Exit Function
+Errobj:
+	Dim sScript, icode As Integer
+	sScript = objCrypt.ClassLibrary & "\" & Getthreadinfo(LSI_THREAD_PROC)
+	icode = Err   'Beim wiederholten Aufruf (d.h. zwei Zeilen hintereinanger ' Error iERR_NEXT, "das ist ein text" ' aufrufen) verliert Err zwei Stellen von rechts nach dem Aufruf der MEthode objLicense.MessageAppend(..) !!!! 
+	Call objCrypt.MessageAppend("",sScript,Erl,Error$, Err, "")
+	Select Case icode
+	Case iMSG_NEXT, iERR_NEXT, iMSG_AGENT_NEXT, iERR_AGENT_NEXT: Resume Next
+	Case iMSG_TRUE, iERR_TRUE, iMSG_AGENT_TRUE, iERR_AGENT_TRUE: Resume EndTrue
+	Case iMSG_FALSE, iERR_FALSE, iMSG_AGENT_FALSE, iERR_AGENT_FALSE: Resume EndFalse
+	Case iERR_OBJECT_ERR, iERR_OBJECT_CUR, iERR_AGENT_CALL: Resume EndError 'Ziel: Nicht jeden Fehler ins Log stellen
+	Case Else: 
+		Call MSG2FileSendZZZ(Nothing, "", objCrypt.Error.sString, 1, tpcall, "")
+		'ODER: Msgbox "An error happened, more in this file: " & Chr(13) & MSG2FileSendZZZ(Nothing, "", objLicense.Error.sString, tpcall, "")
+		If tpcall.iErr > 0 Then Msgbox tpcall.sErr   'Fehler im Errorhandling sofort ans Frontend/Serverlog ausgeben		
+		Resume EndError
+	End Select
+End Function
+Private Function CRSEncrypt_(objCrypt As KernelCryptSimpleZZZ, sToEncryptIn As String, sFlagcontrol As String) As String
+	Dim sReturn As String
+	On Error Goto errobjNoCall
+	Call objCrypt.MessageReset(iMSG_TYPE_ERROR,"")  'Damit sich in dieser Methode nicht Fehler aus einer anderen Methode auswirken
+	Dim stemp As String
+	
+	'+++ Param Check
+	Dim sToEncrypt As String
+	If Len(sToEncryptIn) = 0 Then
+		Goto EndFalse
+	Else
+		sToEncrypt = sToEncryptIn
+	End If
+	
+	Dim sKey As String
+	sKey = objCrypt.CryptKeyCurrent
+	
+	
+	'###############
+	Dim llength As Long
+	llength = Len(sToEncrypt)
+	
+	Dim lKeyLength As Long
+	lKeyLength = Len(sKey)
+	
+	Dim lcount As Long, sKeyChar As String	
+	For lcount = 1 To llength
+		stemp = Mid$(sToEncrypt, lCount, 1)
+		sKeyChar = Mid$(sKey, (lCount Mod lKeyLength)+1,1)
+		stemp = 	Chr$(	Asc(stemp) + Asc(sKeyChar))
+		sreturn = sreturn & stemp
+	Next lcount
+	
+	'###############
+EndTrue:
+	objCrypt.Error.iCode = 0
+	CRSEncrypt_= sReturn
+	Exit Function
+EndFalse:
+	objCrypt.Error.iCode = 0
+	CRSEncrypt_= ""
+	Exit Function
+EndError:
+	CRSEncrypt_= ""
+	Exit Function
+	'Errorhandler für Objekte
+ErrObjNoCall:
+	Dim sScript, icode As Integer, tpcall As TypePAramZZZ
+	sScript = objCrypt.ClassLibrary & "\" & Getthreadinfo(LSI_THREAD_PROC)
+	icode = Err 'Beim wiederholten Aufruf (d.h. zwei Zeilen hintereinanger ' Error iERR_NEXT, "das ist ein text" ' aufrufen) verliert Err zwei Stellen von rechts nach dem Aufruf der MEthode objLicense.MessageAppend(..) !!!! 
+	Call objCrypt.MessageAppend("",sScript,Erl,Error$, Err, "")
+	Select Case icode
+	Case iMSG_NEXT, iERR_NEXT, iMSG_AGENT_NEXT, iERR_AGENT_NEXT: Resume Next
+	Case iMSG_TRUE, iERR_TRUE, iMSG_AGENT_TRUE, iERR_AGENT_TRUE: Resume EndTrue
+	Case iMSG_FALSE, iERR_FALSE, iMSG_AGENT_FALSE, iERR_AGENT_FALSE: Resume EndFalse
+	Case iERR_OBJECT_ERR, iERR_OBJECT_CUR, iERR_AGENT_CALL: Resume EndError 'Ziel: Nicht jeden Fehler ins Log stellen
+	Case Else: 
+		Call MSG2FileSendZZZ(Nothing, "", objCrypt.Error.sString, 1, tpcall, "")
+		'ODER: Msgbox "An error happened, more in this file: " & Chr(13) & MSG2FileSendZZZ(Nothing, "", objLicense.Error.sString, tpcall, "")
+		If tpcall.iErr > 0 Then Msgbox tpcall.sErr   'Fehler im Errorhandling sofort ans Frontend/Serverlog ausgeben		
+		Resume EndError
+	End Select
+End Function
+
+Private Function CRSDecrypt_(objCrypt As KernelCryptSimpleZZZ, sToDecryptIn As String, sFlagcontrol As String) As String
+	Dim sReturn As String
+	On Error Goto errobjNoCall
+	Call objCrypt.MessageReset(iMSG_TYPE_ERROR,"")  'Damit sich in dieser Methode nicht Fehler aus einer anderen Methode auswirken
+	Dim stemp As String
+	
+	'+++ Param Check
+	Dim sToDecrypt As String
+	If Len(sToDecryptIn) = 0 Then
+		Goto EndFalse
+	Else
+		sToDecrypt = sToDecryptIn
+	End If
+	
+	Dim sKey As String
+	sKey = objCrypt.CryptKeyCurrent
+	
+	'###############
+	Dim llength As Long
+	llength = Len(sToDecrypt)
+	
+	Dim lKeyLength As Long
+	lKeyLength = Len(sKey)
+	
+	Dim lcount As Long, sKeyChar As String	
+	For lcount = 1 To llength
+		stemp = Mid$(sToDecrypt, lCount, 1)
+		sKeyChar = Mid$(sKey, (lCount Mod lKeyLength)+1,1)
+		If Asc(stemp) - Asc(sKeyChar) <= 0 Then Error iMSG_FALSE, "The string '" & sToDecryptIn & " was not encrypted by this algorithm." '!!!!
+		stemp = 	Chr$(	Asc(stemp) - Asc(sKeyChar))
+		sreturn = sreturn & stemp
+	Next lcount
+	
+	'###############
+EndTrue:
+	objCrypt.Error.iCode = 0
+	CRSDecrypt_= sReturn
+	Exit Function
+EndFalse:
+	objCrypt.Error.iCode = 0
+	CRSDecrypt_= ""
+	Exit Function
+EndError:
+	CRSDecrypt_= ""
+	Exit Function
+	'Errorhandler für Objekte
+ErrObjNoCall:
+	Dim sScript, icode As Integer, tpcall As TypePAramZZZ
+	sScript = objCrypt.ClassLibrary & "\" & Getthreadinfo(LSI_THREAD_PROC)
+	icode = Err 'Beim wiederholten Aufruf (d.h. zwei Zeilen hintereinanger ' Error iERR_NEXT, "das ist ein text" ' aufrufen) verliert Err zwei Stellen von rechts nach dem Aufruf der MEthode objLicense.MessageAppend(..) !!!! 
+	Call objCrypt.MessageAppend("",sScript,Erl,Error$, Err, "")
+	Select Case icode
+	Case iMSG_NEXT, iERR_NEXT, iMSG_AGENT_NEXT, iERR_AGENT_NEXT: Resume Next
+	Case iMSG_TRUE, iERR_TRUE, iMSG_AGENT_TRUE, iERR_AGENT_TRUE: Resume EndTrue
+	Case iMSG_FALSE, iERR_FALSE, iMSG_AGENT_FALSE, iERR_AGENT_FALSE: Resume EndFalse
+	Case iERR_OBJECT_ERR, iERR_OBJECT_CUR, iERR_AGENT_CALL: Resume EndError 'Ziel: Nicht jeden Fehler ins Log stellen
+	Case Else: 
+		Call MSG2FileSendZZZ(Nothing, "", objCrypt.Error.sString, 1, tpcall, "")
+		'ODER: Msgbox "An error happened, more in this file: " & Chr(13) & MSG2FileSendZZZ(Nothing, "", objLicense.Error.sString, tpcall, "")
+		If tpcall.iErr > 0 Then Msgbox tpcall.sErr   'Fehler im Errorhandling sofort ans Frontend/Serverlog ausgeben		
+		Resume EndError
+	End Select
+End Function

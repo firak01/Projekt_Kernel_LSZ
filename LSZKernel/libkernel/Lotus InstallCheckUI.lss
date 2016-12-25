@@ -1,0 +1,45 @@
+%INCLUDE "c:\temp\hidden\ZAPI.Basic.Asset.lss"
+
+%INCLUDE "c:\temp\hidden\ZAPI.Basic.Constant.lss"
+%INCLUDE "c:\temp\hidden\ZAPI.Basic.Message.lss"
+%INCLUDE "c:\temp\hidden\ZAPI.Basic.Lang.Markup.lss"
+%INCLUDE "c:\temp\hidden\ZAPI.Basic.ZMessage.lss"
+
+%INCLUDE "c:\temp\hidden\ZAPI.Basic.Lang.Markup.UI.lss"
+
+%INCLUDE "c:\temp\hidden\ZBasic.API32.Lotus.lss"
+%INCLUDE "c:\temp\hidden\ZBasic.API32.Win.lss" 
+%INCLUDE "c:\temp\hidden\ZBasic.API32.Excel.lss" 
+
+
+%INCLUDE "c:\temp\hidden\ZBasic.BasicType.List.lss"
+%INCLUDE "c:\temp\hidden\ZBasic.BasicType.String.lss"
+%INCLUDE "c:\temp\hidden\ZBasic.DataType.AllPrimitive.lss"
+%INCLUDE "c:\temp\hidden\ZBasic.DataType.Array.Other.lss"
+%INCLUDE "c:\temp\hidden\ZBasic.DataType.Array.String.lss"
+%INCLUDE "c:\temp\hidden\ZBasic.DataType.Date.lss"
+%INCLUDE "c:\temp\hidden\ZBasic.DataType.Depreciated.lss"
+%INCLUDE "c:\temp\hidden\ZBasic.DataType.Lang.Markup.lss"
+%INCLUDE "c:\temp\hidden\ZBasic.DataType.Name.lss"
+%INCLUDE "c:\temp\hidden\ZBasic.DataType.String.Language.lss" 
+
+%INCLUDE "c:\temp\hidden\ZBasic.DataURL.File.Logic.lss" 
+
+%INCLUDE "c:\temp\hidden\ZBasic.Document.lss"
+%INCLUDE "c:\temp\hidden\ZBasic.Document.Array.lss"
+%INCLUDE "c:\temp\hidden\ZBasic.Document.Collection.lss"
+%INCLUDE "c:\temp\hidden\ZBasic.DOM.Depreciated.lss"
+%INCLUDE "c:\temp\hidden\ZBasic.DOM.Design.Notes.lss"
+%INCLUDE "c:\temp\hidden\ZBasic.DOM.Notes.ACL.lss"
+%INCLUDE "c:\temp\hidden\ZBasic.DOM.Notes.Database.lss"
+
+%INCLUDE "c:\temp\hidden\ZCore.Element.Asset.Constant.lss"
+%INCLUDE "c:\temp\hidden\ZCore.Element.Asset.lss"
+%INCLUDE "c:\temp\hidden\ZCore.Element.Asset.Include.lss" 
+%INCLUDE "c:\temp\hidden\ZCore.Global.License.lss"
+%INCLUDE "c:\temp\hidden\ZCore.Global.License.Include.lss"
+%INCLUDE "c:\temp\hidden\ZCore.Global.Crypt.Simple.lss" 
+%INCLUDE "c:\temp\hidden\ZCore.Global.Crypt.Simple.Include.lss"
+
+
+%INCLUDE "c:\temp\hidden\Z_StartDBUI.lss"

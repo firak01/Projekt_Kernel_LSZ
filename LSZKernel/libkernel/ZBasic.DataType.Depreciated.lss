@@ -1,0 +1,418 @@
+'raus, wird in ZBasic.DataType.. eingebunden %INCLUDE "C:\1fgl\workspace\Eclipse3FGL\LSZKernel\libkernel\ZAPI.Basic.Asset.lss"       
+'Private Const sLibZZZ = "ZZZBasicDataTypeDepreciated"
+'Private Const sVerZZZ = "2005-06-22"
+Function ArrayStringArrayCopyZZZ(session As notessession, ArrayNew() As String, ArrayWhat() As String) As Integer
+	
+%REM
+FGL 21.01.2004:
+Diese Funktion soll nun nicht mehr verwendet werden !!!
+Bitte statt dessen ArrayStringCopyZZZ verwenden !!!
+%END REM
+	
+' session = notessession	
+' Array = Array, das die Werte erhält	
+' ArrayWhat = Werte für das Array	
+	
+' Beschreibung: Setzt die Werte des einen Arrays in das ander Array
+' ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+	
+	Dim i As Integer	
+	
+   	'### Voraussetzungen für die Protokollierung
+	Dim sScriptPosition As String
+	sScriptPosition = "ZBasic.DataType.Depreciated\ArrayStringArrayCopyZZZ"
+	On Error Goto ErrorHandler
+	
+	' Array dimensionieren
+	Redim ArrayNew(Ubound(ArrayWhat)) As String
+	
+	' Werte übergeben
+	For i = 0 To Ubound(ArrayWhat)
+		ArrayNew(i) = ArrayWhat(i)
+	Next
+	
+	'#########################
+EndeSuccess:
+	ArrayStringArrayCopyZZZ = True
+	Exit Function	
+EndeError:
+	ArrayStringArrayCopyZZZ = False	
+	Exit Function
+ErrorHandler:
+	Msgbox "Es ist ein Fehler aufgetreten: " & Error$ & " " & sScriptposition & " ( Zeile: " & Cstr(Erl) & " )"
+	Resume EndeError	
+	
+End Function
+Function ArrayStringValueDeleteZZZ(session As notessession, Array() As String, Position As Integer) As Integer
+%REM
+FGL:
+Diese Funktion nicht mehr verwenden.
+Statt dessen ArrayStringIndexRemoveZZZ benutzen. (ggf. in Kombination mit ArrayStringCopyZZZ)
+%END REM
+' session = notessession	
+' Array = das zu bearbeitende Array
+' Position = die zu löschende Position	
+	
+' Beschreibung: Löscht eine Position aus einem Array 	
+' ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+	
+	Dim ArrayTmp() As String
+	Dim at As Integer	 
+	Dim i As Integer
+	Dim p As Integer	
+	
+   	'### Voraussetzungen für die Protokollierung
+	Dim sScriptPosition As String
+	sScriptPosition = "ZBasic.DataType.Depreciated\ArrayStringValueDeleteZZZ"
+'	On Error Goto ErrorHandler
+	
+	' Übergabeparameter prüfen --------------------------------------------------------------------------------------------------------------------------------------------
+	If Not Isarray(Array) Then 
+		Goto EndeError
+	End If
+	
+	i = 0
+	p = 0
+	If Ubound(Array) = 0 Then
+		at = 0
+	Else
+		at = Ubound(Array) - 1
+	End If
+	
+	' Neues Array erstellen -----------------------------------------------------------------------------------------------------------------------------------------------------
+	Redim ArrayTmp(at) As String
+	Forall v In Array
+		If Position <> p Then
+			ArrayTmp(i) = v
+			i = i + 1
+		End If
+		
+		p = p + 1
+	End Forall
+	
+	' Werte kopieren --------------------------------------------------------------------------------------------------------------------------------------------------------------
+	Call ArrayStringArrayCopyZZZ(session, Array, ArrayTmp) 
+	
+	
+	'#########################
+EndeSuccess:
+	ArrayStringValueDeleteZZZ = True
+	Exit Function	
+EndeError:
+	ArrayStringValueDeleteZZZ = False	
+	Exit Function
+ErrorHandler:
+	Msgbox "Es ist ein Fehler aufgetreten: " & Error$ & " " & sScriptposition & " ( Zeile: " & Cstr(Erl) & " )"
+	Resume EndeError	
+	
+End Function
+
+Function strSubstringCountyZZZ(session As notessession, sWhere, sWhat, iCompMethod As Integer) As Integer
+%REM
+Ersteller: Fritz Lindhauer
+am: 23.05.2002
+Diese Funktion ermittelt die Häufigkeit mit der ein Teil-String im Gesamtstring vorkommt
+iCompMethod steht für einen zusätzlichen Prüfparameter.
+	Number	Comparison method
+	0	case sensitive, pitch sensitive
+	1	case insensitive, pitch sensitive
+	4	case sensitive, pitch insensitive
+	5	case insensitive, pitch insensitive
+Falls iCompMethod falsch angegeben wird, wird 0 als default verwendet.
+
+Wurde durch lngStringSubstringCountZZZ(..) ersetzt.
+Diese Funktion lieferte einen Overflow, was mit der neuen Funktion nicht so leicht möglich ist.
+%END REM
+	
+	
+	
+	
+	'### Variablen
+	Dim iStringCounter As Integer
+	Dim iPos As Integer, iPosToAdd As Integer
+	Dim sRest As String
+	Dim itemp As Integer
+	
+	'### Fehlerbehandlung
+	Dim sScriptposition As String
+	sScriptposition = "ZBasic.DataType.Depreciated\strSubstringCountZZZ"
+	On Error Goto ErrorHandler
+	
+	'### Überprüfung der Übergabeparameter
+	If Len(sWhere) <= 0 Or Len(sWhat) <= 0  Then
+		iStringCounter = 0
+		Goto EndeSuccess
+	End If
+	If  iCompMethod <> 0 And iCompMethod <> 1 And iCompMethod <> 4 And iCompMethod <> 5 Then
+		iCompMethod = 0
+	End If
+	
+	'###########################
+	
+	iStringCounter = 0
+	iPosToAdd = Len(sWhat) - 1 					'wird nämlich durch die For-Schleife schon um eins erhöht
+	For iPos = 1 To Len(sWhere)					'For Schleifen sind generell viiiel schneller als While oder ähnliches !!!
+		itemp = Instr(iPos,sWhere, sWhat, iCompMethod)
+		If Not Isnull(itemp) Then
+			If itemp <> 0 Then
+				iStringCounter = iStringCounter + 1
+				iPos = itemp + iPosToAdd
+			Else
+				Exit For
+			End If 'itemp <> 0
+		End If 'not isnull(itemp)
+	Next iPos
+	
+	'##########################
+EndeSuccess:
+	strSubstringCountyZZZ = iStringCounter
+	Exit Function
+EndeError: 
+	strSubstringCountyZZZ = 0
+	Exit Function
+ErrorHandler:
+	Msgbox "Es ist ein Fehler aufgetreten: " & Error$ & " " & sScriptposition & " ( Zeile: " & Cstr(Erl) & " )"
+	Resume EndeError
+End Function
+Function ArrayStringAppendFromLastPositionZZZ(session As notessession, saArray As Variant, vWhat As Variant) As Variant
+%REM 2005-02-22
+FGL Ersetzt durch die Funktion
+ArrayStringIndexAppendZZZ
+%ENDREM	
+	
+' session = notessession
+' saArray = Array, an das die Werte angehängt werden sollen
+' vWhat = anzuhängender Wert	
+	
+' Beschreibung: Diese Funktion hängt an ein Stringarray weitere Strings an,
+'                         wobei die letzte Position des Stringarrays ersetzt wird
+' ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++	
+	
+	Dim sscript As String, sInfo As String, icode As Integer
+	sscript = "ZBasic.DataType.Depreciated\ArrayStringAppendFromLastPositionZZZ"
+	On Error Goto ErrorHandler
+	
+	
+	'### Variablen
+	Dim iCounterStart As Integer
+	Dim iCounter As Integer
+	Dim iCounterpos As Integer
+	Dim iCounterAll As Integer
+	Dim saTemp() As String
+	
+	'###
+	On Error Goto ErrorHandler
+	
+	'### Übergabeparameter prüfen
+	'Merke: Es kann ein uninitialisiertes Array vWhat nicht abgefangen werden !!!
+	
+	If Isnull(vWhat) Or Isnull(saArray) Then Goto EndeNull
+	If Isempty(saArray) Then Goto EndeEmptysaArray
+	If Isempty(vWhat) Then Goto EndeEmptyvWhat
+	
+	
+	
+	'#######################
+	If Isarray(saArray) Then
+		iCounterStart = Ubound(saArray)
+		
+		If Isarray(vWhat) Then
+			'Fall: Array um Array erweitern
+			iCounterAll = iCounterStart + Ubound(vWhat) ' eine Position weniger, da der letzte Wert des Arrays ersetzt werden soll			
+			Redim Preserve saArray(iCounterAll) As String		
+			iCounterPos = iCounterStart
+			
+			For iCounter = 0 To Ubound(vWhat)
+				saArray(iCounterPos) = Cstr(vWhat(iCounter))
+				iCounterPos = iCounterPos + 1
+			Next iCounter
+			
+		Else
+			'Fall: Array um Einzelstring erweitern, d.h. letzten Wert ersetzen
+			saArray(iCounterAll) = Cstr(vWhat)
+		End If
+	Else	
+		iCounterpos = -1
+		iCounterStart = 1
+		
+		If Isarray(vWhat) Then
+			Redim saTemp(0) As String 'das neue Array erstellen
+			
+			'Fall: Einzelwert um Array erweitern
+			iCounterAll = iCounterStart + Ubound(vWhat) ' eine Position weniger, da der letzte Wert des Arrays ersetzt werden soll			
+			Redim Preserve saTemp(iCounterAll) As String
+			iCounterPos = iCounterPos + 1
+			saTemp(iCounterPos) = saArray
+			
+			For iCounter = 0 To Ubound(vWhat)
+				iCounterPos = iCounterPos + 1
+				saTemp(iCounterPos) = Cstr(vWhat(iCounter))
+			Next iCounter
+		Else
+			'Fall: Einzelwert um Einzelwert erweitern, d.h. letzten Wert ersetzen	
+			saTemp(0) = vWhat
+		End If
+		
+	End If
+	
+	'###########
+EndeSuccess:
+	If Isarray(saArray) Then
+		ArrayStringAppendFromLastPositionZZZ = saArray 		'bestehendes Array wird also erweitert
+	Else
+		ArrayStringAppendFromLastPositionZZZ = saTemp		'Es muß ein neues Array ausgegeben werden
+	End If	
+	Exit Function
+EndeNull:
+	If Isnull(saArray) Then
+		ArrayStringAppendFromLastPositionZZZ = vWhat
+	End If
+	If Isnull(vWhat) Then 
+		ArrayStringAppendFromLastPositionZZZ = saArray
+	End If
+	Exit Function
+EndeEmptysaArray: 
+	ArrayStringAppendFromLastPositionZZZ = vWhat
+	Exit Function
+EndeEmptyvWhat: 
+	ArrayStringAppendFromLastPositionZZZ = saArray
+	Exit Function
+EndeError:
+	ArrayStringAppendFromLastPositionZZZ = Null
+	Exit Function
+ErrorHandler:
+	iCode = Err
+	If iCode = 200 Then
+		Stop
+		'das saArray ist nicht initialisiert, also initialisieren und weitermachen
+		Redim saArray(0) As String
+		iCounterStart = -1
+		Resume Next
+	Else
+		sinfo = Error$ & " " & sScript & " ( Line: " & Cstr(Erl) & " )"
+		Msgbox sinfo
+		Resume EndeError		
+	End If
+End Function
+Function ArrayStringNotContainsSensitiveZZZ(session As notessession, vArray As Variant, sWhatToFind As String, sFlagControlInput As String) As Integer
+%REM
+FGL:
+2005-02-25
+Diese Funktion wird durch die Erweiterung der Parameterliste von ArrayStringcontains überflüssig
+%END REM
+%REM
+Diese Funktion liefert True zurück, wenn der gesuchte String im Array vorhanden ist
+Diese Suche erfolgt gesteuert nach dem Flag:
+- LOWERCASE
+- UPPERCASE
+
+Rückgabeparameter:
+Die Position im Array wird zurückgegeben !!!
+Wird kein Eintrag gefunden, so wird -1 zurückgegeben.
+%ENDREM
+	
+	'### Voraussetzungen für die Protokollierung ###############################################
+	'Dim sScriptPosition As String	
+	'sScriptPosition = sLib & "\ArrayStringContainsIBW"
+	On Error Goto ErrorHandlerScript
+	'####	
+	Dim iCounter As Integer
+	Dim sFlagControl As String
+	Dim sWhat As String
+	
+	'### Übergabeparemter aufbereiten
+	sFlagControl = Lcase(Trim(sFlagcontrolinput))
+	
+	'###########
+	Select Case sFlagControl
+	Case "":
+		For iCounter = 0 To Ubound(vArray) 
+			If Instr(vArray(iCounter),sWhatToFind) Then		
+				Goto ArrayStringContainsSuccess
+			End If		
+		Next iCounter		
+	Case "lowercase":
+		sWhat = Lcase(sWhattofind)
+		For iCounter = 0 To Ubound(vArray) 
+			If Instr(Lcase(vArray(iCounter)),sWhat) Then		
+				Goto ArrayStringContainsSuccess
+			End If		
+		Next iCounter	
+	Case "uppercase":
+		sWhat = Ucase(sWhattofind)
+		For iCounter = 0 To Ubound(vArray) 
+			If Instr(Ucase(vArray(iCounter)),sWhat) Then		
+				Goto ArrayStringContainsSuccess
+			End If		
+		Next iCounter
+	End Select
+	
+	
+ArrayStringContainsNotFound:
+	ArrayStringNotContainsSensitiveZZZ = True
+	Exit Function
+	
+ArrayStringContainsSuccess:
+	ArrayStringNotContainsSensitiveZZZ = iCounter
+	Exit Function
+	
+ErrorHandlerScript:
+	Resume ArrayStringContainsNotFound
+End Function
+Function ArrayStringTrimFromVariantZZZ(session As notessession, vtemp As Variant, vArray As Variant) As Integer
+%REM
+FGL
+2004-02-26
+ArrayStringTrim bietet nun per se variant an.
+	
+%END REM
+%REM
+Fritz Lindhauer
+31.07.2002
+
+Diese Funktion liefert anhand eines Variants ein getrimmtes StringArray zurück
+Außerdem ist der Rückgabewert des Arrays der ubound
+%END REM 
+	
+	'### Voraussetzungen für die Protokollierung
+	Dim sScriptPosition As String
+	sScriptPosition = "ZBasic.DataType.Depreciated\ArrayStringTrimFromVariantZZZ"
+	On Error Goto ErrorHandler
+	
+	'############	
+	Dim itemp As Integer, stemp As String
+	Dim iCounter As Integer, iCounter2 As Integer
+	
+	'### Übergabeparameter
+	If Isempty(vtemp) Then Goto endeError
+	
+	'#################
+	If Isarray(vtemp) Then
+		Redim vArray(Ubound(vtemp))
+		For iCounter = 0 To Ubound(vtemp)
+			vArray(iCounter) = vtemp(iCounter)
+		Next iCounter
+	Else
+		iCounter = -1
+		iCounter2 = 0
+		While Not Isempty(vtemp(iCounter2))
+			If Len(vtemp(iCounter2)) > 0 Then
+				iCounter = iCounter + 1
+				Redim Preserve vArray(iCounter)
+				vArray(iCounter) = vtemp(iCounter2)			
+			End If
+			iCounter2 = iCounter2 + 1
+		Wend		
+	End If
+	
+	'############################
+EndeSuccess:
+	ArrayStringTrimFromVariantZZZ = iCounter
+	Exit Function	
+EndeError:
+	ArrayStringTrimFromVariantZZZ = -1	
+	Exit Function
+ErrorHandler:
+	Msgbox "Es ist ein Fehler aufgetreten: " & Error$ & " " & sScriptposition & " ( Zeile: " & Cstr(Erl) & " )"	
+	Resume EndeError
+End Function

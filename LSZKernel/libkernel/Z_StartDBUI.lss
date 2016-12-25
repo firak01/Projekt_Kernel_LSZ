@@ -1,0 +1,260 @@
+'muss rein, damit alle Funktionen global erreichbar sind. Als .lss Datei raus, wie auch alle Use-Einbindungen
+'%INCLUDE "C:\1fgl\workspace\Eclipse3FGL\LSZKernel\libkernel\ZAPI.Basic.Asset.lss"
+'Use "ZAPI.Basic..UI.." 
+'Use "ZBasic.API32.." 'Zum Schliessen der Datenbank, ggf. im Postopen
+'Use "ZBasic.DOM.."
+'Use "ZCore.Global.." 
+
+Function DBScriptPostopenUI(dbuiin As notesuidatabase, sApplicationKeyIn As String, sActionIn As String,  tp As TypeParamZZZ, sFlagControlin As String) As Boolean
+%REM
+Diese Funktion wird von LotusInstallCheckUI aufgerufen,
+beim Start der Datenbank.
+
+Hintergrund:
+Design wird versteckt und Code wird in eine .lss Datei ausgelagert. Wenn dann Lotus im Namen auftaucht, steigt die Akzeptanz
+%END REM
+	
+	Dim tpcall As TypePAramZZZ
+	On Error Goto erragt
+	Dim btemp, stemp, itemp, vtemp', ltemp, dtemp
+	
+	'### Hinweis
+	Dim iErg As Integer 'wird für end... benötigt
+%REM für das Starten  der Datenbank wird keinerlei Hinweis benötigt
+	iErg =Msgbox ("Testagent: " & Chr(13) & _ 
+	"Dieser Agent testet die Funktion, die zum Starten von Shell - Programmen wird. objDataShell.launch(..)." & Chr(13) &  _
+	"Das Shell-Programm wird vorher noch generiert."  & Chr(13) &  _
+	"Weiter ?",51, "Shell-programm starten")
+	If iErg <> 6 Then Goto EndFalse 
+%ENDREM	
+	
+	
+	'MERKE: Hier wird nicht erst vorher das uidoc etc. geholt, da dieser Agent aus der Outline gestartet wird und unabhängig sein soll von evtl. gerade markeirten dokumenten !!!!
+	'### Z-Objekt
+	Dim session As notessession
+	Set session = New notessession
+	
+	Dim ws As New NotesUIWorkspace
+	Dim dbui As notesuidatabase
+	If dbuiin Is Nothing Then
+		Set dbui = ws.CurrentDatabase
+	Else
+		Set dbui = dbuiin
+	End If
+	
+	Stop
+	Dim objLicense As LicenseZZZ
+	Set objLicense = New LicenseZZZ(session, "LicenseAllZZZ", Null, "")
+	If objLicense.Error.iCode > 0 Then Error iERR_OBJECT_ERR, objLicense.MessageAllReceive(Nothing, iMSG_TYPE_ERROR, "")
+	
+	btemp = objLicense.LicenseIsValid("", "")
+	If objLicense.Error.iCode > 0 Then Error iERR_OBJECT_ERR, objLicense.MessageAllReceive(Nothing, iMSG_TYPE_ERROR, "")
+	
+	If btemp = True Then Goto EndTrue
+	
+	'### Vielleicht klappt es ja ersatzweise eine Page zu öffen
+	Dim bFlagPageOpened As Boolean
+	ws.SetTargetFrame("Main")
+	ws.OpenPage("(pagLicenseZZZ)")
+	bFlagPageOpened = True
+	
+%REM So bekommt man zwar das Handle auf das Notes-Dokument aber: im Postopen der DB ist es dem Workspace-Objekt scheinbar nicht erlaubt dieses zu öffen.
+	'### Das About-Document der Datenbank öffnen
+	Dim db As NotesDatabase
+	Set db = dbui.Database
+	
+	Dim docAbout As NotesDocument
+	Set docAbout = db.GetDocumentByID("FFFF0002")
+	If Not docAbout Is Nothing Then
+		Dim ws As New NotesUIWorkspace
+		Dim docui As NotesUIDocument
+		'Editdocument(optional byval editmode, optional byval notesdocument, optional byval notesdocumentreadonly, optional byval notesdocumentanchor as string, optional byval returnnotesuidocument, optional byval newinstance) as notesuidocument
+		Set docui = ws.Editdocument(False, docabout, True, ,True , True)
+	End If
+%ENDREM
+	
+	'### Eingabe eines neuen Keys
+	Dim sKey As String
+	
+	
+	Do
+		'+++ Meldung ausgeben
+		If btemp = False Then Msgbox "License-Object reports: " & strcrlfzzz(1) & objLicense.MessageAllReceive(Nothing, iMSG_TYPE_INFO, "")
+		
+		'+++ Nun die Eingabe eines Lizenz-Keys anbieten
+		sKey = Inputbox("Please insert a valid license key.", "License key recommended","" )
+		If Len(Trim(sKey)) = 0 Then Goto EndFalse
+		
+		'+++ Den eingegebenen Key Prüfen
+		btemp = objLicense.KeyIsValid(sKey, "")
+		If objLicense.Error.iCode > 0 Then Error iERR_OBJECT_ERR, objLicense.MessageAllReceive(Nothing, iMSG_TYPE_ERROR, "")	
+	Loop Until btemp = True
+	
+	'+++ Den eingegebenen Key setzen
+	Call objLicense.KeySet("", sKey, "")
+	If objLicense.Error.iCode > 0 Then Error iERR_OBJECT_ERR, objLicense.MessageAllReceive(Nothing, iMSG_TYPE_ERROR, "")		
+	
+	Msgbox "License key is valid and set."
+	If bFlagPageOpened = True Then
+		Call bNotesWindowTabbedCloseZZZ(session, 0, tpcall, "")	 'Das schliesst die Page. Den aktuellen Tab.
+	End If
+	
+	'+++ Das "about" Document der Datenbank öffnen. Darin befindete sich ein Button zur "Quick configuration"
+	'agtToolDocDefaultStartUIZZZ(wsIn As notesuiworkspace, sApplicationKeyIn As String, sAlias As String, tp As TypeParamZZZ, sFlagControl As String) As Boolean
+	Call agtDBDocDefaultStartUIZZZ(ws, sApplicationKeyIn, "ABOUT", tpcall, "")
+	If tpcall.ierr > 0 Then Error iERR_FUNCTION_CALL, tpcall.serr
+	
+	'##################	
+endTrue:	
+	'Hier nicht schliessen. Das würde das 'About' Document schliessen
+	DBScriptPostopenUI = True
+	Exit Function
+endFalse:
+	If bFlagPageOpened = True Then
+		Call dbui.Close		'Nun kann die Datenbank geschlossen werden. 
+		Call bNotesWindowTabbedCloseZZZ(session, 0, tpcall, "")	'Das schliesst den aktuellen Tab. Die Page darf nicht offenbleiben, sonst wird das Postopen der Datenbank beim nächsten Mal nicht ausgeführt.
+	Else
+		Call bNotesWindowTabbedCloseZZZ(session, 0, tpcall, "")	'Das schliesst den aktuellen Tab. Die Datenbank. Direktes Schliesse bringt Fehler.
+	End If
+	
+	DBScriptPostopenUI = False
+	Exit Function
+EndError:
+	If bFlagPageOpened = True Then
+		Call dbui.Close		'Nun kann die Datenbank geschlossen werden. Die Page bleibt zu "Werbezwecken" auf.
+		Call bNotesWindowTabbedCloseZZZ(session, 0, tpcall, "")	'Das schliesst den aktuellen Tab. Die Page darf nicht offenbleiben, sonst wird das Postopen der Datenbank beim nächsten Mal nicht ausgeführt.
+	Else
+		Call bNotesWindowTabbedCloseZZZ(session, 0, tpcall, "")	'Das schliesst den aktuellen Tab. Die Datenbank. Direktes Schliesse bringt Fehler.
+	End If
+	DBScriptPostopenUI = False
+	Exit Function
+erragt: 
+	tp.ierr = Err 'Beim wiederholten Aufruf (d.h. zwei Zeilen hintereinanger ' Error iERR_NEXT, "das ist ein text" ' aufrufen) verliert Err zwei Stellen von rechts nach dem Aufruf der MEthode objMe.MessageAppend(..) !!!! 
+	Select Case tp.ierr
+	Case iASSERT_FALSE, iASSERT_TRUE: 
+		Resume Next  'd.h. es soll keine Information über den Message oder den Error Kanals ausgegeben werden.
+	Case iASSERT_FALSE_CRITICAL: 
+		Resume EndFalse
+	Case iASSERT_TRUE_CRITICAL:
+		Resume EndTrue
+	End Select
+	
+	Dim sessionerrh As New NotesSession,nagent As NotesAgent
+	Set nagent = sessionerrh.CurrentAgent
+	
+	Dim sScripterrh As String
+	sScripterrh = nagent.Name & "\" & Getthreadinfo(LSI_THREAD_PROC)
+	
+	Dim tperrh As TypeParamZZZ
+	tp.serr = strMsgZZZ(Sessionerrh,  tp.sErr, sScripterrh, Erl, Error$, tp.ierr, tperrh, "") 'MERKE: Ohne die Session übergabe fehlen hier/werden weggelassen die Informationen über "Agentenname", etc.
+	If tperrh.iErr > 0 Then 
+		Msgbox tperrh.sErr   'Fehler im Errorhandling sofort ans Frontend/Serverlog ausgeben	
+		Resume enderror
+	End If
+	
+	Select Case tp.ierr
+	Case iMSG_NEXT, iERR_NEXT, iMSG_AGENT_NEXT, iERR_AGENT_NEXT: Resume Next
+	Case iMSG_TRUE, iERR_TRUE, iMSG_AGENT_TRUE, iERR_AGENT_TRUE, iMSG_ASSERT_TRUE, iERR_ASSERT_TRUE: Resume EndTrue
+	Case iMSG_FALSE, iERR_FALSE, iMSG_AGENT_FALSE, iERR_AGENT_FALSE, iMSG_ASSERT_FALSE, iERR_ASSERT_FALSE: Resume EndFalse
+	Case iERR_OBJECT_ERR, iERR_OBJECT_CUR, iERR_AGENT_CALL, iMSG_ASSERT_FALSE_CRITICAL, iERR_ASSERT_FALSE_CRITICAL: Resume EndError 'Ziel: Nicht jeden Fehler ins Log stellen
+	Case Else: 
+		stemp = MSG2SinkSendZZZ(sessionerrh, "", Nothing, "", "", tp.serr, 1, tperrh, "")
+		If tperrh.ierr > 0 Then 
+			Msgbox sScripterrh & "#" & tperrh.serr
+		Else
+			Msgbox "End of serveragent: More in '" & stemp & "'"
+		End If
+		Resume EndError
+	End Select 		
+'%ENDREM	
+End Function
+Function agtDBDocDefaultStartUIZZZ(wsIn As notesuiworkspace, sApplicationKeyIn As String, sAlias As String, tp As TypeParamZZZ, sFlagControl As String) As Boolean
+	Dim sScript As String, tpcall As TypeParamZZZ
+	sScript = "Z_StartDBUI\" & Getthreadinfo(LSI_THREAD_PROC)
+	On Error Goto errAgt
+	Dim btemp, stemp, itemp, vtemp', ltemp, dtemp
+	
+	Dim session As New notessession
+	Dim ws As New notesuiworkspace	
+	Dim doc As notesdocument, uidoc As notesuidocument
+	
+	'+++ Dokument per Alias holen
+	Stop
+	Set doc = docDBDefaultGetZZZ(session, Nothing, sAlias, tpcall, "")
+	If tpcall.ierr > 0 Then Error iERR_FUNCTION_CALL, tpcall.serr
+	
+	If doc Is Nothing Then Error iERR_PARAM_VALUE, "No document available for the alias '" & sAlias & "'"
+	doc.flagButtonConfigQuickShowZZZ = "1"
+	Call doc.Save(True, False, False)
+	
+	'+++ Dokument öffnen
+	'Select Case sFlagControl
+	'Case "DLGBOX":
+	'	vtemp = ws.Dialogbox(doc.Form(0), True, True, False, True, True,False, "Default document '" & sAlias & "'", doc, False, False)
+	'Case Else
+		'Editdocument(optional byval editmode, optional byval notesdocument, optional byval notesdocumentreadonly, optional byval notesdocumentanchor as string, optional byval returnnotesuidocument, optional byval newinstance) as notesuidocument
+		'Set uidoc = ws.EditDocument(True,doc)  'Das bringt den Client zum Abstruz
+	On Error Goto errnext
+	Call ws.EditDocument(False,doc, False,"",False,False)  'Dokument öffnet sich, es wird aber der Fehler "Unable to find document window" ausgegeben.	
+		'Call ws.EditDocument(False,doc, True,"",False,False)  'Dokument öffnet sich nicht, es wird ein Fehler "Document can not be found in a view" ausgegeben.
+	'End Select	
+	On Error Goto errAgt
+	
+	doc.RemoveItem("flagButtonConfigQuickShow")  'Altlast
+	doc.flagButtonConfigQuickShowZZZ = ""
+	Call doc.Save(True, False, False)
+	
+endTrue:
+	agtDBDocDefaultStartUIZZZ= True
+	Exit Function
+errnext:
+	Resume Next
+endFalse:
+	agtDBDocDefaultStartUIZZZ = False
+	Exit Function
+EndError:
+	agtDBDocDefaultStartUIZZZ = False
+	Exit Function
+erragt: 
+	tp.ierr = Err 'Beim wiederholten Aufruf (d.h. zwei Zeilen hintereinanger ' Error iERR_NEXT, "das ist ein text" ' aufrufen) verliert Err zwei Stellen von rechts nach dem Aufruf der MEthode objMe.MessageAppend(..) !!!! 
+	Select Case tp.ierr
+	Case iASSERT_FALSE, iASSERT_TRUE: 
+		Resume Next  'd.h. es soll keine Information über den Message oder den Error Kanals ausgegeben werden.
+	Case iASSERT_FALSE_CRITICAL: 
+		Resume EndFalse
+	Case iASSERT_TRUE_CRITICAL:
+		Resume EndTrue
+	End Select
+	
+	Dim sessionerrh As New NotesSession,nagent As NotesAgent
+	Set nagent = sessionerrh.CurrentAgent
+	
+	Dim sScripterrh As String
+	sScripterrh = nagent.Name & "\" & Getthreadinfo(LSI_THREAD_PROC)
+	
+	Dim tperrh As TypeParamZZZ
+	tp.serr = strMsgZZZ(Sessionerrh,  tp.sErr, sScripterrh, Erl, Error$, tp.ierr, tperrh, "") 'MERKE: Ohne die Session übergabe fehlen hier/werden weggelassen die Informationen über "Agentenname", etc.
+	If tperrh.iErr > 0 Then 
+		Msgbox tperrh.sErr   'Fehler im Errorhandling sofort ans Frontend/Serverlog ausgeben	
+		Resume enderror
+	End If
+	
+	Select Case tp.ierr
+	Case iMSG_NEXT, iERR_NEXT, iMSG_AGENT_NEXT, iERR_AGENT_NEXT: Resume Next
+	Case iMSG_TRUE, iERR_TRUE, iMSG_AGENT_TRUE, iERR_AGENT_TRUE, iMSG_ASSERT_TRUE, iERR_ASSERT_TRUE: Resume EndTrue
+	Case iMSG_FALSE, iERR_FALSE, iMSG_AGENT_FALSE, iERR_AGENT_FALSE, iMSG_ASSERT_FALSE, iERR_ASSERT_FALSE: Resume EndFalse
+	Case iERR_OBJECT_ERR, iERR_OBJECT_CUR, iERR_AGENT_CALL, iMSG_ASSERT_FALSE_CRITICAL, iERR_ASSERT_FALSE_CRITICAL: Resume EndError 'Ziel: Nicht jeden Fehler ins Log stellen
+	Case Else: 
+		stemp = MSG2SinkSendZZZ(sessionerrh, "", Nothing, "", "", tp.serr, 1, tperrh, "")
+		If tperrh.ierr > 0 Then 
+			Msgbox sScripterrh & "#" & tperrh.serr
+		Else
+			Msgbox "End of serveragent: More in '" & stemp & "'"
+		End If
+		Resume EndError
+	End Select 		
+End Function
+Public Function LotusInstallCheckUI()
+	Dim tp As TypeParamZZZ
+	Call DBScriptPostopenUI(Nothing, "", "",  tp, "")
+End Function 

@@ -1,0 +1,15 @@
+'%INCLUDE "C:\1fgl\workspace\Eclipse3FGL\LSZKernel\libkernel\ZAPI.Basic.Asset.lss"
+'Use "ZAPI.Basic.Constant"  
+'%INCLUDE "C:\1fgl\workspace\Eclipse3FGL\LSZKernel\libkernel\ZAPI.Basic.Constant.lss"
+
+'##############################
+'Dies wird hier nicht verwendet. Darum ZAPI.Basic..ADummy..              und nicht die Originalversion ZAPI.Basic..
+'Use "ZAPI.Basic.Lang.Markup"
+'%INCLUDE "C:\fglKernel\KernelCode\LS\Dev\current\ZAPI.Basic.Lang.Markup.lss"
+'##############################
+
+'Use "ZAPI.Basic.Message"
+'%INCLUDE "C:\1fgl\workspace\Eclipse3FGL\LSZKernel\libkernel\ZAPI.Basic.Message.lss"
+'use "ZAPI.Basic.ZDummy"
+%INCLUDE "C:\1fgl\workspace\Eclipse3FGL\LSZKernel\libkernel\ZAPI.Basic.ZDummy.lss"  'Als Alternative zu ZAPI.Basic.ZMessage, halt sehr simpel gehalten. Dient lediglich dazu einfache Kernel Funktionen nutzen zu können
+
